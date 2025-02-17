@@ -40,7 +40,7 @@ If you do not have Python installed, use the appropriate `curl` or `irm` method 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone XXXXXXX
+git clone scottkleinman/uv_lexos
 ```
 
 `cd` into the project directory and run `uv pip sync pyproject.toml`. This will install all dependencies into the `.venv` directory (the virtual environment), including the appropriate version of Python.
