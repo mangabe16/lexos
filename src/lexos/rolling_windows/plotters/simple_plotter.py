@@ -1,0 +1,581 @@
+"""simple_plotter.py.
+
+Last Update: February 16, 2025
+Last Tested: February 10, 2025
+"""
+
+from pathlib import Path
+from typing import ClassVar, Optional
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.axes._axes import Axes
+from pydantic import BaseModel, ConfigDict, Field, validate_call
+from scipy.interpolate import interp1d, pchip
+
+from lexos.exceptions import LexosException
+from lexos.rolling_windows.plotters.base_plotter import BasePlotter
+
+
+def interpolate(
+    x: np.ndarray, y: np.ndarray, xx: np.ndarray, interpolation_kind: str = None
+) -> np.ndarray:
+    """Get interpolated points for plotting.
+
+    Args:
+        x (np.ndarray): The x values
+        y (np.ndarray): The y values
+        xx (np.ndarray): The projected interpolation range
+        interpolation_kind (str): The interpolation function to use.
+
+    Returns:
+        The interpolated points.
+
+    Note:
+        The interpolation function may be either
+        [scipy.interpolate.pchip_interpolate](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.pchip_interpolate.html#scipy.interpolate.pchip_interpolate),
+        [numpy.interp](https://numpy.org/devdocs/reference/generated/numpy.interp.html#numpy.interp),
+        or one of the options for [scipy.interpolate.interp1d](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html).
+        Note however, that `scipy.interpolate.interp1d` is [deprecated](https://docs.scipy.org/doc/scipy/tutorial/interpolate/1D.html#piecewise-linear-interpolation).
+    """
+    legacy_interp1d = [
+        "linear",
+        "nearest",
+        "nearest-up",
+        "zero",
+        "slinear",
+        "quadratic",
+        "cubic",
+        "previous",
+        "next",
+    ]
+    # Return the values interpolated with the specified function
+    if interpolation_kind == "pchip":
+        interpolator = pchip(x, y)
+        return interpolator(xx)
+    elif interpolation_kind in legacy_interp1d:
+        interpolator = interp1d(x, y, kind=interpolation_kind)
+        return interpolator(xx)
+    else:
+        return np.interp(xx, x, y)
+
+class MilestonesModel(BaseModel):
+    """Model for the milestone labels and their positions on the x axis.
+
+    Ensures that milestone labels exist, are properly structured, and valid.
+    """
+
+    milestone_labels: dict[str, int]
+
+
+class SimplePlotter(BasePlotter):
+    """Simple plotter using pyplot."""
+
+    id: ClassVar[str] = "rw_simple_plotter"
+    width: Optional[float | int] = Field(
+        default=6.4, json_schema_extra={"description": "The width in inches."}
+    )
+    height: Optional[float | int] = Field(
+        default=4.8, json_schema_extra={"description": "The height in inches."}
+    )
+    figsize: Optional[tuple[float | int, float | int]] = Field(
+        default=None,
+        json_schema_extra={
+            "description": "A tuple containing the width and height in inches (overrides the previous keywords)."
+        },
+    )
+    hide_spines: Optional[list[str]] = Field(
+        default=["top", "right"],
+        json_schema_extra={
+            "description": "A list of ['top', 'right', 'bottom', 'left'] indicating which spines to hide."
+        },
+    )
+    title: Optional[str] = Field(
+        default="Rolling Windows Plot",
+        json_schema_extra={"description": "The title to use for the plot."},
+    )
+    titlepad: Optional[float | int] = Field(
+        default=6.0,
+        json_schema_extra={
+            "description": "The padding in points to place between the title and the plot. May need to be increased if you are showing milestone labels."
+        },
+    )
+    title_position: Optional[str] = Field(
+        default="top",
+        json_schema_extra={
+            "description": "Show the title on the 'bottom' or the 'top' of the figure."
+        },
+    )
+    show_legend: Optional[bool] = Field(
+        default=True, json_schema_extra={"description": "Whether to show the legend."}
+    )
+    show_grid: Optional[bool] = Field(
+        default=False, json_schema_extra={"description": "Whether to show the grid."}
+    )
+    xlabel: Optional[str] = Field(
+        default="Token Count",
+        json_schema_extra={"description": "The text to display along the x axis."},
+    )
+    ylabel: Optional[str] = Field(
+        default="Average Frequency",
+        json_schema_extra={"description": "The text to display along the y axis."},
+    )
+    show_milestones: Optional[bool] = Field(
+        default=False,
+        json_schema_extra={"description": "Whether to show the milestone markers."},
+    )
+    milestone_colors: Optional[list[str] | str] = Field(
+        default="teal",
+        json_schema_extra={
+            "description": "The colour or colours to use for milestone markers. See pyplot.vlines()."
+        },
+    )
+    milestone_style: Optional[str] = Field(
+        default="--",
+        json_schema_extra={
+            "description": "The style of the milestone markers. See pyplot.vlines()."
+        },
+    )
+    milestone_width: Optional[int] = Field(
+        default=1,
+        json_schema_extra={
+            "description": "The width of the milestone markers. See pyplot.vlines()."
+        },
+    )
+    show_milestone_labels: Optional[bool] = Field(
+        default=False,
+        json_schema_extra={"description": "Whether to show the milestone labels."},
+    )
+    milestone_labels: Optional[dict] = Field(
+        default=None,
+        json_schema_extra={
+            "description": "A dict with keys as milestone labels and values as token indexes."
+        },
+    )
+    milestone_labels_ha: Optional[str] = Field(
+        default="left",
+        json_schema_extra={
+            "description": "The horizontal alignment of the milestone labels. See pyplot.annotate()."
+        },
+    )
+    milestone_labels_va: Optional[str] = Field(
+        default="baseline",
+        json_schema_extra={
+            "description": "The vertical alignment of the milestone labels. See pyplot.annotate()."
+        },
+    )
+    milestone_labels_rotation: Optional[int] = Field(
+        default=45,
+        json_schema_extra={
+            "description": "The rotation of the milestone labels. See pyplot.annotate()."
+        },
+    )
+    milestone_labels_offset: Optional[tuple] = Field(
+        default=(-8, 4),
+        json_schema_extra={
+            "description": "A tuple containing the number of pixels along the x and y axes to offset the milestone labels. See pyplot.annotate()."
+        },
+    )
+    milestone_labels_textcoords: Optional[str] = Field(
+        default="offset pixels",
+        json_schema_extra={
+            "description": "Whether to offset milestone labels by pixels or points. See pyplot.annotate(str)."
+        },
+    )
+    use_interpolation: Optional[bool] = Field(
+        default=False,
+        json_schema_extra={"description": "Whether to use interpolation on values."},
+    )
+    interpolation_num: Optional[int] = Field(
+        default=500,
+        json_schema_extra={"description": "Number of values to add between points."},
+    )
+    interpolation_kind: Optional[str] = Field(
+        default="pchip",
+        json_schema_extra={"description": "Algorithm to use for interpolation."},
+    )
+    fig: Optional[plt.Figure] = None
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def _validate_edge_cases(self) -> None:
+        """Validate edge cases for the PlotlyPlotter."""
+        if self.show_milestones or self.show_milestone_labels:
+            try:
+                MilestonesModel(milestone_labels=self.milestone_labels)
+            except ValueError:
+                raise LexosException(
+                    "The `show_milestones` and `show_milestone_labels` parameters require a value for `milestone_labels`. It should be a list of dicts where the keys are labels and the values are points on the x axis."
+                )
+
+    def __init__(self, **kwargs) -> None:
+        """Initialise the instance with arbitrary keywords."""
+        super().__init__(**kwargs)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        self._validate_edge_cases()
+
+    @validate_call(config=model_config)
+    def __call__(
+        self,
+        df: pd.DataFrame = Field(
+            ...,
+            json_schema_extra={
+                "description": "A dataframe containing the data to plot."
+            },
+        ),
+        width: Optional[float | int] = Field(
+            default=6.4, json_schema_extra={"description": "The width in inches."}
+        ),
+        height: Optional[float | int] = Field(
+            default=4.8, json_schema_extra={"description": "The height in inches."}
+        ),
+        figsize: Optional[tuple[float | int, float | int]] = Field(
+            default=None,
+            json_schema_extra={
+                "description": "A tuple containing the width and height in inches (overrides the previous keywords)."
+            },
+        ),
+        hide_spines: Optional[list[str]] = Field(
+            default=["top", "right"],
+            json_schema_extra={
+                "description": "A list of ['top', 'right', 'bottom', 'left'] indicating which spines to hide."
+            },
+        ),
+        title: Optional[str] = Field(
+            default="Rolling Windows Plot",
+            json_schema_extra={"description": "The title to use for the plot."},
+        ),
+        titlepad: Optional[float | int] = Field(
+            default=6.0,
+            json_schema_extra={
+                "description": "The padding in points to place between the title and the plot. May need to be increased if you are showing milestone labels."
+            },
+        ),
+        title_position: Optional[str] = Field(
+            default="top",
+            json_schema_extra={
+                "description": "Show the title on the 'bottom' or the 'top' of the figure."
+            },
+        ),
+        show_legend: Optional[bool] = Field(
+            default=True,
+            json_schema_extra={"description": "Whether to show the legend."},
+        ),
+        show_grid: Optional[bool] = Field(
+            default=False,
+            json_schema_extra={"description": "Whether to show the grid."},
+        ),
+        xlabel: Optional[str] = Field(
+            default="Token Count",
+            json_schema_extra={"description": "The text to display along the x axis."},
+        ),
+        ylabel: Optional[str] = Field(
+            default="Average Frequency",
+            json_schema_extra={"description": "The text to display along the y axis."},
+        ),
+        show_milestones: Optional[bool] = Field(
+            default=False,
+            json_schema_extra={"description": "Whether to show the milestone markers."},
+        ),
+        milestone_colors: Optional[list[str] | str] = Field(
+            default="teal",
+            json_schema_extra={
+                "description": "The colour or colours to use for milestone markers. See pyplot.vlines()."
+            },
+        ),
+        milestone_style: Optional[str] = Field(
+            default="--",
+            json_schema_extra={
+                "description": "The style of the milestone markers. See pyplot.vlines()."
+            },
+        ),
+        milestone_width: Optional[int] = Field(
+            default=1,
+            json_schema_extra={
+                "description": "The width of the milestone markers. See pyplot.vlines()."
+            },
+        ),
+        show_milestone_labels: Optional[bool] = Field(
+            default=False,
+            json_schema_extra={"description": "Whether to show the milestone labels."},
+        ),
+        milestone_labels: Optional[dict] = Field(
+            default=None,
+            json_schema_extra={
+                "description": "A dict with keys as milestone labels and values as token indexes."
+            },
+        ),
+        milestone_labels_ha: Optional[str] = Field(
+            default="left",
+            json_schema_extra={
+                "description": "The horizontal alignment of the milestone labels. See pyplot.annotate()."
+            },
+        ),
+        milestone_labels_va: Optional[str] = Field(
+            default="baseline",
+            json_schema_extra={
+                "description": "The vertical alignment of the milestone labels. See pyplot.annotate()."
+            },
+        ),
+        milestone_labels_rotation: Optional[int] = Field(
+            default=45,
+            json_schema_extra={
+                "description": "The rotation of the milestone labels. See pyplot.annotate()."
+            },
+        ),
+        milestone_labels_offset: Optional[tuple] = Field(
+            default=(-8, 4),
+            json_schema_extra={
+                "description": "A tuple containing the number of pixels along the x and y axes to offset the milestone labels. See pyplot.annotate()."
+            },
+        ),
+        milestone_labels_textcoords: Optional[str] = Field(
+            default="offset pixels",
+            json_schema_extra={
+                "description": "Whether to offset milestone labels by pixels or points. See pyplot.annotate(str)."
+            },
+        ),
+        use_interpolation: Optional[bool] = Field(
+            default=False,
+            json_schema_extra={
+                "description": "Whether to use interpolation on values."
+            },
+        ),
+        interpolation_num: Optional[int] = Field(
+            default=500,
+            json_schema_extra={
+                "description": "Number of values to add between points."
+            },
+        ),
+        interpolation_kind: Optional[str] = Field(
+            default="pchip",
+            json_schema_extra={"description": "Algorithm to use for interpolation."},
+        ),
+        show_plot: Optional[bool] = Field(
+            default=True,
+            json_schema_extra={
+                "description": "Whether to show the plot when the instance is called."
+            },
+        ),
+        **kwargs,
+    ) -> None:
+        """Call the plotter.
+
+        Args:
+            **kwargs: Additional keyword arguments accepted by matplotlib.pyplot.plot().
+        """
+        self._set_attrs(
+            width=width,
+            height=height,
+            figsize=figsize,
+            hide_spines=hide_spines,
+            title=title,
+            titlepad=titlepad,
+            title_position=title_position,
+            show_legend=show_legend,
+            show_grid=show_grid,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            show_milestones=show_milestones,
+            milestone_colors=milestone_colors,
+            milestone_style=milestone_style,
+            milestone_width=milestone_width,
+            show_milestone_labels=show_milestone_labels,
+            milestone_labels=milestone_labels,
+            milestone_labels_ha=milestone_labels_ha,
+            milestone_labels_va=milestone_labels_va,
+            milestone_labels_rotation=milestone_labels_rotation,
+            milestone_labels_offset=milestone_labels_offset,
+            milestone_labels_textcoords=milestone_labels_textcoords,
+            use_interpolation=use_interpolation,
+            interpolation_num=interpolation_num,
+            interpolation_kind=interpolation_kind,
+        )
+        self._validate_edge_cases()
+        # Get the plot dimensions and title position
+        width, height = self._get_width_height()
+        titlepad = self.titlepad
+        titlepad = self._adjust_titlepad(titlepad, width, height)
+
+        # Generate the plot
+        fig, ax = plt.subplots(figsize=(width, height))
+
+        # Set the spines
+        for spine in self.hide_spines:
+            ax.spines[spine].set_visible(False)
+
+        # Labels and title
+        plt.margins(x=0, y=0)
+        plt.ticklabel_format(axis="both", style="plain")
+        if self.title_position == "bottom":
+            plt.title(self.title, y=-0.25)
+        else:
+            plt.title(self.title, pad=titlepad)
+        # TODO: plt.xlabel(self.xlabel, fontsize=10)
+        plt.xlabel(self.xlabel)
+        plt.ylabel(self.ylabel)
+
+        # Grid
+        if self.show_grid:
+            plt.grid(visible=True)
+
+        # Interpolation
+        if self.use_interpolation:
+            self._plot_interpolated(df, **kwargs)
+        else:
+            for term in df.columns:
+                plt.plot(df[term].values.tolist(), label=term, **kwargs)
+        if self.show_legend:
+            plt.legend()
+
+        # If milestones have been set, plot them
+        if self.show_milestones or self.show_milestone_labels:
+            self._show_milestones(df, ax)
+
+        # Assign the plot
+        self.fig = fig
+
+        # Show the plot by default
+        if not show_plot:
+            plt.close()
+
+    def _adjust_titlepad(self, titlepad: float, width: float, height: float) -> None:
+        """Hack to move the title above the labels.
+
+        Args:
+            titlepad (float): The padding in points to place between the title and the plot.
+            width (float): The width of the plot.
+            height (float): The height of the plot.
+        """
+        fig, ax = plt.subplots(figsize=(width, height))
+        plt.close()
+        if self.show_milestone_labels and self.title_position == "top":
+            # Only override self.titlepad if it is the default value
+            if self.titlepad == 6.0:
+                titlepad = self._get_label_height(
+                    self.milestone_labels, self.milestone_labels_rotation
+                )
+        return titlepad
+
+    def _get_label_height(
+        self, milestone_labels: dict, milestone_labels_rotation: int
+    ) -> float:
+        """Calculate the height of the longest milestone label.
+
+        Args:
+            milestone_labels (dict): A dict containing milestone labels and x-axis positions.
+            milestone_labels_rotation (int): The rotation in degrees of the labels
+
+        Returns:
+            float: The height of the longest label.
+
+        Note:
+            This method is a hack to calculate the label height using a separate plot.
+        """
+        tmp_fig, tmp_ax = plt.subplots()
+        r = tmp_fig.canvas.get_renderer()
+        heights = set()
+        for x in list(milestone_labels.keys()):
+            t = tmp_ax.annotate(
+                x,
+                xy=(0, 0),
+                xytext=(0, 0),
+                textcoords="offset points",
+                rotation=milestone_labels_rotation,
+            )
+            bb = t.get_window_extent(renderer=r)
+            heights.add(bb.height)
+        plt.close()
+        return max(list(heights))
+
+    def _get_width_height(self) -> tuple[float, float]:
+        """Set the figure size for the plot.
+
+        Returns:
+            tuple[float, float]: A tuple containing the width and height in inches.
+        """
+        if self.figsize:
+            width = self.figsize[0]
+            height = self.figsize[1]
+        else:
+            width = self.width
+            height = self.height
+        return (width, height)
+
+    def _plot_interpolated(self, df: pd.DataFrame, **kwargs) -> None:
+        """Plot with interpolate dvalues between points.
+
+        Args:
+            df (pd.DataFrame): A dataframe containing the data to plot.
+        """
+        x = np.arange(df.shape[0])
+        xx = np.linspace(x[0], x[-1], self.interpolation_num)
+        for term in df.columns:
+            y = np.array(df[term].values.tolist())
+            interpolated = interpolate(x, y, xx, self.interpolation_kind)
+            plt.plot(xx, interpolated, label=term, **kwargs)
+
+    def _show_milestones(self, df: pd.DataFrame, ax: Axes) -> None:
+        """Plot the milestone markers and labels.
+
+        Args:
+            df (pd.DataFrame): A dataframe containing the data to plot.
+            ax (Axes): The axes object to plot on.
+        """
+        # Plot the milestones with adjustments to the margin and spines
+        # This looks like it is the highest value
+        ymax = df.to_numpy().max()
+        for k, v in self.milestone_labels.items():
+            if self.show_milestones:
+                plt.vlines(
+                    x=v,
+                    ymin=0,
+                    ymax=ymax,
+                    colors=self.milestone_colors,
+                    ls=self.milestone_style,
+                    lw=self.milestone_width,
+                )
+            if self.show_milestone_labels:
+                ax.annotate(
+                    k,
+                    xy=(v, ymax),
+                    ha=self.milestone_labels_ha,
+                    va=self.milestone_labels_va,
+                    rotation=self.milestone_labels_rotation,
+                    xytext=self.milestone_labels_offset,
+                    textcoords=self.milestone_labels_textcoords,
+                )
+
+    @validate_call
+    def save(self, path: Path | str, **kwargs) -> None:
+        """Save the plot to a file (wrapper for `pyplot.savefig()`).
+
+        Args:
+            path (Path | str): The path to the file to save.
+
+        Returns:
+            None
+        """
+        if not self.fig:
+            raise LexosException(
+                "There is no plot to save. You must first calling `plotter(data)`."
+            )
+        self.fig.savefig(path, **kwargs)
+
+    def show(self, **kwargs) -> None:
+        """Display a plot.
+
+                Note:
+                    Calling pyplot.show() doesn't work with an inline backend like Jupyter notebooks,
+        `            so we need to detect this via a UserWarning and then call the `fig` attribute.
+        """
+        if not self.fig:
+            raise LexosException(
+                "There is no plot to show. You must first call `plotter(data)`."
+            )
+        try:
+            self.fig.show(**kwargs)
+        except UserWarning:
+            return self.fig
