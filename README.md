@@ -43,7 +43,7 @@ If you do not have Python installed, use the appropriate `curl` or `irm` method 
 git clone scottkleinman/uv_lexos
 ```
 
-`cd` into the project directory and run `uv pip sync pyproject.toml`. This will install all dependencies into the `.venv` directory (the virtual environment), including the appropriate version of Python.
+`cd` into the project directory and run `uv venv` to create virtual environment. Then run `uv pip sync pyproject.toml`. This will install all dependencies into the `.venv` directory, including the appropriate version of Python.
 
 Activate the environment with `.venv/Scripts/activate` (use backslashes on Windows). You can deactivate the environment with `deactivate`.
 
