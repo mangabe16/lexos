@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Update: February 17, 2025
-Last Tested: February 18, 2025
+Last Update: Jan 28, 2025
+Last Tested: Jan 28, 2025
 """
 
 from typing import Callable, Iterable, Literal, Optional
@@ -72,7 +72,7 @@ class DTM(BaseModel):
     docs: Optional[list[list[str] | Doc]] = Field(
         default=None, json_schema_extra={"description": "A list of spaCy docs or a list of token lists."}
     )
-    labels: Optional[list[str]] = Field(
+    labels: Optional[Iterable[str]] = Field(
         default=None, json_schema_extra={"description": "A list of labels for the documents."}
     )
     vectorizer: Optional[Callable] = Field(
@@ -88,15 +88,6 @@ class DTM(BaseModel):
 
     model_config = validation_config
 
-    @property
-    def shape(self) -> tuple[int, int]:
-        """Return the shape of the DTM.
-
-        Returns:
-            tuple[int, int]: The shape of the DTM.
-        """
-        return self.doc_term_matrix.get_shape()
-
     def __call__(
         self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]
     ) -> None:
@@ -104,7 +95,7 @@ class DTM(BaseModel):
 
         Args:
             docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
-            labels (list[str]): A list of labels for the documents.
+            labels (Iterable[str]): A list of labels for the documents.
 
         Note:
             - If you want to filter the docs by token attributes, you can do so beforehand
@@ -227,26 +218,26 @@ class DTM(BaseModel):
 
     def to_df(
         self,
-        by: Optional[list | list[str]] = None,
-        ascending: Optional[bool | list[bool]] = True,
-        as_percent: Optional[bool] = False,
-        rounding: Optional[int] = 3,
-        transpose: Optional[bool] = False,
-        sum: Optional[bool] = False,
-        mean: Optional[bool] = False,
-        median: Optional[bool] = False,
+        by: list | list[str] = None,
+        ascending: bool | list[bool] = True,
+        as_percent: bool = False,
+        rounding: int = 3,
+        transpose: bool = False,
+        sum: bool = False,
+        mean: bool = False,
+        median: bool = False,
     ) -> pd.DataFrame:
         """Return the whole DTM as a pandas dataframe.
 
         Args:
-            by (Optional[list | list[str]]): The column(s) to sort by.
-            ascending (Optional[bool | list[bool]]): Whether to sort in ascending order.
-            as_percent (Optional[bool]): Whether to return the terms as percentages.
-            rounding (Optional[int]): The number of decimal places to round to.
-            transpose (Optional[bool]): Whether to transpose the dataframe.
-            sum (Optional[bool]): Whether to include a column for the sum of each row.
-            mean (Optional[bool]): Whether to include a column for the mean of each row.
-            median (Optional[bool]): Whether to include a column for the median of each row.
+            by (list | list[str]): The column(s) to sort by.
+            ascending (bool | list[bool]): Whether to sort in ascending order.
+            as_percent (bool): Whether to return the terms as percentages.
+            rounding (int): The number of decimal places to round to.
+            transpose (bool): Whether to transpose the dataframe.
+            sum (bool): Whether to include a column for the sum of each row.
+            mean (bool): Whether to include a column for the mean of each row.
+            median (bool): Whether to include a column for the median of each row.
 
         Returns:
             pd.DataFrame: The DTM as a pandas dataframe.

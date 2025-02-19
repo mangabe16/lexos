@@ -31,9 +31,11 @@ I have not yet added the API and tutorial documentation.
 
 ### Step 0: Install `uv`
 
-Instructions for installing `uv` can be found at https://docs.astral.sh/uv/getting-started/installation/. Use the appropriate `curl` or `irm` method for your version to install `uv` universally.
+Instructions for installing `uv` can be found at https://docs.astral.sh/uv/getting-started/installation/.
 
-`uv` manages its own virtual environments for each project, so you don't need to install it into a dedicated virtual environment. If it does not find the appropriate version of Python on your system, it will download it automatically.
+If you do not have Python installed, use the appropriate `curl` or `irm` method for your version. If you already have Python and `pip` installed, use the `pip` method.
+
+`uv` manages its own virtual environments for each project, so you don't need to install it into a dedicated virtual environment.
 
 ### Step 1: Clone the Repository
 
