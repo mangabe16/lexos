@@ -1,18 +1,7 @@
 """dendrogram.py.
 
-Last Updated: February 17, 2025
-Last Tested: TBD
-
-# Some sample data for testing
-import spacy
-from lexos.dtm import DTM
-nlp = spacy.load("en_core_web_sm")
-
-dtm = DTM()
-dtm(
-    docs=[nlp("kitten alert"), nlp("term1"), nlp("Term3"), nlp("10term"), nlp("2term")],
-    labels=["doc1", "doc2", "doc3", "doc4", "doc5"],
-)
+Last Updated: February 18, 2025
+Last Tested: February 18, 2025
 """
 
 from pathlib import Path
@@ -45,9 +34,14 @@ class Dendrogram(BaseModel):
     dendrogram = Dendrogram(dtm, show=False)
     dendrogram.fig
     ```
+
+    The dtm parameter can be a a DTM instance or a pandas DataFrame with terms
+    as columns and docs as rows (the output of `DTM.to_df(transpose=True)`).
+    It can also be an equivalent numpy array or list of lists. But in most cases,
+    it will be most convenient to use a DTM instance.
     """
 
-    dtm: Optional[ArrayLike | pd.DataFrame] = Field(
+    dtm: Optional[ArrayLike | DTM | pd.DataFrame] = Field(
         None, json_schema_extra={"The document-term matrix."}
     )
     labels: Optional[list[str]] = Field(
@@ -131,45 +125,45 @@ class Dendrogram(BaseModel):
     show: Optional[bool] = Field(
         False, json_schema_extra={"description": "The show for the dendrogram."}
     )
+    fig: Optional[plt.Figure] = Field(
+        None, json_schema_extra={"description": "The figure for the dendrogram."}
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __init__(self) -> None:
-        """Initialise the Dendrogram."""
-        pass
-        # Create an empty plot for matplotlib
-        # Get the dtm table of counts with documents as columns and terms as rows (and transpose)
-        # Replace with dtm.to_df(transpose=True)
-        # Allow the user to pass a list of dicts as well. How does scipy handle this?
-        # self.dtm_table = dtm.get_table()
-        # Set "terms" as the index and transpose the table
-        # self.dtm_table = self.dtm_table.set_index("terms").T
-
-    def __call__(self, dtm: ArrayLike | pd.DataFrame, **kwargs):
-        """Build a dendrogram."""
-        # Create the distance and linkage matrixes for matplotlib
-        # Requires an m by n array of m original observations in an n-dimensional space.
-        # an array-like is any Python object that np.array can convert to an ndarray.
-        # This includes nested lists, tuples, scalars and existing arrays.
-        if not dtm:
-            dtm = self.dtm
+    def __call__(self, **kwargs):
+        """Call the instance."""
+        # Set the attributes of the class
         for key, value in kwargs.items():
             setattr(self, key, value)
-        # WARNING: I don't like this. You should be able to pass:
-        # - a DTM object
-        # - a list of lists
-        # - a numpy array
-        # - a pandas dataframe
-        if isinstance(dtm, pd.DataFrame):
-            matrix = self._get_matrix_from_dtm(dtm)
+
+        # Ensure there is a document-term matrix with more than one document
+        if self.dtm is None:
+            raise LexosException("You must provide a document-term matrix.")
+
+        # Ensure there are labels
+        if not self.labels:
+            if isinstance(self.dtm, DTM):
+                self.labels = self.dtm.labels
+            elif isinstance(self.dtm, pd.DataFrame):
+                self.labels = self.dtm.columns.values.tolist()
+            else:
+                self.labels = [f"Doc{i + 1}" for i, _ in enumerate(self.dtm)]
+
+        # Get the matrix based on the data type
+        matrix = self._get_valid_matrix()
+
+        # Generate the pairwise distance and linkage matrices
         X = pdist(matrix, metric=self.metric)
         Z = sch.linkage(X, self.method)
+
+        # Generate the dendrogram
         fig, ax = plt.subplots(figsize=self.figsize)
         if self.title:
             plt.title(self.title)
         sch.dendrogram(
             Z,
-            labels=self._get_column_labels(),
+            labels=self.labels,
             truncate_mode=self.truncate_mode,
             color_threshold=self.color_threshold,
             get_leaves=self.get_leaves,
@@ -192,43 +186,28 @@ class Dendrogram(BaseModel):
         if not self.show:
             plt.close()
 
-    def _get_matrix_from_dtm(dtm: DTM) -> pd.DataFrame:
-        df = dtm.to_df()
-        df.index.name = "terms"
-        return df.T
-
-    def _get_column_labels(self) -> list[str]:
-        """Use default labels from the DTM table.
-
-        Returns:
-            A list of column labels.
-
-        Note: You can get labels from a DTM object with dtm.labels.
-        From a dataframe with dtm.columns.values.tolist().
-        From a list of lists or numpy array, use labels = [f"Doc{i + 1}" for i in range(len(matrix[0]) - 1)].
-        Or have the user supply a list of labels that should be the same length as the number of columns in the matrix.
-        """
-        if not self.labels:
-            try:
-                self.labels = self.dtm_table.columns.values.tolist()[1:]
-            except LexosException:
-                # TODO: Find a way to auto-generate labels as "Doc1", "Doc2", etc.
-                # Hard to do if you don't know that your dtm is a dataframe
-                if isinstance(self.dtm, pd.DataFrame):
-                    self.labels = self.dtm.columns.values.tolist()[1:]
-                else:
-                    self.labels = [f"Doc{i}" for i, _ in enumerate(self.dtm)]
-
-                self.labels = []
-        return self.labels()
+    def _get_valid_matrix(self):
+        """Get a valid matrix based on the data type of the dtm."""
+        error_msg = "The document-term matrix must have more than one document."
+        if isinstance(self.dtm, pd.DataFrame) and self.dtm.shape[0] < 3:
+            raise LexosException(error_msg)
+        elif self.dtm.shape[0] < 2:
+            raise LexosException(error_msg)
+        if isinstance(self.dtm, DTM):
+            df = self.dtm.to_df()
+            df.index.name = "terms"
+            return df.T
+        return self.dtm
 
     @validate_call
-    def savefig(self, path: Path | str):
-        """Show the figure if it is hidden.
+    def save(self, path: Path | str):
+        """Save the figure as a file.
 
         Args:
             path (Path | str): The path to the file to save.
         """
+        if not path or path == "":
+            raise LexosException("You must provide a valid path.")
         self.fig.savefig(path)
 
     def showfig(self):
