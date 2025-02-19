@@ -18,10 +18,10 @@ As of February 16, 2025, the `io`, `cutter`, `milestones`, `scrubber`, `tokenize
 
 The following modules should be added next (in order of priority):
 
-1. dendrogram
-2. topic_modeling
-3. visualization
-4. corpus
+1. `dendrogram` (in progress). Plotting dendrograms with `matplotlib` is complete. In v0.0.1, plotting dendrograms with `plotly` was part of the `visualization` module. I am reconsidering this. Perhaps the `cluster.dendrogram` module should have different plotters, as with `rolling_windows`. This needs some consideration..
+2. `topic_modeling`
+3. `visualization`
+4. `corpus`
 
 I have not yet added the API and tutorial documentation.
 
