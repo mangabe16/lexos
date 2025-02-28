@@ -1,10 +1,9 @@
 """test_dendrogram.py.
 
-Last Update: February 18, 2025
+Last Update: February 27, 2025
 """
 
 import os
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +11,7 @@ import pandas as pd
 import pytest
 import spacy
 
-from lexos.cluster.dendrogram import Dendrogram
+from lexos.cluster import Dendrogram
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 
