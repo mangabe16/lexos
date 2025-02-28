@@ -14,11 +14,11 @@ Note that unit tests have been auto-generated using GitHub Copilot and then twea
 
 ## Current Status
 
-As of February 16, 2025, the `io`, `cutter`, `milestones`, `scrubber`, `tokenizer`, `dtm`, and `rolling_windows` are done.
+As of February 2, 2025, the `io`, `cutter`, `milestones`, `scrubber`, `tokenizer`, `dtm`, `rolling_windows`, and `cluster` (matplotlib and Plotly version of `dendrogram` and `clustermap`) are done.
 
 The following modules should be added next (in order of priority):
 
-1. `dendrogram` (in progress). Plotting dendrograms with `matplotlib` is complete. In v0.0.1, plotting dendrograms with `plotly` was part of the `visualization` module. I am reconsidering this. Perhaps the `cluster.dendrogram` module should have different plotters, as with `rolling_windows`. This needs some consideration..
+1. `cluster.kmeans`
 2. `topic_modeling`
 3. `visualization`
 4. `corpus`
@@ -61,6 +61,28 @@ setuptools = { path = "./scripts/install_models.py" }
 ```
 
 The `install_models.py` script would then run `uv run spacy install en_core_web_sm`, etc., which would hopefully install the models in the virtual environment. However, I have not tested this procedure.
+
+Here are some other possible approaches:
+
+Create a script called `download_model.py` with the following contents:
+
+```python
+# /// script
+# dependencies = [
+#   "pip",
+# ]
+# ///
+import spacy
+import sys
+sys.exec("python -m spacy download xx_sent_ud_sm")
+sys.exec("python -m spacy download en_core_web_sm")
+```
+
+Then call `uv run download_model.py` to run the script.
+
+It is also possible that `uvx spacy download en_core_web_sm` or `uvx --from spacy download en_core_web_sm` will work.
+
+Either way, at least one extra command has to be run on the command line. This procedure is useful to know if you want to add additional models to the project, but it is preferable if the installation procedure for the default models is invoked from the `pyproject.toml` file.
 
 #### Mimetype Detection
 
