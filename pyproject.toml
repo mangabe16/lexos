@@ -25,6 +25,7 @@ dependencies = [
     "smart-open>=7.1.0",
     "spacy>=3.8.3",
     "textacy>=0.13.0",
+    "wordcloud>=1.9.4",
 ]
 
 [build-system]
