@@ -1,7 +1,10 @@
 """__init__.py.
 
-Last Update: February 17, 2025
+Last Update: March 1, 2025
 Last Tested: February 18, 2025
+
+# WARNING: The sorted_terms_list and sorted_term_counts properties only
+# work if the DTM has been built with a vectorizer that has compatible `terms_list` and `vocabulary_terms` attributes.
 """
 
 from typing import Callable, Iterable, Literal, Optional
@@ -253,9 +256,16 @@ class DTM(BaseModel):
         """
         if by is None:
             by = self.labels[0]
-        df = pd.DataFrame.sparse.from_spmatrix(
-            self.doc_term_matrix, columns=self.vectorizer.terms_list, index=self.labels
-        ).T
+        try:
+            df = pd.DataFrame.sparse.from_spmatrix(
+                self.doc_term_matrix, columns=self.vectorizer.terms_list, index=self.labels
+            ).T
+        except AttributeError:
+            df = pd.DataFrame(
+                self.doc_term_matrix, columns=self.vectorizer.terms_list, index=self.labels
+            ).T
+        except Exception as e:
+            raise LexosException(f"Error converting DTM to DataFrame: {e}")
         df = df.sort_values(by=by, ascending=ascending)
         if as_percent:
             df = self._get_term_percentages(
