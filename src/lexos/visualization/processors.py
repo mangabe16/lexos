@@ -1,0 +1,258 @@
+"""processors.py.
+
+This module contains functions to process data from various source types into term frequency dictionaries.
+
+Last Update: March 1, 2025
+Last Tested: March 1, 2025
+"""
+
+from collections import Counter
+from itertools import chain
+from typing import Iterator, Optional
+
+import pandas as pd
+from pydantic import ConfigDict, validate_call
+from spacy.schemas import DocJSONSchema
+from spacy.tokens import Doc, Span, Token
+
+from lexos.dtm import DTM
+from lexos.exceptions import LexosException
+from lexos.util import ensure_list
+
+
+def filter_docs(
+    df: pd.DataFrame, docs: Optional[list[int] | list[str]] = None
+) -> pd.DataFrame:
+    """Filter the documents in a DTM.
+
+    Args:
+        df: A Document Term Matrix.
+        docs: A list of document indices or labels to filter the DTM.
+
+    Returns:
+        A filtered DTM.
+    """
+    if docs:
+        if isinstance(docs[0], str):
+            return df[docs]
+        elif isinstance(docs[0], int):
+            return df.iloc[:, docs]
+    return df
+
+
+@validate_call(
+    config=ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+)
+def process_dataframe(
+    df: pd.DataFrame, docs: Optional[int | str | list[int] | list[str]] = None
+) -> dict[str, int]:
+    """Generate a term frequency dictionary from a DTM.
+
+    Args:
+        df (pd.DataFrame): A Document Term Matrix object.
+        docs (Optional[int | str | list[int] | list[str]]): A list of document indices or labels to filter the DTM.
+
+    Returns:
+        dict[str, int]: A dictionary with the terms as keys and the counts as values.
+    """
+    # Filter the documents
+    df = filter_docs(df, ensure_list(docs))
+    # Add the counts
+    df = df.copy()
+    df["counts"] = df.sum(axis=1)
+    # Remove terms with zero counts
+    df = df.query("counts > 0")
+    # Return the counts as a dictionary
+    return df["counts"].to_dict()
+
+
+@validate_call(
+    config=ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+)
+def process_dtm(
+    dtm: DTM, docs: Optional[int | str | list[int] | list[str]] = None
+) -> dict[str, int]:
+    """Generate a term frequency dictionary from a DTM.
+
+    Args:
+        dtm (DTM): A Document Term Matrix object.
+        docs (Optional[int | str | list[int] | list[str]]): A list of document indices or labels to filter the DTM.
+
+    Returns:
+        dict[str, int]: A dictionary with the terms as keys and the counts as values.
+    """
+    df = dtm.to_df()
+    # Filter the documents
+    df = filter_docs(df, ensure_list(docs))
+    return process_dataframe(df)
+
+
+@validate_call(
+    config=ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+)
+def process_list(
+    data: list[list[Doc] | list[Span] | list[str] | list[Token]],
+    docs: Optional[int | list[int]],
+) -> dict[str, int]:
+    """Process a list of docs, spans, strings, or tokens.
+
+    Args:
+        data (list[list[Doc | Span | str | Token]]): The data.
+        docs (Optional[int | list[int]]): A list of document indices to be selected from the DTM.
+
+    Returns:
+        dict[str, int]: A dictionary with the terms as keys and the counts as values.
+    """
+    if docs:
+        # Filter the docs
+        docs = ensure_list(docs)
+        data = [item for i, item in enumerate(data) if i in docs]
+        # Flatten the list
+        data = list(chain(*data))
+    # Get the terms
+    if all(isinstance(item, str) for item in data):
+        terms = [item for item in data]
+    elif all(isinstance(item, Token) for item in data):
+        terms = [item.text for item in data]
+    elif all(isinstance(item, (Doc, Span)) for item in data):
+        terms = [t.text for doc in data for t in doc]
+    else:
+        terms = list(chain(*data))
+    return dict(Counter(terms))
+
+
+@validate_call(
+    config=ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+)
+def process_docs(
+    data: list[Doc] | list[Span], docs: Optional[int | list[int]]
+) -> dict[str, int]:
+    """Process multiple docs or spans.
+
+    Args:
+        data (list[Doc] | list[Span]): The data.
+        docs (Optional[int | list[int]]): A list of document indices to be selected from the DTM.
+
+    Returns:
+        dict[str, int]: A dictionary with the terms as keys and the counts as values.
+    """
+    if docs:
+        # Filter the docs
+        docs = ensure_list(docs)
+        data = [item for i, item in enumerate(data) if i in docs]
+    # Get the terms
+    terms = [[token.text for token in doc] for doc in data]
+    # Flatten the list
+    terms = list(chain(*terms))
+    return dict(Counter(terms))
+
+
+@validate_call(
+    config=ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+)
+def process_item(
+    data: Doc | Span | list[str] | list[Token],
+) -> dict[str, int]:
+    """Process single docs, spans, and strings, or flat lists of strings or tokens.
+
+    Args:
+        data (Doc | Span | list[str] | list[Token]): The data.
+
+    Returns:
+        dict[str, int]: A dictionary with the terms as keys and the counts as values.
+    """
+    # Get the terms
+    if isinstance(data, list) and isinstance(data[0], str):
+        terms = [item for item in data]
+    elif isinstance(data, list) and isinstance(data[0], Token):
+        terms = [item.text for item in data]
+    elif isinstance(data, (Doc, Span)):
+        terms = [t.text for t in data]
+    return dict(Counter(terms))
+
+
+@validate_call(
+    config=ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+)
+def multicloud_processor(
+    data: DTM
+    | pd.DataFrame
+    | list[Doc]
+    | list[Span]
+    | list[list[str]]
+    | list[list[Token]]
+    | list[dict[str, int]],
+    docs: Optional[int | str | list[int] | list[str]] = None,
+) -> list[dict[str, int]]:
+    """Process data into list of term-count dicts for multicloud visualization.
+
+    Args:
+        data (DTM | pd.DataFrame | list[Doc] | list[Span] | list[list[str]] | list[list[Token]] | list[dict[str, int]]]): The data.
+        docs (Optional[int | str | list[int] | list[str]]): A list of document indices or labels to be selected from the DTM.
+
+    Returns:
+        list[dict[str, int]]: A list of dictionaries with the terms as keys and the counts as values.
+    """
+    # Convert DTM to DataFrame
+    if isinstance(data, DTM):
+        data = data.to_df()
+
+    # Process DataFrame
+    if isinstance(data, pd.DataFrame):
+        df = filter_docs(data, ensure_list(docs))
+        records = df.T.to_dict(orient="records")
+        # Eliminate tokens with zero counts in each doc
+        return [{k: v for k, v in record.items() if v != 0} for record in records]
+
+    # Process other data types
+    else:
+        if docs:
+            # Filter the docs
+            docs = ensure_list(docs)
+            if isinstance(docs[0], str):
+                raise LexosException(
+                    "Filtering by document labels is not yet supported for your data type. You may use list index numbers to select documents for processing."
+                )
+            else:
+                data = [item for i, item in enumerate(data) if i in docs]
+        # Docs and Spans
+        if isinstance(data[0], (Doc, Span)):
+            return [dict(Counter([token.text for token in doc])) for doc in data]
+
+        # Lists of dicts
+        elif isinstance(data, list) and isinstance(data[0], dict):
+            return data
+
+        # Lists of strings
+        elif isinstance(data[0][0], str):
+            return [dict(Counter(doc)) for doc in data]
+
+        # Lists of Tokens
+        elif isinstance(data[0][0], Token):
+            return [dict(Counter([token.text for token in doc])) for doc in data]
+
+
+def get_rows(lst, n) -> Iterator[int]:
+    """Yield successive n-sized rows from a list of documents.
+
+    Args:
+        lst (list): A list of documents.
+        n (int): The number of columns in the row.
+
+    Yields:
+        A generator with the documents separated into rows.
+    """
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
