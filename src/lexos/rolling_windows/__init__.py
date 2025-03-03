@@ -2,6 +2,12 @@
 
 Last Update: 16 February, 2025
 Last Tested: 16 February, 2025
+
+Credits:
+
+    A preliminary version of this module was developed with a code review by DHTech
+    (https://dhcodereview.github.io/), facilitated by Julia Damerow (Arizona State University).
+    The code was reviewed by Cole  Crawford (Harvard University) and Ryan Muther (Harvard University).
 """
 
 from typing import Iterator, Optional
