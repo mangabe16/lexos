@@ -1,6 +1,6 @@
 """clustermap.py.
 
-Last Updated: February 27, 2025
+Last Updated: March 3, 2025
 Last Tested: February 27, 2025
 """
 
@@ -246,7 +246,7 @@ class ClusterMap(BaseModel):
         self.fig = g.figure
 
         # Suppress the output
-        if not self.show:
+        if not self.showfig:
             plt.close()
             return self.fig
 
