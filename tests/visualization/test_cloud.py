@@ -89,10 +89,6 @@ def sample_multicloud_dtm():
 
     return dtm
 
-
-
-
-
 @pytest.fixture
 def sample_texts():
     """Create sample texts for testing.
