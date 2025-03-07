@@ -51,6 +51,30 @@ wheels = [
 ]
 
 [[package]]
+name = "biopython"
+version = "1.85"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/db/ca/1d5fab0fedaf5c2f376d9746d447cdce04241c433602c3861693361ce54c/biopython-1.85.tar.gz", hash = "sha256:5dafab74059de4e78f49f6b5684eddae6e7ce46f09cfa059c1d1339e8b1ea0a6", size = 19909902 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/25/e46f05359df7f0049c3adc5eaeb9aee0f5fbde1d959d05c78eb1de8f4d12/biopython-1.85-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:cc5b981b9e3060db7c355b6145dfe3ce0b6572e1601b31211f6d742b10543874", size = 2789327 },
+    { url = "https://files.pythonhosted.org/packages/54/5b/8b3b029c94c63ab4c1781d141615b4a837e658422381d460c5573d5d8262/biopython-1.85-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6fe47d704c2d3afac99aeb461219ec5f00273120d2d99835dc0a9a617f520141", size = 2765805 },
+    { url = "https://files.pythonhosted.org/packages/69/0a/9a8a38eff03c4607b9cec8d0e08c76b346b1cee1f77bc6d00efebfc7ec83/biopython-1.85-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e54e495239e623660ad367498c2f7a1a294b1997ba603f2ceafb36fd18f0eba6", size = 3249276 },
+    { url = "https://files.pythonhosted.org/packages/b4/0d/b7a0f10f5100dcf51ae36ba31490169bfa45617323bd82af43e1fb0098fb/biopython-1.85-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d024ad48997ad53d53a77da24b072aaba8a550bd816af8f2e7e606a9918a3b43", size = 3268869 },
+    { url = "https://files.pythonhosted.org/packages/07/51/646a4b7bdb4c1153786a70d33588ed09178bfcdda0542dfdc976294f4312/biopython-1.85-cp312-cp312-win32.whl", hash = "sha256:6985e17a2911defcbd30275a12f5ed5de2765e4bc91a60439740d572fdbfdf43", size = 2787011 },
+    { url = "https://files.pythonhosted.org/packages/c1/84/c583fa2ac6e7d392d24ebdc5c99e95e517507de22cf143efb6cf1fc93ff5/biopython-1.85-cp312-cp312-win_amd64.whl", hash = "sha256:d6f8efb2db03f2ec115c5e8c764dbadf635e0c9ecd4c0e91fc8216c1b62f85f5", size = 2820972 },
+    { url = "https://files.pythonhosted.org/packages/c3/3f/65814bf221f0bfdd2633830e573ac8594794686f54110571dce98cc32fd3/biopython-1.85-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:bae6f17262f20e9587d419ba5683e9dc93a31ee1858b98fa0cff203694d5b786", size = 2789844 },
+    { url = "https://files.pythonhosted.org/packages/be/61/1443ce34226e261c20ae4a154b2bab72c109cf31415c92c54c1aada36b00/biopython-1.85-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:b1e4918e6399ab0183dd863527fec18b53b7c61b6f0ef95db84b4adfa430ce75", size = 2765767 },
+    { url = "https://files.pythonhosted.org/packages/53/51/bec4c763c704e2715691bb087cfab5907804a1bbef5873588698cece1a30/biopython-1.85-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:86e487b6fe0f20a2b0138cb53f3d4dc26a7e4060ac4cb6fb1d19e194d445ef46", size = 3248867 },
+    { url = "https://files.pythonhosted.org/packages/9e/a4/552f20253a7c95988067c4955831bd17dd9b864fd5c215d15c2f63f2d415/biopython-1.85-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:327184048b5a50634ae0970119bcb8a35b76d7cefb2658a01f772915f2fb7686", size = 3268479 },
+    { url = "https://files.pythonhosted.org/packages/97/f4/6dfc6ef3e0997f792f93893551d4a9bf7f6052a70d34f4e1b1e5e4a359f6/biopython-1.85-cp313-cp313-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:66b08905fb1b3f5194f908aaf04bbad474c4e3eaebad6d9f889a04e64dd1faf4", size = 3192338 },
+    { url = "https://files.pythonhosted.org/packages/9d/8c/73da6588fab3a7d734118f21ac619c0a949f51d3cf7b1b8343d175c33460/biopython-1.85-cp313-cp313-win32.whl", hash = "sha256:5a236ab1e2797c7dcf1577d80fdaafabead2908bc338eaed0aa1509dab769fef", size = 2787017 },
+    { url = "https://files.pythonhosted.org/packages/60/ff/fe8f03ac0ccc7219e0959010750c6ac1a5b1411c91c7f4ec3a37d8313673/biopython-1.85-cp313-cp313-win_amd64.whl", hash = "sha256:1b61593765e9ebdb71d73307d55fd4b46eb976608d329ae6803c084d90ed34c7", size = 2821012 },
+]
+
+[[package]]
 name = "blis"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -697,6 +721,7 @@ name = "lexos"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "biopython" },
     { name = "bs4" },
     { name = "chardet" },
     { name = "cytoolz" },
@@ -707,6 +732,7 @@ dependencies = [
     { name = "pandas" },
     { name = "plotly" },
     { name = "pydantic" },
+    { name = "pydantic-extra-types" },
     { name = "pypdf" },
     { name = "python-docx" },
     { name = "python-magic-bin" },
@@ -728,6 +754,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "biopython", specifier = ">=1.85" },
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "chardet", specifier = ">=5.2.0" },
     { name = "cytoolz", specifier = ">=1.0.1" },
@@ -738,6 +765,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "plotly", specifier = ">=6.0.0" },
     { name = "pydantic", specifier = ">=2.10.4" },
+    { name = "pydantic-extra-types", specifier = ">=2.10.2" },
     { name = "pypdf", specifier = ">=5.1.0" },
     { name = "python-docx", specifier = ">=1.1.2" },
     { name = "python-magic-bin", specifier = "==0.4.14" },
@@ -1288,6 +1316,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/99/bddde3ddde76c03b65dfd5a66ab436c4e58ffc42927d4ff1198ffbf96f5f/pydantic_core-2.27.2-cp313-cp313-win32.whl", hash = "sha256:1ebaf1d0481914d004a573394f4be3a7616334be70261007e47c2a6fe7e50130", size = 1834387 },
     { url = "https://files.pythonhosted.org/packages/71/47/82b5e846e01b26ac6f1893d3c5f9f3a2eb6ba79be26eef0b759b4fe72946/pydantic_core-2.27.2-cp313-cp313-win_amd64.whl", hash = "sha256:953101387ecf2f5652883208769a79e48db18c6df442568a0b5ccd8c2723abee", size = 1990453 },
     { url = "https://files.pythonhosted.org/packages/51/b2/b2b50d5ecf21acf870190ae5d093602d95f66c9c31f9d5de6062eb329ad1/pydantic_core-2.27.2-cp313-cp313-win_arm64.whl", hash = "sha256:ac4dbfd1691affb8f48c2c13241a2e3b60ff23247cbcf981759c768b6633cf8b", size = 1885186 },
+]
+
+[[package]]
+name = "pydantic-extra-types"
+version = "2.10.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/23/ed/69f3f3de12c02ebd58b2f66ffb73d0f5a1b10b322227897499753cebe818/pydantic_extra_types-2.10.2.tar.gz", hash = "sha256:934d59ab7a02ff788759c3a97bc896f5cfdc91e62e4f88ea4669067a73f14b98", size = 86893 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/08/da/86bc9addde8a24348ac15f8f7dcb853f78e9573c7667800dd9bc60558678/pydantic_extra_types-2.10.2-py3-none-any.whl", hash = "sha256:9eccd55a2b7935cea25f0a67f6ff763d55d80c41d86b887d88915412ccf5b7fa", size = 35473 },
 ]
 
 [[package]]
