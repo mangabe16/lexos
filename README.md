@@ -14,14 +14,13 @@ Note that unit tests have been auto-generated using GitHub Copilot and then twea
 
 ## Current Status
 
-As of March 4, 2025, the `io`, `cutter`, `milestones`, `scrubber`, `tokenizer`, `dtm`, `rolling_windows`, `visualization` (but needs some reorganisation and possibly name changes for some classes), and `cluster` (matplotlib and Plotly versions of `dendrogram` and `clustermap`) are done.
+As of March 6, 2025, the `io`, `cutter`, `milestones`, `scrubber`, `tokenizer`, `dtm`, `rolling_windows`, `visualization` (but needs some reorganisation and possibly name changes for some classes), and `cluster` are done. (Note that `cluster` is not yet fully implemented, but the `dendrogram` and `clustermap` classes are done, and there is a matplotlib version of `boostrap_consensus`.)
 
 The following modules should be added next (in order of priority):
 
-1. Consensus Tree
-2. `topic_modeling`
-3. `corpus`
-4. `cluster.kmeans`
+1. `topic_modeling`
+2. `corpus`
+3. `cluster.kmeans`
 
 I have not yet added the API and tutorial documentation.
 
