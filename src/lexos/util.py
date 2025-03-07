@@ -8,6 +8,7 @@ from typing import Any, Collection, TypeVar
 
 import chardet
 from bs4 import UnicodeDammit
+from pydantic_extra_types.color import Color, PydanticCustomError
 from spacy.tokens import Doc
 
 import lexos.constants as constants
@@ -70,6 +71,23 @@ def get_encoding(input_string: bytes) -> str:
     encoding_type = encoding_detect["encoding"]
     return encoding_type
 
+def is_valid_colour(color: str) -> bool:
+    """Check if a string is a valid colour.
+
+    Args:
+        color: A string representing a colour.
+
+    Returns:
+        True if the string is a valid colour, False otherwise.
+
+    Note: Implements Pydantic's Color type for validation.
+    See https://docs.pydantic.dev/2.0/usage/types/extra_types/color_types/ for more information.
+    """
+    try:
+        Color(color)
+    except PydanticCustomError:
+        return False
+    return True
 
 def normalize(raw_bytes: bytes | str) -> str:
     """Normalise a string to LexosFile format.
