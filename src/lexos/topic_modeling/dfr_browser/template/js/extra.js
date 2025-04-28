@@ -1,5 +1,5 @@
 /* Load the Metadata into the Modal */
-$(document).on("click", ".external", function (e) {
+$(document).on("click", ".metamodal", function (e) {
   e.preventDefault();
   var url = $(this).attr("href");
   let doc_id = url.split("/").pop();
