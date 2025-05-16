@@ -13,10 +13,10 @@ dependencies = [
     "chardet>=5.2.0",
     "cytoolz>=1.0.1",
     "dotenv>=0.9.9",
+    "en-core-web-sm",
     "ipykernel>=6.29.5",
     "ipywidgets>=8.1.6",
     "javaobj-py3>=0.4.4",
-    "little-mallet-wrapper>=0.5.0",
     "matplotlib>=3.10.0",
     "natsort>=8.4.0",
     "nbformat>=5.10.4",
@@ -34,6 +34,7 @@ dependencies = [
     "spacy>=3.8.3",
     "textacy>=0.13.0",
     "wordcloud>=1.9.4",
+    "xx-sent-ud-sm",
 ]
 
 [build-system]
@@ -50,10 +51,10 @@ dev = [
     "pytest-cov>=6.1.1",
 ]
 
-# [tool.uv.sources]
-# xx_sent_ud_sm = { url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz" }
-# en_core_web_sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz" }
-
 [tool.pytest.ini_options]
 pythonpath = ["."]
 addopts = ["--import-mode=importlib", ]
+
+[tool.uv.sources]
+xx-sent-ud-sm = { url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0-py3-none-any.whl" }
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }

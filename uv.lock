@@ -454,6 +454,14 @@ wheels = [
 ]
 
 [[package]]
+name = "en-core-web-sm"
+version = "3.8.0"
+source = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
+wheels = [
+    { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl", hash = "sha256:1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85" },
+]
+
+[[package]]
 name = "executing"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -810,10 +818,10 @@ dependencies = [
     { name = "chardet" },
     { name = "cytoolz" },
     { name = "dotenv" },
+    { name = "en-core-web-sm" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "javaobj-py3" },
-    { name = "little-mallet-wrapper" },
     { name = "matplotlib" },
     { name = "natsort" },
     { name = "nbformat" },
@@ -831,6 +839,7 @@ dependencies = [
     { name = "spacy" },
     { name = "textacy" },
     { name = "wordcloud" },
+    { name = "xx-sent-ud-sm" },
 ]
 
 [package.dev-dependencies]
@@ -850,10 +859,10 @@ requires-dist = [
     { name = "chardet", specifier = ">=5.2.0" },
     { name = "cytoolz", specifier = ">=1.0.1" },
     { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipywidgets", specifier = ">=8.1.6" },
     { name = "javaobj-py3", specifier = ">=0.4.4" },
-    { name = "little-mallet-wrapper", specifier = ">=0.5.0" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "natsort", specifier = ">=8.4.0" },
     { name = "nbformat", specifier = ">=5.10.4" },
@@ -871,6 +880,7 @@ requires-dist = [
     { name = "spacy", specifier = ">=3.8.3" },
     { name = "textacy", specifier = ">=0.13.0" },
     { name = "wordcloud", specifier = ">=1.9.4" },
+    { name = "xx-sent-ud-sm", url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0-py3-none-any.whl" },
 ]
 
 [package.metadata.requires-dev]
@@ -881,15 +891,6 @@ dev = [
     { name = "pytest-mock", specifier = ">=3.14.0" },
     { name = "setuptools", specifier = ">=75.6.0" },
     { name = "wheel", specifier = ">=0.45.1" },
-]
-
-[[package]]
-name = "little-mallet-wrapper"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/98/35/ce9eba08be0264a743fbd77d319d963dfb14cb293bcb662dd5476f816c0a/little-mallet-wrapper-0.5.0.tar.gz", hash = "sha256:8c98592af4d4be4e732ae9ae3c6fae6a15af790029489779118aa92b11338d18", size = 19965 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/01/7e8561e33e79b408d9526b22b50e20bfdd8e551979237ad5c972759fe7d8/little_mallet_wrapper-0.5.0-py3-none-any.whl", hash = "sha256:850af1d206cea986e8dff98e6d69124c92e49ce1d082fd17de0aaabf9e35d57e", size = 19524 },
 ]
 
 [[package]]
@@ -2206,4 +2207,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/64/85/c77a331b2c06af49a687f8b926fc2d111047a51e6f0b0a4baa01ff3a673a/wrapt-1.17.0-cp313-cp313t-win32.whl", hash = "sha256:a4192b45dff127c7d69b3bdfb4d3e47b64179a0b9900b6351859f3001397dabf", size = 37971 },
     { url = "https://files.pythonhosted.org/packages/05/9b/b2469f8be9efed24283fd7b9eeb8e913e9bc0715cf919ea8645e428ab7af/wrapt-1.17.0-cp313-cp313t-win_amd64.whl", hash = "sha256:4f643df3d4419ea3f856c5c3f40fec1d65ea2e89ec812c83f7767c8730f9827a", size = 40755 },
     { url = "https://files.pythonhosted.org/packages/4b/d9/a8ba5e9507a9af1917285d118388c5eb7a81834873f45df213a6fe923774/wrapt-1.17.0-py3-none-any.whl", hash = "sha256:d2c63b93548eda58abf5188e505ffed0229bf675f7c3090f8e36ad55b8cbc371", size = 23592 },
+]
+
+[[package]]
+name = "xx-sent-ud-sm"
+version = "3.8.0"
+source = { url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0-py3-none-any.whl" }
+wheels = [
+    { url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0-py3-none-any.whl", hash = "sha256:1b5fb9321723b395f76458d2a13b7a3673c537eb58c0a9df3778f4e0950180b4" },
 ]
