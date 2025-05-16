@@ -1,6 +1,6 @@
 """test_scrubber.py.
 
-Last Update: 20 January 2025
+Last Update: 16 May 2025
 """
 
 from functools import partial
@@ -10,7 +10,7 @@ import pytest
 
 from lexos.exceptions import LexosException
 from lexos.scrubber.registry import scrubber_components
-from lexos.scrubber.scrubber_bk import Pipe, Scrubber, scrub
+from lexos.scrubber.scrubber import Pipe, Scrubber, scrub
 
 
 @pytest.fixture
