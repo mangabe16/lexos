@@ -92,7 +92,7 @@ Either way, at least one extra command has to be run on the command line. This p
 
 The `io` module uses `python-magic` to detect the mimetype of a file. This library requires the `libmagic` library to be installed on the system. However, the latest version of `python-magic` is unable to install the most recent version of `libmagic`. So the `pyproject.toml` file specifies `v0.4.14`, which is the last compatible version. Hopefully, `python-magic` will be updated to manage this dependency properly.
 
-As a side not, it is worth considering using https://github.com/cdgriffith/puremagic instead of `python-magic` for mimetype detection.
+As a side note, it is worth considering using [https://github.com/cdgriffith/puremagic](https://github.com/cdgriffith/puremagic) instead of `python-magic` for mimetype detection.
 
 ### Step 2: Run the Tests
 
