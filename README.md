@@ -35,7 +35,7 @@ Other features that need to be be implemented:
 
 ### Step 0: Install `uv`
 
-Instructions for installing `uv` can be found at https://docs.astral.sh/uv/getting-started/installation/. Use the appropriate `curl` or `irm` method for your version to install `uv` universally.
+Instructions for installing `uv` can be found at [https://docs.astral.sh/uv/getting-started/installation/](https://docs.astral.sh/uv/getting-started/installation/). Use the appropriate `curl` or `irm` method for your version to install `uv` universally.
 
 `uv` manages its own virtual environments for each project, so you don't need to install it into a dedicated virtual environment. If it does not find the appropriate version of Python on your system, it will download it automatically.
 
@@ -55,7 +55,11 @@ To add a dependency, use `uv add <package-name>`. To add a development dependenc
 
 #### spaCy Models
 
-I have not yet figured out how to use `uv` to automate the installation of spaCy models, so you will need to install them manually. Use `uv run python -m spacy download xx_sent_ud_sm` and `uv run python -m spacy download en_core_web_sm`.
+To add spaCy models to the package, you need to first get the urls for the models by running `python -m spacy info model_name --url`, replacing `model_name` with the name of the model. Then run `uv add` followed by the url. This will add the model to the `pyproject.toml` file and install it in the virtual environment. Since the two default models are `xx_sent_ud_sm` and `en_core_web_sm` are already in the the `pyproject.toml` file, they should hopefully download and automatically install when you create or sync the virtual environment.
+
+If you want to install models manually, you can run `uv run python -m spacy download xx_sent_ud_sm` and `uv run python -m spacy download en_core_web_sm` -- or change the model name to any other model you wish to install.
+
+Since automatic installation of models is not yet fully tests, the following are retained older notes which may be useful for future reference:
 
 One possible method for automatically installing the models would be to put this procedure in a separate script and then call it from `pyproject.toml` file in the `tool.uv.sources` table, as shown below:
 
