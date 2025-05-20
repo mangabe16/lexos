@@ -49,6 +49,7 @@ dev = [
     "setuptools>=75.6.0",
     "wheel>=0.45.1",
     "pytest-cov>=6.1.1",
+    "ruff>=0.11.10",
 ]
 
 [tool.pytest.ini_options]
@@ -58,3 +59,15 @@ addopts = ["--import-mode=importlib", ]
 [tool.uv.sources]
 xx-sent-ud-sm = { url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0-py3-none-any.whl" }
 en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
+
+[tool.ruff.lint]
+# Enable all `pydocstyle` rules, limiting to those that adhere to the
+# Google convention via `convention = "google"`, below.
+select = ["D"]
+
+# Disable `D417`, which requires documentation for every function parameter.
+# Just in case -- we can always add it later.
+ignore = ["D417"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
