@@ -50,8 +50,8 @@ def test_hashtags():
 
 def test_phone_numbers():
     """Test replacing phone numbers."""
-    text = "Call me at 123-456-7890."
-    expected = "Call me at _PHONE_."
+    text = "Call me at 123-456-7890 or 1.123.456.7890."
+    expected = "Call me at _PHONE_ or _PHONE_."
     assert phone_numbers(text) == expected
 
 def test_punctuation():

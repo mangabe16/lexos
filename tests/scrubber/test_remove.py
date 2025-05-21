@@ -35,6 +35,7 @@ def test_digits():
     text = "This is a test with digits 123."
     assert digits(text) == "This is a test with digits ."
     assert digits(text, only="1") == "This is a test with digits 23."
+    assert digits(text, only=["1", "3"]) == "This is a test with digits 2."
 
 def test_project_gutenberg_headers():
     """Test removing Project Gutenberg headers and footers."""
@@ -63,10 +64,12 @@ def test_pattern():
 
 def test_punctuation():
     """Test removing punctuation."""
-    text = "This is a test, with punctuation!"
+    text = "This: is a test, with punctuation!?."
     assert punctuation(text) == "This is a test with punctuation"
-    assert punctuation(text, only=",") == "This is a test with punctuation!"
+    assert punctuation(text, only=",") == "This: is a test with punctuation!?."
+    assert punctuation(text, only=[",", ":", "?","."]) == "This is a test with punctuation!"
     assert punctuation(text, exclude="!") == "This is a test with punctuation!"
+    assert punctuation(text, exclude=["!", ","]) == "This is a test, with punctuation!"
 
 def test_tabs():
     """Test removing tabs."""
