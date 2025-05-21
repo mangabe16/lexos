@@ -567,6 +567,18 @@ wheels = [
 ]
 
 [[package]]
+name = "griffe-pydantic"
+version = "1.1.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "griffe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/88/f7b8558568eb11369383b4fdf91cf9f2ecf375e57193dd69673d553dc4d8/griffe_pydantic-1.1.4.tar.gz", hash = "sha256:3ce97cedb2c15b696e0c1c4bb901411f5b83b8e4d57b1fc0f2becde678ab4870", size = 42359 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0b/a0/496e4f4f3af322171913b77f1789f479535abedf9f08359f1918219e03c8/griffe_pydantic-1.1.4-py3-none-any.whl", hash = "sha256:a4b9933579e14a8296cae90e71dace2742d91cb6792e5cd583047a6079f94e78", size = 12614 },
+]
+
+[[package]]
 name = "hjson"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -901,6 +913,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "griffe-pydantic" },
     { name = "mkdocs" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-macros-plugin" },
@@ -951,6 +964,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "griffe-pydantic", specifier = ">=1.1.4" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-autorefs", specifier = ">=1.4.2" },
     { name = "mkdocs-macros-plugin", specifier = ">=1.3.7" },

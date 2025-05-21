@@ -155,4 +155,10 @@ plugins:
   - autorefs
   - section-index
   - macros
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            extensions:
+            - griffe_pydantic:
+                schema: true
