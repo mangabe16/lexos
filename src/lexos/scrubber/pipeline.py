@@ -35,7 +35,7 @@ def pipe(func: Callable, *args, **kwargs) -> Callable:
 
 
 @validate_call
-def make_pipeline(*funcs: tuple[Callable[[str], str], ...]) -> Callable[[str], str]:
+def make_pipeline(*funcs: Callable) -> Callable[[str], str]:
     """Make a callable pipeline.
 
     Make a callable pipeline that passes a text through a series of
