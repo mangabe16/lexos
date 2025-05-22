@@ -42,6 +42,7 @@ Last updated: May 20, 2025
 import pytest
 import spacy
 
+from lexos.exceptions import LexosException
 from lexos.tokenizer import SliceTokenizer
 from lexos.tokenizer.ngrams import Ngrams
 from lexos.exceptions import LexosException
@@ -135,6 +136,11 @@ def test_ngrams_from_doc_filter_stops(ng):
     ngrams = ng.from_doc(doc, filter_stops=False, output="tuples")
     assert list(ngrams) == [("This", "is"), ("is", "really"), ("really", "big"), ("big", "test")]
 
+def test_ngrams_from_doc_exception(ng):
+    doc = nlp("This test should raise an exception.")
+    with pytest.raises(LexosException, match="Invalid output type."):
+        list(ng.from_doc(doc, output="invalid_format"))
+
 def test_ngrams_from_text_filter_digits(ng):
     """Test filtering digits from plain text input."""
     text = "This is test ten of 10."
@@ -162,6 +168,11 @@ def test_ngrams_from_text_min_freq(ng):
     text = "This is test."
     ngrams = ng.from_text(text, min_freq=2, output="tuples")
     assert list(ngrams) == []
+
+def test_ngrams_from_text_exception(ng):
+    text = "This test should raise an exception."
+    with pytest.raises(LexosException, match="Invalid output type."):
+        list(ng.from_text(text, output="invalid_format"))
 
 def test_ngrams_from_tokens_filter_digits(ng):
     """Test filtering digits from list of tokens."""
@@ -207,6 +218,7 @@ def test_ngrams_from_text_nlp(ng):
     ngrams = ng.from_text(text, tokenizer=nlp, output="tuples")
     assert list(ngrams) == [("This", "is"), ("is", "test")]
 
+
 def test_stopwords_property():
     """Test the stopwords property of Ngrams."""
     ng = Ngrams(filter_stops=["and", "the"])
@@ -232,5 +244,6 @@ def test_from_tokens_invalid_output():
     tokens = ["This", "is", "a", "test"]
     with pytest.raises(LexosException, match="Invalid output type."):
         list(ng.from_tokens(tokens, output="invalid_output"))
+
 
 
