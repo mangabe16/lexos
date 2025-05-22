@@ -8,7 +8,7 @@
     - Line 60: def __call__(self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]) -> None:
     - Line 101: def sorted_terms_list(self) -> list[str]:
     - Lines 263-268: Part of the to_df method's else block.
-* 05/20 - G.A - Implemented new dedicated tests:
+* 05/21 - G.A - Implemented new dedicated tests:
     - test_to_df_with_statistics_no_percentages(mock_df_dtm)
         - meant to cover for the to_df() method, as lines related to calculating "Total", "Mean", and "Median" statistics when the output is not in percentages (i.e., when as_percent=False) are being missed  
     - test_dtm_shape_property(mock_df_dtm)
@@ -22,6 +22,8 @@
             - So, `self.doc_term_matrix` is `(3, 2)`.
             - The `shape` property returns `self.doc_term_matrix.get_shape()`.
             - Therefore, expected shape from the property is `(3, 2)`.
+* 05/21 - G.A - After implementing test_dtm_shape_property(mock_df_dtm), The __init__.py file's coverage has increased from 94% to 95%, and the number of missing statements  has reduced from 6 to 5.
+    - Missing column for __init__.py now lists 60, 263-268. Line 101 is no longer listed as missing
     
 ## To be done
 
