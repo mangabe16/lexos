@@ -2,33 +2,30 @@
 
 ## Log report
 
-* 05/19 - G.A - First pytests prsented 100% success, pycoverage presented 94% coverage
+* 05/19 - G.A - First pytests presented 100% success, pycoverage presented 94% coverage
 * 05/20 - G.A - Created tutorial notebook for DTM module as well as README, created report file for collaboration with Thea, added changes from original fork to Scott's repo under new branch 'dtm-module'
 * 05/20 - G.A - Investigating lines 60, 101, 263-268 in __init__.py, responsible for the 4% not covered. 
-    - Line 60: def __call__(self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]) -> None:
-    - Line 101: def sorted_terms_list(self) -> list[str]:
-    - Lines 263-268: Part of the to_df method's else block.
+  * Line 60: def __call__(self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]) -> None:
+  * Line 101: def sorted_terms_list(self) -> list[str]:
+  * Lines 263-268: Part of the to_df method's else block.
 * 05/21 - G.A - Implemented new dedicated tests:
-    - test_to_df_with_statistics_no_percentages(mock_df_dtm)
-        - meant to cover for the to_df() method, as lines related to calculating "Total", "Mean", and "Median" statistics when the output is not in percentages (i.e., when as_percent=False) are being missed  
-    - test_dtm_shape_property(mock_df_dtm)
-        - dedicated test to call the shape property of a DTM instance.
-            - `mock_df_dtm` has a `doc_term_matrix` created from `np.array([[1, 2], [3, 4], [5, 6]])`.
-            - This sparse matrix is 3x2 (3 rows, 2 columns).
-            - The `.get_shape()` method (used in the property) would return `(3, 2)`.
-            - However, the DTM is constructed with `.T` (transpose) on `terms_list` and `labels`, making the conceptual shape `(terms, docs)`.
-            - `mock_df_dtm` has 2 terms and 3 docs, so its conceptual shape `(terms, docs)` is `(2, 3)`.
-            - The internal `doc_term_matrix` is set to `csr_matrix(data)`, where `data` is 3x2.
-            - So, `self.doc_term_matrix` is `(3, 2)`.
-            - The `shape` property returns `self.doc_term_matrix.get_shape()`.
-            - Therefore, expected shape from the property is `(3, 2)`.
-* 05/21 - G.A - After implementing test_dtm_shape_property(mock_df_dtm), The __init__.py file's coverage has increased from 94% to 95%, and the number of missing statements  has reduced from 6 to 5.
-    - Missing column for __init__.py now lists 60, 263-268. Line 101 is no longer listed as missing
+  * test_to_df_with_statistics_no_percentages(mock_df_dtm)
+    * meant to cover for the to_df() method, as lines related to calculating "Total", "Mean", and "Median" statistics when the output is not in percentages (i.e., when as_percent=False) are being missed  
+  * test_dtm_shape_property(mock_df_dtm)
+    * dedicated test to call the shape property of a DTM instance.
+* 05/21 - G.A - The __init__.py file's coverage has increased from 94% to 95%, and the number of missing statements has reduced from 6 to 5.
+  * Missing column for __init__.py now lists 60, 263-268. Line 101 is no longer listed as missing
+* 05/22 - G.A - Implemmented new dedicated tests:
+  * test_vectorizer_instantiation_and_call()
+  * test_to_df_handles_attribute_error_from_sparse(mock_df_dtm)
+  * test_to_df_handles_general_exception(mock_df_dtm)
+* 05/22 - G.A - **100% coverage achieved!**
     
 ## To be done
 
 * Investigate 4% of untouched tests
-    * Untouched functions are located in lines 60, 101, 263-268 in __init__.py  
+  * Use `uv run pytest --cov=src/lexos/dtm --cov-report=html tests/dtm` to investigate
+  * Untouched functions are located in lines 60, 101, 263-268 in __init__.py  
 * Improve existing tests
 * Work on cleanup, making the code prettier and easier to read
 * Add docstrings and typehints
@@ -36,4 +33,4 @@
 * Work on tutorial notebook for dtm module
 * Work on README for dtm module
 * Add docstrings and typehints
-    * Follow Google guidelines: https://google.github.io/styleguide/pyguide.html
+  * Follow Google [guidelines](https://google.github.io/styleguide/pyguide.html)

@@ -14,6 +14,9 @@ from textacy.representations.vectorizers import Vectorizer as TextacyVectorizer
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 
+from lexos.dtm import Vectorizer
+from unittest.mock import patch
+
 # Fixtures
 
 
@@ -262,7 +265,19 @@ def test_basic_conversion(mock_df_dtm):
     assert list(df.index) == ["term1", "term2"]
 
 def test_dtm_shape_property(mock_df_dtm):
-    '''Test the DTM.shape property returns the correct dimensions'''
+    """
+    Test that the DTM.shape property returns the correct dimensions, matching the underlying doc_term_matrix shape.
+    """
+    # Test the DTM.shape property returns the correct dimensions
+    # mock_df_dtm has a doc_term_matrix created from np.array([[1, 2], [3, 4], [5, 6]]).
+    # this sparse matrix is 3x2 (3 rows, 2 columns).
+    # the .get_shape() method (used in the property) would return (3, 2).
+    # however, the DTM is constructed with .T (transpose) on terms_list and labels, making the conceptual shape (terms, docs).
+    # mock_df_dtm has 2 terms and 3 docs, so its conceptual shape (terms, docs) is (2, 3).
+    # the internal doc_term_matrix is set to csr_matrix(data), where data is 3x2.
+    # so, self.doc_term_matrix is (3, 2).
+    # the shape property returns self.doc_term_matrix.get_shape().
+    # therefore, expected shape from the property is (3, 2).
     expected_shape = (3, 2)
     assert mock_df_dtm.shape == expected_shape
 
@@ -318,6 +333,62 @@ def test_to_df_with_statistics_no_percentages(mock_df_dtm):
     # so if mock_df_dtm has (2,3) (terms, docs)
     # then df.shape should be (2, 3+3) = (2+6)
     assert df.shape == (2, 3+3) # (terms, docs + stats) assuming 2 terms and 3 docs in mock_df_dtm
+
+def test_vectorizer_instantiation_and_call():
+    ''' Test direct instantiation and call of the Vectorizer class'''
+    # instantiate the Vectorizer wrapper
+    vectorizer_wrapper_instance = Vectorizer()
+
+    # call the instance, which invokes the __call__ method (line 33 in __init__.py)
+    # this should execute line 60 (return TextacyVecotrizer (...))
+    textacy_vectorizer = vectorizer_wrapper_instance(tf_type="log", max_df=0.5)
+
+    # assert something about the returned TextacyVectorizer to confirm it worked
+    assert isinstance(textacy_vectorizer, TextacyVectorizer)
+    assert textacy_vectorizer.tf_type == "log"
+    assert textacy_vectorizer.max_df == 0.5
+
+def test_to_df_handles_attribute_error_from_sparse(mock_df_dtm):
+    '''Test to_df handles AttributeError whern using sparse.from_spmatrix'''
+    # ensure mock_df_dtm.doc_term_matrix is NOT a sparse matrix
+    # this will cause pd.DataFrame.sparse.from_spmatrix to fail and raise AttributeError
+    mock_df_dtm.doc_term_matrix = np.array([[1, 2], [3, 4], [5, 6]])
+
+    # the code attemps to call .T on it immediately, which will fail the current approach
+    # we need to mocj the method itself to ensure the AttributeError is raised at the right spot
+    # the original plan to just set doc_term_matrix to a numpy array might not guarantee the 
+    # AttributeError from the spare conversion attempt. We need to explicitly make it fail
+
+    with patch('pandas.DataFrame.sparse.from_spmatrix') as mock_from_spmatrix:
+        # Configure the mock to raise AttributeError when called
+        mock_from_spmatrix.side_effect = AttributeError("Simulate sparse conversion error")
+
+        # call to_df, which will now attempt the sparse conversion, fail, and hit the except block
+        df = mock_df_dtm.to_df()
+
+        # assert that the fallback to pd.DataFrame() worked
+        # this means the code inside the 'except AttributeError:' block was executed
+        # the fallback creates a dense dataframe using the same original doc_term_matrix data
+        # Original data in mock_df_dtm.doc_term_matrix is np.array([[1, 2], [3, 4], [5, 6]]) (3 docs, 2 terms)
+        # .T then makes it (2 terms, 3 docs) conceptually in the df
+        assert isinstance(df, pd.DataFrame)
+        assert df.shape == (2,3) # (terms,docs)
+        assert list(df.columns) == ["doc1", "doc2", "doc3"]
+        assert list(df.index) == ["term1", "term2"]
+
+        # further assertions to confirm data integrity after fallback
+        expected_df_data = np.array([[1, 3, 5], [2, 4, 6]]) # transposed version of original mock_df_dtm.doc_term_matrix data
+        expected_df = pd.DataFrame(expected_df_data, index=["term1", "term2"], columns=["doc1","doc2", "doc3"])
+        pd.testing.assert_frame_equal(df, expected_df) 
+
+def test_to_df_handles_general_exception(mock_df_dtm):
+    '''Test to_df handles general Exception during DataFrame conversion'''
+    # mock the df creation to raise an arbitrary exception
+    with patch('pandas.DataFrame.sparse.from_spmatrix') as mock_from_spmatrix:
+        mock_from_spmatrix.side_effect = TypeError("Simulated general conversion error") # use TypeError as an example
+
+        with pytest.raises(LexosException, match="Error converting DTM to DataFrame"):
+            mock_df_dtm.to_df()
 
 def test_combined_options(mock_df_dtm):
     rounding = 2
