@@ -119,8 +119,8 @@ def test_ngrams_from_text_exception(ng):
         list(ng.from_text(text, output="invalid_format"))
 
 def test_ngrams_from_tokens_filter_digits(ng):
-    text = "This is test ten of 10."
-    ngrams = ng.from_text(text, filter_digits=True, output="tuples")
+    tokens = ["This", "is", "test", "ten", "of", "10", "."]
+    ngrams = ng.from_tokens(tokens, filter_digits=True, output="tuples")
     assert list(ngrams) == [("This", "is"), ("is", "test"), ("test", "ten"), ("ten", "of")]
 
 def test_ngrams_from_tokens_filter_punct(ng):
