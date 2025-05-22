@@ -72,3 +72,7 @@ ignore = ["D417"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Do not require documentation for docstring args in the `tests/` directory.
+"!tests/**.py" = ["D417"]
