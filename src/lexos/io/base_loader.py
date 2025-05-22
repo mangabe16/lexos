@@ -77,9 +77,9 @@ class BaseLoader(BaseModel, ABC):
             )
         ]
 
-    @validate_call(config=model_config)
-    @abstractmethod
-    def load_dataset(self, dataset) -> None:
+    @validate_call(config=model_config)         #pragma: no cover
+    @abstractmethod                             #pragma: no cover
+    def load_dataset(self, dataset) -> None:    #pragma: no cover
         """Load a dataset.
 
         Args:
