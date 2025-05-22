@@ -1,11 +1,37 @@
 # Progress report for the work on the DTM module and testing
 
-Log report
- * 05/19 - G.A - First pytests prsented 100% success, pycoverage presented 98% coverage
- * 05/20 - G.A - Created tutorial notebook for DTM module as well as README, created report file for collaboration with Thea, added changes from original fork to Scott's repo under new branch 'dtm-module'
+## Log report
 
- To be done
- * Investigate 2% of untouched tests
- * Implement newer tests for better coverage
- * Work on tutorial notebook for dtm module
- * Work on README for dtm module
+* 05/19 - G.A - First pytests prsented 100% success, pycoverage presented 94% coverage
+* 05/20 - G.A - Created tutorial notebook for DTM module as well as README, created report file for collaboration with Thea, added changes from original fork to Scott's repo under new branch 'dtm-module'
+* 05/20 - G.A - Investigating lines 60, 101, 263-268 in __init__.py, responsible for the 4% not covered. 
+    - Line 60: def __call__(self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]) -> None:
+    - Line 101: def sorted_terms_list(self) -> list[str]:
+    - Lines 263-268: Part of the to_df method's else block.
+* 05/20 - G.A - Implemented new dedicated tests:
+    - test_to_df_with_statistics_no_percentages(mock_df_dtm)
+        - meant to cover for the to_df() method, as lines related to calculating "Total", "Mean", and "Median" statistics when the output is not in percentages (i.e., when as_percent=False) are being missed  
+    - test_dtm_shape_property(mock_df_dtm)
+        - dedicated test to call the shape property of a DTM instance.
+            - `mock_df_dtm` has a `doc_term_matrix` created from `np.array([[1, 2], [3, 4], [5, 6]])`.
+            - This sparse matrix is 3x2 (3 rows, 2 columns).
+            - The `.get_shape()` method (used in the property) would return `(3, 2)`.
+            - However, the DTM is constructed with `.T` (transpose) on `terms_list` and `labels`, making the conceptual shape `(terms, docs)`.
+            - `mock_df_dtm` has 2 terms and 3 docs, so its conceptual shape `(terms, docs)` is `(2, 3)`.
+            - The internal `doc_term_matrix` is set to `csr_matrix(data)`, where `data` is 3x2.
+            - So, `self.doc_term_matrix` is `(3, 2)`.
+            - The `shape` property returns `self.doc_term_matrix.get_shape()`.
+            - Therefore, expected shape from the property is `(3, 2)`.
+    
+## To be done
+
+* Investigate 4% of untouched tests
+    * Untouched functions are located in lines 60, 101, 263-268 in __init__.py  
+* Improve existing tests
+* Work on cleanup, making the code prettier and easier to read
+* Add docstrings and typehints
+* Implement newer tests for better coverage
+* Work on tutorial notebook for dtm module
+* Work on README for dtm module
+* Add docstrings and typehints
+    * Follow Google guidelines: https://google.github.io/styleguide/pyguide.html

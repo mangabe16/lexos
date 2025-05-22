@@ -261,6 +261,10 @@ def test_basic_conversion(mock_df_dtm):
     assert list(df.columns) == ["doc1", "doc2", "doc3"]
     assert list(df.index) == ["term1", "term2"]
 
+def test_dtm_shape_property(mock_df_dtm):
+    '''Test the DTM.shape property returns the correct dimensions'''
+    expected_shape = (3, 2)
+    assert mock_df_dtm.shape == expected_shape
 
 def test_sorting(mock_df_dtm):
     df = mock_df_dtm.to_df(by=["doc1"], ascending=False)
@@ -299,6 +303,21 @@ def test_statistics(mock_df_dtm):
     assert "Mean" in df.columns
     assert "Median" in df.columns
 
+def test_to_df_with_statistics_no_percentages(mock_df_dtm):
+    '''Test to_df method with sum, mean, and median when not not converting to percantages'''
+    df = mock_df_dtm.to_df(sum=True, mean=True, median=True, as_percent=False)
+
+    # assert that the new columns are present
+    assert "Total" in df.columns
+    assert "Mean" in df.columns
+    assert "Median" in df.columns
+
+    # assert the shape (original columns + 3 new statistics columns)
+    # original shape is (terms, docs) -> after T is (docs, terms)
+    # then, after T again in to_df, it is (terms, docs)
+    # so if mock_df_dtm has (2,3) (terms, docs)
+    # then df.shape should be (2, 3+3) = (2+6)
+    assert df.shape == (2, 3+3) # (terms, docs + stats) assuming 2 terms and 3 docs in mock_df_dtm
 
 def test_combined_options(mock_df_dtm):
     rounding = 2
