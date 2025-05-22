@@ -110,6 +110,7 @@ def loader_with_data(
 
 @pytest.fixture
 def mock_mime():
+    """Fixture to create a mock mime type."""
     mime = MagicMock()
     mime.from_buffer.side_effect = lambda x: "text/plain"
     return mime
@@ -117,6 +118,7 @@ def mock_mime():
 
 @pytest.fixture
 def mock_document():
+    """Fixture to create a mock document."""
     doc = Mock()
     doc.paragraphs = [Mock(text="Paragraph 1"), Mock(text="Paragraph 2")]
     return doc
@@ -124,6 +126,7 @@ def mock_document():
 
 @pytest.fixture
 def mock_pdf_multi_page():
+    """Fixture to create a mock PDF reader with multiple pages."""
     mock_pages = [Mock(), Mock(), Mock()]
     for i, page in enumerate(mock_pages, 1):
         page.extract_text.return_value = f"Page {i} content"
@@ -134,6 +137,7 @@ def mock_pdf_multi_page():
 
 @pytest.fixture
 def mock_pdf_single_page():
+    """Fixture to create a mock PDF reader with a single page."""
     mock_page = Mock()
     mock_page.extract_text.return_value = "Page 1 content"
     mock_reader = Mock()
@@ -143,11 +147,13 @@ def mock_pdf_single_page():
 
 @pytest.fixture
 def mock_text_file():
+    """Fixture to create a mock text file."""
     mock_file = Mock()
     mock_file.open.return_value = "Text content"
     return mock_file
 
 
+#########################################################################################################
 # Tests
 
 
@@ -322,7 +328,7 @@ def test_data_loader_load_invalid_dataset(loader_with_data):
 
 
 def test_load_single_file(loader, tmp_path):
-    # Create test file
+    """Test loading a single file."""
     test_file = tmp_path / "test.txt"
     test_file.write_text("test content")
 
@@ -337,7 +343,7 @@ def test_load_single_file(loader, tmp_path):
 
 
 def test_load_directory(loader, tmp_path):
-    # Create test directory with files
+    """Test loading a directory with multiple files."""
     test_dir = tmp_path / "test_dir"
     test_dir.mkdir()
     (test_dir / "file1.txt").write_text("content1")
@@ -350,6 +356,50 @@ def test_load_directory(loader, tmp_path):
         loader.load([test_dir])
 
         assert mock_load_text.call_count == 2
+
+
+def test_load_dispatches_to_pdf(loader, tmp_path):
+    """Test loading a file with PDF MIME type."""
+    path = tmp_path / "file.pdf"
+    path.write_bytes(b"%PDF-1.4")
+
+    with (
+        patch.object(loader.mime, "from_buffer", return_value="application/pdf"),
+        patch.object(loader, "_load_pdf_file") as mock_pdf,
+    ):
+        loader.load([path])
+        mock_pdf.assert_called_once_with(path)
+
+
+def test_load_dispatches_to_docx(loader, tmp_path):
+    """Test loading a file with DOCX MIME type."""
+    path = tmp_path / "file.docx"
+    path.write_bytes(b"PK\x03\x04")
+
+    with (
+        patch.object(
+            loader.mime,
+            "from_buffer",
+            return_value="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        patch.object(loader, "_load_docx_file") as mock_docx,
+    ):
+        loader.load([path])
+        mock_docx.assert_called_once_with(path)
+
+
+def test_load_dispatches_to_zip(loader, tmp_path):
+    """Test loading a file with ZIP MIME type."""
+    zip_path = tmp_path / "archive.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("file.txt", "content")
+
+    with (
+        patch.object(loader.mime, "from_buffer", return_value="application/zip"),
+        patch.object(loader, "_load_zip_file") as mock_zip,
+    ):
+        loader.load([zip_path])
+        mock_zip.assert_called_once_with(zip_path)
 
 
 def test_load_invalid_mime_type(loader, tmp_path):
@@ -371,10 +421,8 @@ def test_load_invalid_mime_type(loader, tmp_path):
         assert "Invalid MIME type" in loader.errors[0]
 
 
-#
-
-
 def test_load_io_error(loader):
+    """Test loading a file that raises an IOError."""
     with patch("builtins.open", mock_open()) as mock_file:
         mock_file.side_effect = IOError("Test IO Error")
 
@@ -385,6 +433,7 @@ def test_load_io_error(loader):
 
 
 def test_load_docx_file_success(loader, mock_document, tmp_path):
+    """Test loading a DOCX file."""
     test_file = tmp_path / "test.docx"
     test_file.touch()
 
@@ -401,6 +450,7 @@ def test_load_docx_file_success(loader, mock_document, tmp_path):
 
 
 def test_load_docx_file_empty(loader, tmp_path):
+    """Test loading an empty DOCX file."""
     mock_empty_doc = Mock()
     mock_empty_doc.paragraphs = []
     test_file = tmp_path / "empty.docx"
@@ -415,6 +465,7 @@ def test_load_docx_file_empty(loader, tmp_path):
 
 
 def test_load_docx_file_not_found(loader):
+    """Test loading a DOCX file that does not exist."""
     with patch(
         "lexos.io.loader.Document", side_effect=FileNotFoundError("File not found")
     ):
@@ -425,6 +476,7 @@ def test_load_docx_file_not_found(loader):
 
 
 def test_load_docx_file_permission_error(loader, tmp_path):
+    """Test loading a DOCX file with permission error."""
     test_file = tmp_path / "noperm.docx"
     test_file.touch()
 
@@ -438,6 +490,7 @@ def test_load_docx_file_permission_error(loader, tmp_path):
 
 
 def test_load_pdf_single_page(loader, mock_pdf_single_page, tmp_path):
+    """Test loading a single-page PDF file."""
     test_file = tmp_path / "test.pdf"
     test_file.touch()
 
@@ -454,6 +507,7 @@ def test_load_pdf_single_page(loader, mock_pdf_single_page, tmp_path):
 
 
 def test_load_pdf_multi_page(loader, mock_pdf_multi_page, tmp_path):
+    """Test loading a multi-page PDF file."""
     test_file = tmp_path / "test.pdf"
     test_file.touch()
 
@@ -469,6 +523,7 @@ def test_load_pdf_multi_page(loader, mock_pdf_multi_page, tmp_path):
 
 
 def test_load_pdf_empty(loader, tmp_path):
+    """Test loading an empty PDF file."""
     mock_empty_pdf = Mock()
     mock_empty_pdf.pages = []
     test_file = tmp_path / "empty.pdf"
@@ -481,6 +536,7 @@ def test_load_pdf_empty(loader, tmp_path):
 
 
 def test_load_pdf_error(loader, tmp_path):
+    """Test loading a PDF file that raises an error."""
     test_file = tmp_path / "error.pdf"
     test_file.touch()
 
@@ -491,6 +547,7 @@ def test_load_pdf_error(loader, tmp_path):
 
 
 def create_text_file(temp_dir, mime_type="text/plain"):
+    """Create a sample text file."""
     # Create zip file path
     if mime_type == "text/plain":
         file_path = Path(temp_dir) / "test.txt"
@@ -551,6 +608,7 @@ def test_load_text_file_different_mime_types(loader):
 
 
 def create_zip_file(temp_dir, empty=False, invalid=False):
+    """Create a sample zip file with text files."""
     # Create zip file path
     zip_path = Path(temp_dir) / "test.zip"
 
@@ -607,3 +665,30 @@ def test_load_invalid_content(loader):
     assert len(loader.mime_types) == 0
     assert len(loader.texts) == 0
     assert len(loader.errors) == 1
+
+
+def test_zip_file_with_decode_failure(loader, tmp_path):
+    """Force decode error inside _load_zip_file using mocking."""
+    zip_path = tmp_path / "bad.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("bad.txt", b"valid content")
+
+    with patch(
+        "lexos.io.loader.decode",
+        side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "boom"),
+    ):
+        loader._load_zip_file(zip_path)
+
+    assert len(loader.errors) == 1
+    assert isinstance(loader.errors[0], UnicodeDecodeError)
+
+
+def test_loads_with_default_names(loader):
+    """Test the loads() method with default name generation."""
+    texts = ["First text", "Second text", "Third text"]
+    loader.loads(texts=texts, names=None, start=1, zero_pad="02")
+
+    assert loader.names == ["text01", "text02", "text03"]
+    assert loader.mime_types == ["text/plain"] * 3
+    assert loader.texts == texts
+    assert len(loader.errors) == 0
