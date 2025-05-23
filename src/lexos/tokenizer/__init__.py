@@ -160,7 +160,8 @@ class Tokenizer(BaseModel):
             self.max_length = max_length
             self.nlp.max_length = max_length
         if disable:
-            self.nlp.disabled.extend(disable)
+            #self.nlp.disabled.extend(disable)
+            self.nlp.select_pipes(disable=disable)
         return next(self.nlp.pipe([text], disable=disable, **kwargs))
 
     @validate_call
@@ -187,7 +188,8 @@ class Tokenizer(BaseModel):
             self.max_length = max_length
             self.nlp.max_length = max_length
         if disable:
-            self.nlp.disabled.extend(disable)
+            #self.nlp.disabled.extend(disable)
+            self.nlp.select_pipes(disable=disable)
         return self.nlp.pipe(texts, disable=disable, **kwargs)
 
     @validate_call
