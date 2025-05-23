@@ -27,16 +27,19 @@ def whitespaceTokenizer():
     return WhitespaceTokenizer()
 
 def test_incorrect_model_exception():
+    """Raises LexosException when an incorrect model is provided."""
     with pytest.raises(LexosException, match=f"Error loading model non_existent_model. Please check the name and try again. You may need to install the model on your system."):
         tokenizer = Tokenizer(model="non_existent_model")
 
 
 def test_add_extension(tokenizer):
+    """Adds an extension to the tokenizer object."""
     tokenizer.add_extension("test_ext", default="default_value")
     assert Token.has_extension("test_ext")
 
 
 def test_add_stopwords(tokenizer):
+    """Adds stopwords to the tokenizer object."""
     stopwords = ["the", "a", "an"]
     tokenizer.add_stopwords(stopwords)
     for term in stopwords:
@@ -45,6 +48,7 @@ def test_add_stopwords(tokenizer):
 
 
 def test_call(tokenizer):
+    """Creates a spaCy Doc object from a string."""
     doc = tokenizer("This is a test.")
     assert isinstance(doc, Doc)
     assert doc.text == "This is a test."
@@ -56,6 +60,7 @@ def test_call_incorrect_iterable(tokenizer):
 
 
 def test_call_multiple_texts(tokenizer):
+    """Creates a list of spaCy Doc objects from a list of strings."""
     docs = list(tokenizer(["This is a test.", "This is another test."]))
     assert isinstance(docs[0], Doc)
     assert docs[0].text == "This is a test."
@@ -64,6 +69,7 @@ def test_call_multiple_texts(tokenizer):
 
 
 def test_make_doc(tokenizer):
+    """Creates a spaCy Doc object from a string that contains a max length and disabled pipes."""
     doc = tokenizer.make_doc("This is a test.")
     assert isinstance(doc, Doc)
     assert doc.text == "This is a test."
@@ -74,6 +80,7 @@ def test_make_doc(tokenizer):
 
 
 def test_make_docs(tokenizer):
+    """Creates a list of spaCy Doc objects from a list of strings that contains a max length and disabled pipes."""
     texts = ["This is a test.", "Another test."]
     docs = list(tokenizer.make_docs(texts))
     assert all(isinstance(doc, Doc) for doc in docs)
@@ -87,12 +94,14 @@ def test_make_docs(tokenizer):
 
 
 def test_remove_extension(tokenizer):
+    """Removes an extension from the tokenizer object."""
     tokenizer.add_extension("test_ext", default="default_value")
     tokenizer.remove_extension("test_ext")
     assert not Token.has_extension("test_ext")
 
 
 def test_remove_stopwords(tokenizer):
+    """Removes stopwords from the tokenizer object."""
     stopwords = ["the", "a", "an"]
     tokenizer.add_stopwords(stopwords)
     assert tokenizer.nlp.vocab["the"].is_stop
@@ -101,20 +110,24 @@ def test_remove_stopwords(tokenizer):
     assert "the" not in tokenizer.stopwords
 
 def test_pipeline(tokenizer):
+    """Returns the spaCy pipeline."""
     pipeline = tokenizer.pipeline
     assert pipeline == ["senter"]
     
 def test_components(tokenizer):
+    """Returns the spaCy pipeline components."""
     components = tokenizer.components
     assert isinstance(components, list)
     assert len(components) == 1
     assert components[0][0] == "senter"
 
 def test_disabled(tokenizer):
+    """Returns the disabled spaCy pipeline components."""
     disabled = tokenizer.disabled
     assert disabled == []
 
 def test_slice_tokenizer(sliceTokenizer):
+    """Slice the text into tokens of n characters."""
     text = "This is a test."
     slices = sliceTokenizer(text)
     # Default n=4, drop_ws=True, so spaces are removed: 'Thisisatest.'
@@ -122,6 +135,7 @@ def test_slice_tokenizer(sliceTokenizer):
     assert slices == ["This", "isat", "est."]
 
 def test_white_space_tokenizer(whitespaceTokenizer):
+    """Split the text into tokens on whitespace."""
     text = "This is a test."
     tokens = whitespaceTokenizer(text)
     assert list(tokens) == ["This", "is", "a", "test."]
