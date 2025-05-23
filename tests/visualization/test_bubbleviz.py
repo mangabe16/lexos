@@ -199,7 +199,7 @@ def test_bubble_chart_init():
     chart = BubbleChart(data="test")
     assert chart.limit == 100
     assert chart.bubble_spacing == 0.1
-    assert chart.figsize == (15, 15)
+    assert chart.figsize == (10, 10)
     assert chart.font_family == "DejaVu Sans"
     assert chart.showfig is True
 
@@ -1071,7 +1071,7 @@ def test_show_after_generation(sample_bubble_chart5):
     fig = sample_bubble_chart5.show()
     assert hasattr(fig, "axes")
     assert len(fig.axes) > 0
-    assert fig.get_size_inches().tolist() == [15, 15]  # Default figsize
+    assert fig.get_size_inches().tolist() == [10, 10]  # Default figsize
     plt.close("all")  # Close figure to avoid "RuntimeWarning: More than 20 figures have been opened."
 
 
