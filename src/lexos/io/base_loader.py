@@ -42,7 +42,7 @@ class BaseLoader(BaseModel, ABC):
     @property
     def data(self):
         """Get the data as a dictionary.
-        
+
         Returns:
             dict: A dictionary containing the paths, mime_types, names, texts, and errors.
         """
@@ -92,6 +92,7 @@ class BaseLoader(BaseModel, ABC):
             )
         ]
 
+    # Abstract method, skipped for coverage
     @validate_call(config=model_config)  # pragma: no cover
     @abstractmethod  # pragma: no cover
     def load_dataset(self, dataset) -> None:  # pragma: no cover

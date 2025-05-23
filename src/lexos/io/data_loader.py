@@ -99,6 +99,7 @@ class DataLoader(BaseLoader):
         self.names = self.names + dataset.names
         self.texts = self.texts + dataset.texts
 
+    # Skipped for coverage, same method as load_csv
     @validate_call(config=model_config)  # pragma: no cover
     def load_excel(  # pragma: no cover
         self, path: Path | str, name_col: str, text_col: str, **kwargs
