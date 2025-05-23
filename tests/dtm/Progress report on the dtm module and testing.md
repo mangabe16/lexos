@@ -4,7 +4,7 @@
 
 * 05/19 - G.A - First pytests presented 100% success, pycoverage presented 94% coverage
 * 05/20 - G.A - Created tutorial notebook for DTM module as well as README, created report file for collaboration with Thea, added changes from original fork to Scott's repo under new branch 'dtm-module'
-* 05/20 - G.A - Investigating lines 60, 101, 263-268 in __init__.py, responsible for the 4% not covered. 
+* 05/20 - G.A - Investigating lines 60, 101, 263-268 in __init__.py, responsible for the 4% not covered.
   * Line 60: def __call__(self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]) -> None:
   * Line 101: def sorted_terms_list(self) -> list[str]:
   * Lines 263-268: Part of the to_df method's else block.
@@ -19,8 +19,9 @@
   * test_vectorizer_instantiation_and_call()
   * test_to_df_handles_attribute_error_from_sparse(mock_df_dtm)
   * test_to_df_handles_general_exception(mock_df_dtm)
-* 05/22 - G.A - **100% coverage achieved!**
-    
+* 05/22 - G.A - __100% coverage achieved!__
+* 05/22 - G.A - Formatted and linted with Ruff, added docstrings and typehinting to `test_dtm.py`
+
 ## To be done
 
 * Investigate 4% of untouched tests
@@ -31,6 +32,8 @@
 * Add docstrings and typehints
 * Implement newer tests for better coverage
 * Work on tutorial notebook for dtm module
+  * Consult from alpha version [tutorial](https://scottkleinman.github.io/lexos/api/dtm/)
 * Work on README for dtm module
 * Add docstrings and typehints
   * Follow Google [guidelines](https://google.github.io/styleguide/pyguide.html)
+* Read on Tokenizer module [tutorial](https://scottkleinman.github.io/lexos/tutorial/tokenizing_texts/)
