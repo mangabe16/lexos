@@ -56,6 +56,10 @@ nlp = spacy.load("en_core_web_sm")
 def ng():
     return Ngrams()
 
+def test_ngrams_stopwords(ng):
+    ng.filter_stops = ["Stop", "Words"]
+    assert ng.stopwords == ["Stop", "Words"]
+
 def test_ngrams_from_doc_output(ng):
     """Test output formats (tuples, text, spans) from spaCy Doc input."""
     
