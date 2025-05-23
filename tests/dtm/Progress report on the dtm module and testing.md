@@ -15,25 +15,25 @@
     * dedicated test to call the shape property of a DTM instance.
 * 05/21 - G.A - The __init__.py file's coverage has increased from 94% to 95%, and the number of missing statements has reduced from 6 to 5.
   * Missing column for __init__.py now lists 60, 263-268. Line 101 is no longer listed as missing
-* 05/22 - G.A - Implemmented new dedicated tests:
+* 05/22 - G.A - Implemented new dedicated tests:
   * test_vectorizer_instantiation_and_call()
+    * Verifies that the vectorizer can be instantiated and called with sample input.
   * test_to_df_handles_attribute_error_from_sparse(mock_df_dtm)
+    * Ensures to_df() correctly handles AttributeError when the input is a sparse matrix.
   * test_to_df_handles_general_exception(mock_df_dtm)
+    * Checks that to_df() gracefully handles unexpected exceptions during DataFrame conversion.
 * 05/22 - G.A - __100% coverage achieved!__
 * 05/22 - G.A - Formatted and linted with Ruff, added docstrings and typehinting to `test_dtm.py`
+* 05/23 - G.A - Created `README for coding with Lexos`
+* 05/23 - T.W - Finished writing `README.md` and `Tutorial for DTM module.ipynb` for dtm module
 
 ## To be done
 
-* Investigate 4% of untouched tests
-  * Use `uv run pytest --cov=src/lexos/dtm --cov-report=html tests/dtm` to investigate
-  * Untouched functions are located in lines 60, 101, 263-268 in __init__.py  
 * Improve existing tests
 * Work on cleanup, making the code prettier and easier to read
-* Add docstrings and typehints
+  * Follow Google [guidelines](https://google.github.io/styleguide/pyguide.html)
 * Implement newer tests for better coverage
 * Work on tutorial notebook for dtm module
   * Consult from alpha version [tutorial](https://scottkleinman.github.io/lexos/api/dtm/)
 * Work on README for dtm module
-* Add docstrings and typehints
-  * Follow Google [guidelines](https://google.github.io/styleguide/pyguide.html)
 * Read on Tokenizer module [tutorial](https://scottkleinman.github.io/lexos/tutorial/tokenizing_texts/)
