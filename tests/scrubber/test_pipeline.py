@@ -46,29 +46,19 @@ def dummy_upper(text: str) -> str:
 def dummy_replace_a_with_x(text: str) -> str:
     return text.replace('A', 'X')
 
-def test_make_pipeline_basic():
-    func1 = pipe(dummy_upper)
-    func2 = pipe(dummy_replace_a_with_x)
-    pipeline = make_pipeline(func1, func2)
-    #pipeline = make_pipeline(dummy_upper, dummy_replace_a_with_x)
-    result = pipeline("a cat and a bat")
+def test_make_pipeline():
+    from lexos.scrubber.remove import punctuation
+    pipeline = make_pipeline(dummy_upper,
+                             dummy_replace_a_with_x,
+                             pipe(punctuation, only=[".", "?", "!"]))
+    result = pipeline("a cat, and a bat.!?")
     # Should first uppercase, then replace 'A' with 'X'
-    assert result == "X CXT XND X BXT"
-
-def test_make_pipeline_with_pipe():
-    def add_prefix(text: str, prefix: str) -> str:
-        return f"{prefix}{text}"
-    pipeline = make_pipeline(
-        dummy_upper,
-        pipe(add_prefix, prefix=">>")
-    )
-    result = pipeline("abc")
-    assert result == ">>ABC"
+    assert result == "X CXT, XND X BXT"
 
 def dummy_add_exclamation(text: str) -> str:
     return text + "!"
 
-def test_make_pipeline_from_tuple_with_callables():
+def test_make_pipeline_from_tuple():
     funcs = (dummy_upper, dummy_add_exclamation)
     pipeline = make_pipeline_from_tuple(funcs)
     result = pipeline("hello")
