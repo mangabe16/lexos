@@ -17,11 +17,21 @@ from lexos.exceptions import LexosException
 class BaseLoader(BaseModel, ABC):
     """BaseLoader."""
 
-    paths: list = Field(default=[], json_schema_extra={"description": "The list of paths."})
-    mime_types: list = Field(default=[], json_schema_extra={"description": "The list of text mime types."})
-    names: list = Field(default=[], json_schema_extra={"description": "The list of text namess."})
-    texts: list = Field(default=[], json_schema_extra={"description": "The list of loaded texts."})
-    errors: list = Field(default=[], json_schema_extra={"description": "The list of loading errors."})
+    paths: list = Field(
+        default=[], json_schema_extra={"description": "The list of paths."}
+    )
+    mime_types: list = Field(
+        default=[], json_schema_extra={"description": "The list of text mime types."}
+    )
+    names: list = Field(
+        default=[], json_schema_extra={"description": "The list of text namess."}
+    )
+    texts: list = Field(
+        default=[], json_schema_extra={"description": "The list of loaded texts."}
+    )
+    errors: list = Field(
+        default=[], json_schema_extra={"description": "The list of loading errors."}
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -31,6 +41,11 @@ class BaseLoader(BaseModel, ABC):
 
     @property
     def data(self):
+        """Get the data as a dictionary.
+        
+        Returns:
+            dict: A dictionary containing the paths, mime_types, names, texts, and errors.
+        """
         return {
             "paths": self.paths,
             "mime_types": self.mime_types,
@@ -77,9 +92,9 @@ class BaseLoader(BaseModel, ABC):
             )
         ]
 
-    @validate_call(config=model_config)         #pragma: no cover
-    @abstractmethod                             #pragma: no cover
-    def load_dataset(self, dataset) -> None:    #pragma: no cover
+    @validate_call(config=model_config)  # pragma: no cover
+    @abstractmethod  # pragma: no cover
+    def load_dataset(self, dataset) -> None:  # pragma: no cover
         """Load a dataset.
 
         Args:
@@ -99,14 +114,18 @@ class BaseLoader(BaseModel, ABC):
         """
         if not self.df.empty:
             df = self.df.copy()
-            df.drop_duplicates(subset=subset, keep='first', inplace=True, ignore_index=True)
+            df.drop_duplicates(
+                subset=subset, keep="first", inplace=True, ignore_index=True
+            )
             self.paths = df["path"].tolist()
             self.mime_types = df["mime_type"].tolist()
             self.names = df["name"].tolist()
             self.texts = df["text"].tolist()
 
     @validate_call(config=model_config)
-    def show_duplicates(self, subset: Optional[list[str]] = None) -> pd.DataFrame | None:
+    def show_duplicates(
+        self, subset: Optional[list[str]] = None
+    ) -> pd.DataFrame | None:
         """Show duplicates in a DataFrame.
 
         Args:
