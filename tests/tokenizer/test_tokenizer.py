@@ -16,14 +16,17 @@ from src.lexos.tokenizer import WhitespaceTokenizer
 
 @pytest.fixture
 def tokenizer():
+    """Fixture for the Tokenizer class."""
     return Tokenizer()
 
 @pytest.fixture
 def sliceTokenizer():
+    """Fixture for the SliceTokenizer class."""
     return SliceTokenizer(n = 4)
 
 @pytest.fixture
 def whitespaceTokenizer():
+    """Fixture for the WhitespaceTokenizer class."""
     return WhitespaceTokenizer()
 
 def test_incorrect_model_exception():
@@ -55,6 +58,7 @@ def test_call(tokenizer):
 
 @pytest.mark.xfail(reason="Type hinting is making this test difficult")
 def test_call_incorrect_iterable(tokenizer):
+    """Raises LexosException when an a non-string / non-string iterable is provided in a call to tokenizer."""
     with pytest.raises(LexosException, match="Input must be a string or an iterable of strings."):
         doc = tokenizer(["yabadaba", 123])
 

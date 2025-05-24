@@ -160,7 +160,7 @@ class Tokenizer(BaseModel):
             self.max_length = max_length
             self.nlp.max_length = max_length
         if disable:
-            #self.nlp.disabled.extend(disable)
+            # self.nlp.disabled.extend(disable)
             self.nlp.select_pipes(disable=disable)
         return next(self.nlp.pipe([text], disable=disable, **kwargs))
 
@@ -188,7 +188,7 @@ class Tokenizer(BaseModel):
             self.max_length = max_length
             self.nlp.max_length = max_length
         if disable:
-            #self.nlp.disabled.extend(disable)
+            # self.nlp.disabled.extend(disable)
             self.nlp.select_pipes(disable=disable)
         return self.nlp.pipe(texts, disable=disable, **kwargs)
 
@@ -219,7 +219,9 @@ class SliceTokenizer(BaseModel, validate_assignment=True):
     """Simple slice tokenizer."""
 
     n: int = Field(description="The size of the tokens in characters.")
-    drop_ws: Optional[bool] = Field(default=True, description="Whether to drop whitespace from the tokens.")
+    drop_ws: Optional[bool] = Field(
+        default=True, description="Whether to drop whitespace from the tokens."
+    )
 
     @validate_call
     def __call__(self, text: str) -> list[str]:
@@ -229,7 +231,6 @@ class SliceTokenizer(BaseModel, validate_assignment=True):
             text (str): The text to tokenize.
 
         Returns:
-
             list[str]: A list of tokens.
         """
         if self.drop_ws:
@@ -246,6 +247,7 @@ class WhitespaceTokenizer(BaseModel):
 
         Args:
             text (str): The text to tokenize.
+
         Returns:
             list[str]: A list of tokens.
         """
