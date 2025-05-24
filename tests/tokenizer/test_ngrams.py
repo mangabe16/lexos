@@ -54,9 +54,11 @@ nlp = spacy.load("en_core_web_sm")
 
 @pytest.fixture
 def ng():
+    """Fixture for the Ngrams class."""
     return Ngrams()
 
 def test_ngrams_stopwords(ng):
+    """Adds stopwords to the ngrams object."""
     ng.filter_stops = ["Stop", "Words"]
     assert ng.stopwords == ["Stop", "Words"]
 
@@ -141,6 +143,7 @@ def test_ngrams_from_doc_filter_stops(ng):
     assert list(ngrams) == [("This", "is"), ("is", "really"), ("really", "big"), ("big", "test")]
 
 def test_ngrams_from_doc_exception(ng):
+    """Generate an exception when an invalid output type is provided using from_doc."""
     doc = nlp("This test should raise an exception.")
     with pytest.raises(LexosException, match="Invalid output type."):
         list(ng.from_doc(doc, output="invalid_format"))
@@ -174,6 +177,7 @@ def test_ngrams_from_text_min_freq(ng):
     assert list(ngrams) == []
 
 def test_ngrams_from_text_exception(ng):
+    """Generate an exception when an invalid output type is provided using from_text."""
     text = "This test should raise an exception."
     with pytest.raises(LexosException, match="Invalid output type."):
         list(ng.from_text(text, output="invalid_format"))
@@ -196,7 +200,7 @@ def test_ngrams_from_tokens_filter_stops(ng):
     ngrams = ng.from_tokens(tokens, filter_stops=["is"], output="tuples")
     assert list(ngrams) == [("This", "a"), ("a", "test")]
 
-def test_ngrams_from_tokens_drop_ws():
+def test_ngrams_from_tokens_drop_ws(ng):
     """This test has to be peformed with SliceTokenizer."""
     pass
 
