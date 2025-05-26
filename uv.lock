@@ -871,7 +871,7 @@ requires-dist = [
     { name = "nbformat", specifier = ">=5.10.4" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "plotly", specifier = ">=6.0.0" },
-    { name = "puremagic", url = "https://github.com/cdgriffith/puremagic/archive/refs/tags/2.0.0b1.tar.gz" },
+    { name = "puremagic", url = "https://github.com/cdgriffith/puremagic/archive/refs/tags/2.0.0b1.zip" },
     { name = "pydantic", specifier = ">=2.10.4" },
     { name = "pydantic-extra-types", specifier = ">=2.10.2" },
     { name = "pypdf", specifier = ">=5.1.0" },
@@ -1373,8 +1373,8 @@ wheels = [
 [[package]]
 name = "puremagic"
 version = "2.0.0b1"
-source = { url = "https://github.com/cdgriffith/puremagic/archive/refs/tags/2.0.0b1.tar.gz" }
-sdist = { hash = "sha256:37d051d34e7585b1896b1a0e478b4970961baf014142a188c9389c8c5d3673fe" }
+source = { url = "https://github.com/cdgriffith/puremagic/archive/refs/tags/2.0.0b1.zip" }
+sdist = { hash = "sha256:f7720bad8affc5485bd994e5618a51617e5681ae95a10058d5e2a7964ebc1bb3" }
 
 [[package]]
 name = "pycparser"
