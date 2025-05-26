@@ -832,7 +832,7 @@ dependencies = [
     { name = "pydantic-extra-types" },
     { name = "pypdf" },
     { name = "python-docx" },
-    { name = "python-magic-bin" },
+    { name = "python-magic-bin", marker = "sys_platform == 'win32'" },
     { name = "rich" },
     { name = "seaborn" },
     { name = "smart-open" },
@@ -876,7 +876,7 @@ requires-dist = [
     { name = "pydantic-extra-types", specifier = ">=2.10.2" },
     { name = "pypdf", specifier = ">=5.1.0" },
     { name = "python-docx", specifier = ">=1.1.2" },
-    { name = "python-magic-bin", specifier = "==0.4.14" },
+    { name = "python-magic-bin", marker = "sys_platform == 'win32'", specifier = "==0.4.14" },
     { name = "rich", specifier = ">=13.9.4" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "smart-open", specifier = ">=7.1.0" },
@@ -1375,6 +1375,7 @@ name = "puremagic"
 version = "2.0.0b1"
 source = { url = "https://github.com/cdgriffith/puremagic/archive/refs/tags/2.0.0b1.zip" }
 sdist = { hash = "sha256:f7720bad8affc5485bd994e5618a51617e5681ae95a10058d5e2a7964ebc1bb3" }
+
 
 [[package]]
 name = "pycparser"
