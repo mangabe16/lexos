@@ -51,7 +51,11 @@ class Loader(BaseLoader):
         """
         if Path(path).suffix == ".pickle":
             return "application/vnd.python.pickle"
-        return puremagic.magic_string(file_start, path)[0].mime_type
+        results = puremagic.magic_string(file_start, path)
+        if results:
+            return results[0].mime_type
+        else:
+            return None
 
     def _load_docx_file(self, path: Path | str) -> None:
         """Load a docx file.
@@ -116,8 +120,12 @@ class Loader(BaseLoader):
                     try:
                         # Get the mime type of the file
                         file_bytes = zip.read(info.filename)
-                        file_start = file_bytes[:MIN_ENCODING_DETECT]
+                        file_start = decode(file_bytes[:MIN_ENCODING_DETECT])
                         mime_type = self._get_mime_type(info.filename, file_start)
+                    except (IOError, UnicodeDecodeError) as e:
+                        self.errors.append(e)
+                        mime_type = None
+                    try:
                         if mime_type in VALID_FILE_TYPES:
                             text = decode(file_bytes)
                             self.paths.append(
@@ -163,25 +171,24 @@ class Loader(BaseLoader):
             if Path(path).is_dir():
                 paths = [p for p in Path(path).rglob("*")]
                 self.load(paths)
+            # Get the mime type of the file
             try:
-                # Get the mime type of the file
                 with open(path, "rb") as f:
                     file_start = f.read(FILE_START)
-                    mime_type = self._get_mime_type(path, file_start)
-                    if mime_type in TEXT_TYPES:
-                        self._load_text_file(path, mime_type)
-                    elif mime_type in PDF_TYPES:
-                        self._load_pdf_file(path)
-                    elif mime_type in DOCX_TYPES:
-                        self._load_docx_file(path)
-                    elif mime_type in ZIP_TYPES:
-                        return self._load_zip_file(path)
-                    else:
-                        self.errors.append(
-                            f"Invalid MIME type: {mime_type} for file {path}."
-                        )
+                mime_type = self._get_mime_type(path, file_start)
             except IOError as e:
                 self.errors.append(e)
+                mime_type = None
+            if mime_type in TEXT_TYPES:
+                self._load_text_file(path, mime_type)
+            elif mime_type in PDF_TYPES:
+                self._load_pdf_file(path)
+            elif mime_type in DOCX_TYPES:
+                self._load_docx_file(path)
+            elif mime_type in ZIP_TYPES:
+                self._load_zip_file(path)
+            else:
+                self.errors.append(f"Invalid MIME type: {mime_type} for file {path}.")
 
     @validate_call(config=model_config)
     def loads(

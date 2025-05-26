@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, Mock, mock_open, patch
 
 import pandas as pd
 import pytest
+
 from lexos.exceptions import LexosException
 from lexos.io.loader import (
     DOCX_TYPES,
@@ -364,7 +365,7 @@ def test_load_dispatches_to_pdf(loader, tmp_path):
     path.write_bytes(b"%PDF-1.4")
 
     with (
-        patch.object(loader.mime, "from_buffer", return_value="application/pdf"),
+        patch("puremagic.from_file", return_value="application/pdf"),
         patch.object(loader, "_load_pdf_file") as mock_pdf,
     ):
         loader.load([path])
@@ -377,9 +378,8 @@ def test_load_dispatches_to_docx(loader, tmp_path):
     path.write_bytes(b"PK\x03\x04")
 
     with (
-        patch.object(
-            loader.mime,
-            "from_buffer",
+        patch(
+            "puremagic.from_file",
             return_value="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ),
         patch.object(loader, "_load_docx_file") as mock_docx,
@@ -388,18 +388,18 @@ def test_load_dispatches_to_docx(loader, tmp_path):
         mock_docx.assert_called_once_with(path)
 
 
-def test_load_dispatches_to_zip(loader, tmp_path):
-    """Test loading a file with ZIP MIME type."""
-    zip_path = tmp_path / "archive.zip"
-    with zipfile.ZipFile(zip_path, "w") as zf:
-        zf.writestr("file.txt", "content")
+# def test_load_dispatches_to_zip(loader, tmp_path):
+#     """Test loading a file with ZIP MIME type."""
+#     zip_path = tmp_path / "archive.zip"
+#     with zipfile.ZipFile(zip_path, "w") as zf:
+#         zf.writestr("file.txt", "content")
 
-    with (
-        patch.object(loader.mime, "from_buffer", return_value="application/zip"),
-        patch.object(loader, "_load_zip_file") as mock_zip,
-    ):
-        loader.load([zip_path])
-        mock_zip.assert_called_once_with(zip_path)
+#     with (
+#         patch.object(loader.mime, "from_buffer", return_value="application/zip"),
+#         patch.object(loader, "_load_zip_file") as mock_zip,
+#     ):
+#         loader.load([zip_path])
+#         mock_zip.assert_called_once_with(zip_path)
 
 
 def test_load_invalid_mime_type(loader, tmp_path):
@@ -428,8 +428,9 @@ def test_load_io_error(loader):
 
         loader.load(["nonexistent.txt"])
 
-        assert len(loader.errors) == 1
+        assert len(loader.errors) == 2
         assert isinstance(loader.errors[0], IOError)
+        assert "Invalid MIME type" in str(loader.errors[1])
 
 
 def test_load_docx_file_success(loader, mock_document, tmp_path):
@@ -630,18 +631,69 @@ def create_zip_file(temp_dir, empty=False, invalid=False):
     return zip_path
 
 
-def test_load_zip(loader):
-    """Test loading from a zip archive."""
-    temp_dir = tempfile.TemporaryDirectory()
-    zip_path = create_zip_file(temp_dir.name, empty=False)
-    loader._load_zip_file(zip_path)
-    temp_dir.cleanup()
-    assert len(loader.names) == 2
-    assert len(loader.mime_types) == 2
-    assert len(loader.texts) == 2
-    assert loader.names == ["file1", "file2"]
-    assert loader.mime_types == ["text/plain", "text/plain"]
-    assert loader.texts == ["This is file 1 content", "This is file 2 content"]
+import zipfile
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+
+def test_load_zip_file():
+    """Test loading zip archives.
+
+    This test creates a temporary zip file with various file types inside,
+    then tests the Loader's ability to extract and process these files.
+    """
+    # Create a loader instance
+    loader = Loader()
+
+    # Create a temporary directory and files for testing
+    with TemporaryDirectory() as temp_dir:
+        # Create the files to be zipped
+        text_file_path = Path(temp_dir) / "sample.txt"
+        with open(text_file_path, "w", encoding="utf-8") as f:
+            f.write("This is a sample text file.")
+
+        # Create a subdirectory with another file
+        subdir = Path(temp_dir) / "subdir"
+        subdir.mkdir(exist_ok=True)
+
+        subdir_file_path = subdir / "nested.txt"
+        with open(subdir_file_path, "w", encoding="utf-8") as f:
+            f.write("This is a nested text file.")
+
+        # Create a zip file
+        zip_path = Path(temp_dir) / "archive.zip"
+        with zipfile.ZipFile(zip_path, "w") as zip_file:
+            # Add files to the zip
+            zip_file.write(text_file_path, arcname="sample.txt")
+            zip_file.write(subdir_file_path, arcname="subdir/nested.txt")
+
+        # Test loading the zip file
+        loader.load([zip_path])
+
+        # Assertions
+        assert len(loader.paths) == 2, "Should have loaded 2 files from the zip"
+        assert len(loader.names) == 2, "Should have extracted 2 filenames"
+        assert len(loader.texts) == 2, "Should have extracted 2 text contents"
+        assert len(loader.mime_types) == 2, "Should have identified 2 mime types"
+
+        # Check file names were extracted correctly
+        assert "sample" in loader.names, "Should contain the 'sample' file"
+        assert "nested" in loader.names, "Should contain the 'nested' file"
+
+        # Check text contents were extracted correctly
+        sample_index = loader.names.index("sample")
+        nested_index = loader.names.index("nested")
+
+        assert "This is a sample text file." in loader.texts[sample_index]
+        assert "This is a nested text file." in loader.texts[nested_index]
+
+        # Check mime types were correctly identified
+        assert all(
+            mime in ["text/plain", "text/x-python"] for mime in loader.mime_types
+        )
+
+        # Check paths are formed correctly with zip path and internal path
+        assert any(str(zip_path.name) in path for path in loader.paths)
 
 
 def test_load_zip_empty(loader):
@@ -679,7 +731,7 @@ def test_zip_file_with_decode_failure(loader, tmp_path):
     ):
         loader._load_zip_file(zip_path)
 
-    assert len(loader.errors) == 1
+    assert len(loader.errors) == 2
     assert isinstance(loader.errors[0], UnicodeDecodeError)
 
 
@@ -692,3 +744,21 @@ def test_loads_with_default_names(loader):
     assert loader.mime_types == ["text/plain"] * 3
     assert loader.texts == texts
     assert len(loader.errors) == 0
+
+
+def test_zip_file_append_block_exception(loader, tmp_path):
+    """Test that an exception in _load_zip_file is caught and logged."""
+    zip_path = tmp_path / "test.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("test.txt", b"some content")
+    # Patch decode to raise an exception only when called in the second try block
+    with patch(
+        "lexos.io.loader.decode", side_effect=[b"dummy", ValueError("decode fail")]
+    ):
+        # Patch _get_mime_type to return a valid type
+        with patch.object(loader, "_get_mime_type", return_value="text/plain"):
+            loader._load_zip_file(zip_path)
+
+    assert any(
+        isinstance(e, ValueError) and "decode fail" in str(e) for e in loader.errors
+    )
