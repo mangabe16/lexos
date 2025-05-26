@@ -871,7 +871,7 @@ requires-dist = [
     { name = "nbformat", specifier = ">=5.10.4" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "plotly", specifier = ">=6.0.0" },
-    { name = "puremagic", url = "https://github.com/cdgriffith/puremagic/archive/refs/tags/2.0.0b1.tar.gz" },
+    { name = "puremagic", specifier = ">=2.0.0b1" },
     { name = "pydantic", specifier = ">=2.10.4" },
     { name = "pydantic-extra-types", specifier = ">=2.10.2" },
     { name = "pypdf", specifier = ">=5.1.0" },
