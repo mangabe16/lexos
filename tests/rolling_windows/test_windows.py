@@ -572,6 +572,14 @@ def test_token_list_windows_invalid_output(sample_tokens):
     with pytest.raises(LexosException):
         _ = Windows(input=sample_tokens, n=2, output="invalid", window_type="tokens")
 
+def test_get_token_list_windows_invalid_output_direct(sample_tokens):
+    """Test _get_token_list_windows with invalid output type by setting it directly."""
+    windows = Windows(n=2, output="strings", window_type="tokens")  # Valid initialization
+    windows.output = "invalid"  # Directly set invalid output after init
+    
+    with pytest.raises(LexosException, match="Output must be 'strings' or 'tokens'."):
+        list(windows._get_token_list_windows(sample_tokens))
+
 def test_token_list_windows_character_mode(sample_tokens):
     """Test token list windows in character mode."""
     windows = Windows(n=2, output="strings", window_type="characters")
