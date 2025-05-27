@@ -99,7 +99,7 @@ class Ngrams(BaseModel):
     model_config = validation_config
 
     @property
-    def stopwords(self) -> list[str]:
+    def stopwords(self) -> bool | list[str] | None:
         """Get the list of stopwords."""
         return self.filter_stops
 

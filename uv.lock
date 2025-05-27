@@ -827,11 +827,12 @@ dependencies = [
     { name = "nbformat" },
     { name = "pandas" },
     { name = "plotly" },
+    { name = "puremagic" },
     { name = "pydantic" },
     { name = "pydantic-extra-types" },
     { name = "pypdf" },
     { name = "python-docx" },
-    { name = "python-magic-bin" },
+    { name = "python-magic-bin", marker = "sys_platform == 'win32'" },
     { name = "rich" },
     { name = "seaborn" },
     { name = "smart-open" },
@@ -870,11 +871,12 @@ requires-dist = [
     { name = "nbformat", specifier = ">=5.10.4" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "plotly", specifier = ">=6.0.0" },
+    { name = "puremagic", specifier = ">=2.0.0b1" },
     { name = "pydantic", specifier = ">=2.10.4" },
     { name = "pydantic-extra-types", specifier = ">=2.10.2" },
     { name = "pypdf", specifier = ">=5.1.0" },
     { name = "python-docx", specifier = ">=1.1.2" },
-    { name = "python-magic-bin", specifier = "==0.4.14" },
+    { name = "python-magic-bin", marker = "sys_platform == 'win32'", specifier = "==0.4.14" },
     { name = "rich", specifier = ">=13.9.4" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "smart-open", specifier = ">=7.1.0" },
@@ -1369,6 +1371,15 @@ wheels = [
 ]
 
 [[package]]
+name = "puremagic"
+version = "2.0.0b2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/23/62/4fbf86ec40364e8ffe8b7d0ff669d939985e60328df68990f3a8e6b45237/puremagic-2.0.0b2.tar.gz", hash = "sha256:70136f3ea0977fd50a7783093b4b2588c5760411c668790300c2bf5e67e2fbab", size = 500594 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/bb/34e4b09a7c8e3c5d1e63df184e5f8d0a55c7f3f82defa9dec480ec3a5d7a/puremagic-2.0.0b2-py3-none-any.whl", hash = "sha256:5f5836a96f98aaa559f003def597824a319e480e7e88cb1e02c21185abd48675", size = 47873 },
+]
+
+[[package]]
 name = "pycparser"
 version = "2.22"
 source = { registry = "https://pypi.org/simple" }
@@ -1558,7 +1569,6 @@ name = "python-magic-bin"
 version = "0.4.14"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/2c/bbe8ad26591745da2c4692ea571145fb027c8ee1a0540407aa327684c4ce/python_magic_bin-0.4.14-py2.py3-none-macosx_10_6_intel.whl", hash = "sha256:7b1743b3dbf16601d6eedf4e7c2c9a637901b0faaf24ad4df4d4527e7d8f66a4", size = 334318 },
     { url = "https://files.pythonhosted.org/packages/5a/5d/10b9ac745d9fd2f7151a2ab901e6bb6983dbd70e87c71111f54859d1ca2e/python_magic_bin-0.4.14-py2.py3-none-win32.whl", hash = "sha256:34a788c03adde7608028203e2dbb208f1f62225ad91518787ae26d603ae68892", size = 397784 },
     { url = "https://files.pythonhosted.org/packages/07/c2/094e3d62b906d952537196603a23aec4bcd7c6126bf80eb14e6f9f4be3a2/python_magic_bin-0.4.14-py2.py3-none-win_amd64.whl", hash = "sha256:90be6206ad31071a36065a2fc169c5afb5e0355cbe6030e87641c6c62edc2b69", size = 409299 },
 ]
