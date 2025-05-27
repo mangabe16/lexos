@@ -36,7 +36,7 @@ Usage:
 To run the tests for this module:
     uv run pytest tests/tokenizer/test_ngrams.py
 
-Last updated: May 20, 2025
+Last updated: May 27, 2025
 """
 
 import pytest
