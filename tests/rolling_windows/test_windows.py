@@ -197,6 +197,18 @@ def test_call_invalid_window_type(basic_windows):
             window_type="invalid"
         )
 
+def test_windows_invalid_output_type(nlp):
+    """Test error handling for invalid output type during initialization."""
+    doc = nlp("This is a test document.")
+    
+    with pytest.raises(LexosException, match="Output must be 'strings' or 'tokens'."):
+        Windows(
+            input=doc,
+            output="not_valid",  # Invalid output to trigger the uncovered branch
+            window_type="tokens"
+        )
+
+
 def test_call_attribute_persistence(basic_windows):
     """Test persistence of attributes after call."""
     input_text = "Hello world"
