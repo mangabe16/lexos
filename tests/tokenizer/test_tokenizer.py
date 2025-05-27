@@ -48,24 +48,24 @@ from src.lexos.tokenizer import WhitespaceTokenizer
 
 
 @pytest.fixture
-def tokenizer():
+def tokenizer() -> Tokenizer:
     """Fixture for the Tokenizer class."""
     return Tokenizer()
 
 
 @pytest.fixture
-def sliceTokenizer():
+def sliceTokenizer() -> SliceTokenizer:
     """Fixture for the SliceTokenizer class."""
     return SliceTokenizer(n=4)
 
 
 @pytest.fixture
-def whitespaceTokenizer():
+def whitespaceTokenizer() -> WhitespaceTokenizer:
     """Fixture for the WhitespaceTokenizer class."""
     return WhitespaceTokenizer()
 
 
-def test_incorrect_model_exception():
+def test_incorrect_model_exception() -> None:
     """Raises LexosException when an incorrect model is provided."""
     with pytest.raises(
         LexosException,
@@ -74,13 +74,13 @@ def test_incorrect_model_exception():
         tokenizer = Tokenizer(model="non_existent_model")
 
 
-def test_add_extension(tokenizer):
+def test_add_extension(tokenizer: Tokenizer) -> None:
     """Adds an extension to the tokenizer object."""
     tokenizer.add_extension("test_ext", default="default_value")
     assert Token.has_extension("test_ext")
 
 
-def test_add_stopwords(tokenizer):
+def test_add_stopwords(tokenizer: Tokenizer) -> None:
     """Adds stopwords to the tokenizer object."""
     stopwords = ["the", "a", "an"]
     tokenizer.add_stopwords(stopwords)
@@ -89,14 +89,14 @@ def test_add_stopwords(tokenizer):
         assert term in tokenizer.stopwords
 
 
-def test_call(tokenizer):
+def test_call(tokenizer: Tokenizer) -> None:
     """Creates a spaCy Doc object from a string."""
     doc = tokenizer("This is a test.")
     assert isinstance(doc, Doc)
     assert doc.text == "This is a test."
 
 
-def test_call_multiple_texts(tokenizer):
+def test_call_multiple_texts(tokenizer: Tokenizer) -> None:
     """Creates a list of spaCy Doc objects from a list of strings."""
     docs = list(tokenizer(["This is a test.", "This is another test."]))
     assert isinstance(docs[0], Doc)
@@ -105,7 +105,7 @@ def test_call_multiple_texts(tokenizer):
     assert docs[1].text == "This is another test."
 
 
-def test_make_doc(tokenizer):
+def test_make_doc(tokenizer: Tokenizer) -> None:
     """Creates a spaCy Doc object from a string that contains a max length and disabled pipes."""
     doc = tokenizer.make_doc("This is a test.")
     assert isinstance(doc, Doc)
@@ -116,7 +116,7 @@ def test_make_doc(tokenizer):
     assert "senter" in tokenizer.nlp.disabled
 
 
-def test_make_docs(tokenizer):
+def test_make_docs(tokenizer: Tokenizer) -> None:
     """Creates a list of spaCy Doc objects from a list of strings that contains a max length and disabled pipes."""
     texts = ["This is a test.", "Another test."]
     docs = list(tokenizer.make_docs(texts))
@@ -130,14 +130,14 @@ def test_make_docs(tokenizer):
     assert "senter" in tokenizer.nlp.disabled
 
 
-def test_remove_extension(tokenizer):
+def test_remove_extension(tokenizer: Tokenizer) -> None:
     """Removes an extension from the tokenizer object."""
     tokenizer.add_extension("test_ext", default="default_value")
     tokenizer.remove_extension("test_ext")
     assert not Token.has_extension("test_ext")
 
 
-def test_remove_stopwords(tokenizer):
+def test_remove_stopwords(tokenizer: Tokenizer) -> None:
     """Removes stopwords from the tokenizer object."""
     stopwords = ["the", "a", "an"]
     tokenizer.add_stopwords(stopwords)
@@ -147,13 +147,13 @@ def test_remove_stopwords(tokenizer):
     assert "the" not in tokenizer.stopwords
 
 
-def test_pipeline(tokenizer):
+def test_pipeline(tokenizer: Tokenizer) -> None:
     """Returns the spaCy pipeline."""
     pipeline = tokenizer.pipeline
     assert pipeline == ["senter"]
 
 
-def test_components(tokenizer):
+def test_components(tokenizer: Tokenizer) -> None:
     """Returns the spaCy pipeline components."""
     components = tokenizer.components
     assert isinstance(components, list)
@@ -161,13 +161,13 @@ def test_components(tokenizer):
     assert components[0][0] == "senter"
 
 
-def test_disabled(tokenizer):
+def test_disabled(tokenizer: Tokenizer) -> None:
     """Returns the disabled spaCy pipeline components."""
     disabled = tokenizer.disabled
     assert disabled == []
 
 
-def test_slice_tokenizer(sliceTokenizer):
+def test_slice_tokenizer(sliceTokenizer: SliceTokenizer) -> None:
     """Slice the text into tokens of n characters."""
     text = "This is a test."
     slices = sliceTokenizer(text)
@@ -176,7 +176,7 @@ def test_slice_tokenizer(sliceTokenizer):
     assert slices == ["This", "isat", "est."]
 
 
-def test_white_space_tokenizer(whitespaceTokenizer):
+def test_white_space_tokenizer(whitespaceTokenizer: WhitespaceTokenizer) -> None:
     """Split the text into tokens on whitespace."""
     text = "This is a test."
     tokens = whitespaceTokenizer(text)
