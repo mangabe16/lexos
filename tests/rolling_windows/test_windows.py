@@ -408,6 +408,18 @@ def test_span_list_windows_invalid_output(sample_spans):
     with pytest.raises(LexosException):
         _ = Windows(input=sample_spans, n=2, output="invalid", window_type="tokens")
 
+def test_get_span_list_windows_invalid_output_direct(sample_spans):
+    """Test _get_span_list_windows with invalid output type by setting it directly."""
+    windows = Windows(n=2, output="strings", window_type="tokens")  # Valid initialization
+    windows.output = "invalid"  # Directly set invalid output after init
+    
+    with pytest.raises(LexosException, match="Output must be 'strings', or 'tokens'."):
+        list(windows._get_span_list_windows(sample_spans))
+
+# Note: Line 179 (yeild slice) in _get_span_list_windows appears to be unreachable code
+# since the validation at line 164 only allows "strings" or "tokens" as output types,
+# and both cases are handled explicitly in the if/elif block above the else clause.
+
 def test_span_list_windows_character_mode(sample_spans):
     """Test span list windows in character mode."""
     windows = Windows(n=2, output="strings", window_type="characters")
