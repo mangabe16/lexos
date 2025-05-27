@@ -29,8 +29,8 @@ The class is iterable, so the list can also be accessed with `for chunk in TextC
 
 The `to_dict()` method returns the chunks as a dictionary with source names as keys.
 
-Last updated: 2025-01-13
-Tested: 2025-01-13
+Last updated: 2025-05-26
+Tested: 2025-05-26
 """
 
 import os
@@ -44,7 +44,6 @@ from lexos.constants import LEXOS_MILESTONE_FLAG
 from lexos.exceptions import LexosException
 from lexos.milestones.string_milestones import StringSpan
 from lexos.util import ensure_list
-
 
 class TextCutter(BaseModel, validate_assignment=True):
     """TextCutter class for chunking files and strings containing untokenised text."""
@@ -113,29 +112,27 @@ class TextCutter(BaseModel, validate_assignment=True):
         """Calculate chunk size and remainder for n chunks.
 
         Args:
-            size: Total size of file in bytes.
-            n: Number of chunks to create.
+            size (int): Total size of file in bytes.
+            n (int): Number of chunks to create.
 
         Returns:
-            tuple: (chunk_size, remainder)
+            tuple [int, int]: (chunk_size, remainder)
         """
         chunk_size = size // n
         remainder = size % n
         return chunk_size, remainder
 
     def _get_name(self, source: Path | str, index: int) -> str:
-        """Get source name based on available inputs.
+        """Generate a filename based on source or fallback rules.
 
         Args:
-            source: Original source path or string
-            index: Current source index
+            source (Path | str): Original file path or source label.
+            index (int): Index of the source being processed.
 
         Returns:
-            str: Resolved source name
+            str: A formatted name for saving the chunked output.
         """
-        if self.names == []:
-            return f"text{str(index).zfill(self.pad)}"
-        elif self.names != []:
+        if self.names:
             return self.names[index]
         elif isinstance(source, Path):
             return Path(source).stem
@@ -145,13 +142,14 @@ class TextCutter(BaseModel, validate_assignment=True):
     def _merge_final_chunks(
         self, chunks: Generator[str, None, None]
     ) -> Generator[str, None, None]:
-        """Merges the last two items in the chunks.
+        """Merge the last two chunks if the final one is below the merge threshold.
 
         Args:
-            chunks (Generator[str, None, None]): The chunks.
+            chunks (Generator[str]): Chunks of text to evaluate.
 
         Yields:
-            Generator[str, None, None]: The merged chunks."""
+            str: Finalized chunks after merging (if needed).
+        """
         buffer = []
         for item in chunks:
             buffer.append(item)
@@ -178,7 +176,6 @@ class TextCutter(BaseModel, validate_assignment=True):
         """
         if isinstance(source, str):
             source = source.encode()
-        chunk_num = 1
         chunks = []
         with BytesIO(source) as buffer:
             if n is True:
@@ -187,7 +184,7 @@ class TextCutter(BaseModel, validate_assignment=True):
                 try:
                     for i in range(self.n):
                         if self.newline:
-                            chunk = self._read_chunk_by_lines(buffer, chunk_size)
+                            chunk = self._read_by_lines(buffer, chunk_size)
                         else:
                             size = (
                                 chunk_size + remainder
@@ -197,18 +194,16 @@ class TextCutter(BaseModel, validate_assignment=True):
                             chunk = buffer.read(size)
                         if not chunk:
                             break
-                        chunk_num += 1
                         # Convert to string
-                        chunks.append(chunk.decode())
+                        chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
                 finally:
                     buffer.close()
             else:
                 while chunk := (
                     self._read_by_lines if self.newline else self._read_chunks
                 )(buffer, self.chunksize):
-                    chunk_num += 1
                     # Convert to string
-                    chunks.append(chunk.decode())
+                    chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
         return chunks
 
     def _process_file(
@@ -216,17 +211,15 @@ class TextCutter(BaseModel, validate_assignment=True):
         path: Path | str,
         n: bool = False,
     ) -> list[str]:
-        """Process single file in chunks.
+        """Split the contents of a file into chunks.
 
         Args:
-            path (Path | str): The file path.
-            name (str): The name of the source.
-            n (bool): Whether to chunk by n.
+            path (Path | str): Path to the input file.
+            n (bool): Whether to split into a fixed number of parts.
 
         Returns:
-            list[str]: The chunks.
+            list[str]: List of chunked text segments.
         """
-        chunk_num = 1
         chunks = []
         with open(path, "r") as f:
             if n is True:
@@ -247,7 +240,6 @@ class TextCutter(BaseModel, validate_assignment=True):
                             chunk = chunk.replace("\r\n", "\n").replace("\r", "\n")
                         if not chunk:
                             break
-                        chunk_num += 1
                         chunks.append(chunk)
                 finally:
                     f.close()
@@ -255,12 +247,11 @@ class TextCutter(BaseModel, validate_assignment=True):
                 while chunk := (
                     self._read_by_lines if self.newline else self._read_chunks
                 )(f, self.chunksize):
-                    chunk_num += 1
                     chunk = chunk.replace("\r\n", "\n").replace("\r", "\n")
                     chunks.append(chunk)
         return chunks
 
-    def _read_by_lines(self, file_or_buf: BinaryIO, size: int) -> bytes:
+    def _read_by_lines(self, file_or_buf: BinaryIO, size: int) -> str:
         """Read file by lines up to size limit.
 
         Args:
@@ -268,34 +259,39 @@ class TextCutter(BaseModel, validate_assignment=True):
             size (int): Maximum bytes to read.
 
         Returns:
-            bytes: Concatenated lines up to size limit.
+            str: Concatenated lines up to size limit.
         """
         chunks: list[bytes] = []
         bytes_read = 0
 
         while bytes_read < size and (line := file_or_buf.readline()):
-            chunks.append(line)
+            chunks.append(line.decode("utf-8") if isinstance(line, bytes) else line)
             bytes_read += len(line)
 
         return "".join(chunks)
 
     def _read_chunks(self, buffer: BytesIO, size: int) -> bytes:
-        """Read file in fixed-size chunks.
+        """Read a fixed number of bytes from a memory buffer.
 
         Args:
-            buffer (BytesIO): The BytesIO buffer to read from.
-            size (int): Size of each chunk in bytes.
+            buffer (BytesIO): The buffer to read from.
+            size (int): Number of bytes to read.
 
         Returns:
-            bytes: The chunks.
+            bytes: A chunk of text from the buffer.
         """
-        while chunk := buffer.read(size):
-            return chunk
+        chunk = buffer.read(size)
+        return chunk
 
     def _set_attributes(self, **data) -> None:
-        """Set attributes after initialization."""
+        """Update multiple attributes on the TextCutter instance.
+        
+        Args:
+            **data: Arbitrary keyword arguments matching attribute names.
+        """
         for key, value in data.items():
-            setattr(self, key, value)
+            if hasattr(self, key):
+                setattr(self, key, value)
 
     def _write_chunk(
         self, path: Path | str, n: int, chunk: str, output_dir: Path
@@ -353,14 +349,14 @@ class TextCutter(BaseModel, validate_assignment=True):
             pad=pad,
             strip_chunks=strip_chunks,
         )
-        if not self.chunks or self.chunks == []:
+        if not self.chunks:
             raise LexosException("No chunks to save.")
         if self.names:
             if len(self.names) != len(self.chunks):
                 raise LexosException(
                     f"The number of docs in `names` ({len(self.names)}) must equal the number of docs in `chunks` ({len(self.chunks)})."
                 )
-        elif self.names == [] or self.names is None:
+        else:
             self.names = [
                 f"doc{str(i + 1).zfill(self.pad)}" for i in range(len(self.chunks))
             ]
@@ -384,7 +380,7 @@ class TextCutter(BaseModel, validate_assignment=True):
         merge_final: Optional[bool] = False,
         delimiter: str = "_",
         pad: int = 3,
-    ) -> Iterator[bytes]:
+    ) -> None:
         """Chunk the file or buffer.
 
         Args:
@@ -443,18 +439,17 @@ class TextCutter(BaseModel, validate_assignment=True):
         output_dir: Optional[Path | str] = None,
         file: Optional[bool] = True,
     ) -> None:
-        """Split the text at each milestone span.
+        """Split text at each milestone span, optionally retaining the milestone text.
 
         Args:
             sources (Path | str | list[Path | str]): List of file paths or buffers.
-            milestones: list[StringSpan],
-            names (Optional[Path | str | list[Path | str]]): List of source names.
             milestones (list[StringSpan]): A list of milestone StringSpans to split the text at.
+            names (Optional[Path | str | list[Path | str]]): List of source names.
             keep_spans (Optional[bool | str]): Whether to keep the spans in the split strings. Defaults to False.
             strip (Optional[bool]): Whether to strip the text. Defaults to True.
             milestone_flag (Optional[str]): The flag to use for the split. Defaults to LEXOS_MILESTONE_FLAG.
             output_dir (Optional[Path | str]): The output directory to save the chunks to.
-            file (Optional[bool]): Whether to chunk the file or buffer.
+            file (Optional[bool]): Set to True if reading from file(s), False for strings.
         """
         if file:
             self.names = [Path(name).stem for name in ensure_list(sources)]
@@ -492,7 +487,7 @@ class TextCutter(BaseModel, validate_assignment=True):
             if output_dir:
                 name = self.names[i]
                 for num, chunk in enumerate(chunks):
-                    self._write_chunk(name, num, chunk.encode(), output_dir)
+                    self._write_chunk(name, num, chunk, output_dir)
 
     @validate_call
     def to_dict(
