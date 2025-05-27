@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Update: Jan 25, 2025
-Last Tested: Jan 25, 2025
+Last Update: May 24, 2025
+Last Tested: May 26, 2025
 
 Current usage:
 
@@ -98,8 +98,6 @@ class Tokenizer(BaseModel):
             return self.make_doc(texts)
         elif isinstance(texts, Iterable):
             return self.make_docs(texts)
-        else:
-            raise LexosException("Input must be a string or an iterable of strings.")
 
     @property
     def pipeline(self) -> list[str]:

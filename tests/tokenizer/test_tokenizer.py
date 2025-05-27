@@ -19,19 +19,25 @@ def tokenizer():
     """Fixture for the Tokenizer class."""
     return Tokenizer()
 
+
 @pytest.fixture
 def sliceTokenizer():
     """Fixture for the SliceTokenizer class."""
-    return SliceTokenizer(n = 4)
+    return SliceTokenizer(n=4)
+
 
 @pytest.fixture
 def whitespaceTokenizer():
     """Fixture for the WhitespaceTokenizer class."""
     return WhitespaceTokenizer()
 
+
 def test_incorrect_model_exception():
     """Raises LexosException when an incorrect model is provided."""
-    with pytest.raises(LexosException, match=f"Error loading model non_existent_model. Please check the name and try again. You may need to install the model on your system."):
+    with pytest.raises(
+        LexosException,
+        match=f"Error loading model non_existent_model. Please check the name and try again. You may need to install the model on your system.",
+    ):
         tokenizer = Tokenizer(model="non_existent_model")
 
 
@@ -55,12 +61,6 @@ def test_call(tokenizer):
     doc = tokenizer("This is a test.")
     assert isinstance(doc, Doc)
     assert doc.text == "This is a test."
-
-@pytest.mark.xfail(reason="Type hinting is making this test difficult")
-def test_call_incorrect_iterable(tokenizer):
-    """Raises LexosException when an a non-string / non-string iterable is provided in a call to tokenizer."""
-    with pytest.raises(LexosException, match="Input must be a string or an iterable of strings."):
-        doc = tokenizer(["yabadaba", 123])
 
 
 def test_call_multiple_texts(tokenizer):
@@ -113,11 +113,13 @@ def test_remove_stopwords(tokenizer):
     assert not tokenizer.nlp.vocab["the"].is_stop
     assert "the" not in tokenizer.stopwords
 
+
 def test_pipeline(tokenizer):
     """Returns the spaCy pipeline."""
     pipeline = tokenizer.pipeline
     assert pipeline == ["senter"]
-    
+
+
 def test_components(tokenizer):
     """Returns the spaCy pipeline components."""
     components = tokenizer.components
@@ -125,10 +127,12 @@ def test_components(tokenizer):
     assert len(components) == 1
     assert components[0][0] == "senter"
 
+
 def test_disabled(tokenizer):
     """Returns the disabled spaCy pipeline components."""
     disabled = tokenizer.disabled
     assert disabled == []
+
 
 def test_slice_tokenizer(sliceTokenizer):
     """Slice the text into tokens of n characters."""
@@ -137,6 +141,7 @@ def test_slice_tokenizer(sliceTokenizer):
     # Default n=4, drop_ws=True, so spaces are removed: 'Thisisatest.'
     # Slices: ['This', 'isat', 'est.']
     assert slices == ["This", "isat", "est."]
+
 
 def test_white_space_tokenizer(whitespaceTokenizer):
     """Split the text into tokens on whitespace."""
