@@ -263,7 +263,7 @@ def scrub(
             try:
                 func = factory.get(pipe)
                 return func(text)
-            except NameError as e:
+            except AttributeError as e:
                 raise LexosException(e)
             except catalogue.RegistryError as e:
                 raise LexosException(e)
