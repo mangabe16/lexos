@@ -306,10 +306,31 @@ def test_doc_windows_output_types(sample_doc, output_type, expected_type):
     assert len(results) > 0
     assert all(isinstance(w, expected_type) for w in results)
 
+
 def test_doc_windows_invalid_output():
     """Test error handling for invalid output type."""
     with pytest.raises(LexosException):
         _ = Windows(n=2, output="invalid")
+
+def test_get_doc_windows_invalid_output_direct(sample_doc):
+    """Test _get_doc_windows with invalid output type by setting it directly."""
+    windows = Windows(n=2, output="strings")  # Valid initialization
+    windows.output = "invalid"  # Directly set invalid output after init
+    
+    with pytest.raises(LexosException, match="Output must be 'strings', or 'tokens'."):
+        list(windows._get_doc_windows(sample_doc))
+
+
+def test_get_doc_windows_spans_output_direct(sample_doc):
+    """Test _get_doc_windows with spans output by setting it directly."""
+    windows = Windows(n=2, output="strings", window_type="tokens")  # Valid initialization  
+    windows.output = "spans"  # Directly set spans output after init
+    
+    generator = windows._get_doc_windows(sample_doc)
+    results = list(generator)
+    
+    assert len(results) > 0
+    assert all(isinstance(w, spacy.tokens.Span) for w in results)
 
 @pytest.mark.parametrize("window_type,alignment_mode", [
     ("characters", "strict"),
