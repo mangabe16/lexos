@@ -64,6 +64,48 @@ def sample_span(nlp):
 
 # Tests
 
+def test_regex_escape_bytes_handling():
+    """Test regex_escape function with bytes input (line 65 coverage)."""
+    from lexos.rolling_windows.calculators.base_calculator import regex_escape
+    
+    # Test bytes input with regex special characters
+    bytes_input = b"test[pattern](with)*special+chars.^$"
+    result = regex_escape(bytes_input)
+    
+    # Verify it returns bytes
+    assert isinstance(result, bytes)
+    
+    # Verify special characters are escaped
+    expected = b"test\\[pattern\\]\\(with\\)\\*special\\+chars\\.\\^\\$"
+    assert result == expected
+    
+    # Test bytes input without special characters
+    simple_bytes = b"simple_text"
+    result_simple = regex_escape(simple_bytes)
+    assert result_simple == b"simple_text"
+    assert isinstance(result_simple, bytes)
+
+def test_regex_escape_string_handling():
+    """Test regex_escape function with string input (line 66 coverage)."""
+    from lexos.rolling_windows.calculators.base_calculator import regex_escape
+    
+    # Test string input with regex special characters
+    string_input = "test[pattern](with)*special+chars.^$"
+    result = regex_escape(string_input)
+    
+    # Verify it returns string
+    assert isinstance(result, str)
+    
+    # Verify special characters are escaped
+    expected = "test\\[pattern\\]\\(with\\)\\*special\\+chars\\.\\^\\$"
+    assert result == expected
+    
+    # Test string input without special characters
+    simple_string = "simple_text"
+    result_simple = regex_escape(simple_string)
+    assert result_simple == "simple_text"
+    assert isinstance(result_simple, str)
+
 def test_calculator_init_defaults(basic_calculator):
     """Test calculator initialization with default values."""
     assert basic_calculator.id == "base_calculator"
