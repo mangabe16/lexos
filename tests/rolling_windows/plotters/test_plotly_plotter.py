@@ -239,6 +239,33 @@ def test_validate_edge_cases_invalid_labels():
             plotter._validate_edge_cases()
         assert "milestone_labels" in str(exc_info.value)
 
+def test_validate_edge_cases_invalid_milestone_values():
+    """Test validation with milestone labels that cause MilestonesModel ValidationError (line 155 coverage)."""
+    from unittest.mock import patch
+    
+    # Create a plotter instance first with valid data
+    plotter = PlotlyPlotter(show_milestones=True, milestone_labels={"test": 1})
+    
+    # Set milestone_labels to non-empty value to avoid line 150-153
+    plotter.milestone_labels = {"some_label": 123}
+    
+    # Mock MilestonesModel to raise ValidationError using the simplest working approach
+    with patch('lexos.rolling_windows.plotters.plotly_plotter.MilestonesModel') as mock_model:
+        # Create ValidationError by trying to validate invalid data with a real Pydantic model
+        try:
+            from pydantic import BaseModel
+            class TestModel(BaseModel):
+                required_field: str
+            TestModel()  # This will raise ValidationError for missing required field
+        except ValidationError as ve:
+            mock_model.side_effect = ve
+        
+        with pytest.raises(LexosException) as exc_info:
+            plotter._validate_edge_cases()
+        
+        # Verify it's the specific error from line 155 (the else clause)
+        assert "require a value for `milestone_labels`" in str(exc_info.value)
+        assert "list of dicts" in str(exc_info.value)
 
 def test_validate_edge_cases_show_labels_only(valid_milestone_labels):
     """Tests validation when only milestone labels are shown.
