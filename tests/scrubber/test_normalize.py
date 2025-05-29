@@ -28,8 +28,8 @@ def test_hyphenated_words():
 
 def test_lower_case():
     """Test converting text to lower case."""
-    text = "This Is A Test."
-    expected = "this is a test."
+    text = "This Is A TeSt to LOWeR."
+    expected = "this is a test to lower."
     assert lower_case(text) == expected
 
 def test_quotation_marks():
@@ -40,10 +40,11 @@ def test_quotation_marks():
 
 def test_repeating_chars():
     """Test normalizing repeating characters."""
-    text = "This is sooo cool!!!"
-    assert repeating_chars(text, chars="o", maxn=1) == "This is so col!!!"
-    assert repeating_chars(text, chars="!", maxn=1) == "This is sooo cool!"
-
+    text = "TTTThis is sooo cool!!!"
+    assert repeating_chars(text, chars="o", maxn=1) == "TTTThis is so col!!!"
+    assert repeating_chars(text, chars="!", maxn=1) == "TTTThis is sooo cool!"
+    assert repeating_chars(text, chars="T", maxn=2) == "TThis is sooo cool!!!"
+    
 def test_unicode():
     """Test normalizing unicode characters."""
     text = "e\u0301"
