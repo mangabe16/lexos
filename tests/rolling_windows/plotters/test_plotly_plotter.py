@@ -21,6 +21,14 @@ from lexos.rolling_windows.plotters.plotly_plotter import PlotlyPlotter
 
 # Fixtures
 
+def kaleido_available():
+    """Check if kaleido is available for image export."""
+    try:
+        import kaleido
+        return True
+    except ImportError:
+        return False
+
 
 @pytest.fixture
 def basic_plotter():
@@ -622,6 +630,7 @@ def test_save_html(basic_line_plot, tmp_path):
     assert save_path.stat().st_size > 0
 
 
+@pytest.mark.skipif(not kaleido_available(), reason="kaleido package not installed")
 def test_save_image(basic_line_plot, tmp_path):
     """Tests saving plot as image file."""
     save_path = tmp_path / "test_plot.png"
@@ -640,7 +649,7 @@ def test_save_no_figure(empty_plotter, tmp_path):
         empty_plotter.save(save_path)
     assert "There is no plot to save" in str(exc_info.value)
 
-
+@pytest.mark.skipif(not kaleido_available(), reason="kaleido package not installed")
 @pytest.mark.parametrize("file_format", ["png", "jpg", "svg", "pdf"])
 def test_save_different_formats(basic_line_plot, tmp_path, file_format):
     """Tests saving plot in different file formats.
