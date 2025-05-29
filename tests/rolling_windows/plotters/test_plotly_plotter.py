@@ -88,6 +88,109 @@ def empty_plotter():
 
 # Tests
 
+def test_get_axis_and_title_labels_with_dict_title():
+    """Test _get_axis_and_title_labels with dict title input (line 331 coverage)."""
+    # Create plotter with dict title (which is allowed by the type annotation)
+    title_dict_input = {"text": "Custom Title", "x": 0.6, "y": 0.8}
+    plotter = PlotlyPlotter(title=title_dict_input)
+    
+    # Call the method to test the dict handling
+    title_result, xlabel_result, ylabel_result = plotter._get_axis_and_title_labels()
+    
+    # Verify that the original dict title is returned unchanged (line 331)
+    assert title_result == title_dict_input
+    assert title_result is plotter.title  # Same object reference
+    
+    # xlabel and ylabel should be converted to dicts (string inputs)
+    assert isinstance(xlabel_result, dict)
+    assert isinstance(ylabel_result, dict)
+    assert xlabel_result["title"] == "Token Count"
+    assert ylabel_result["title"] == "Average Frequency"
+
+def test_get_axis_and_title_labels_string_inputs():
+    """Test _get_axis_and_title_labels with string inputs (lines 327, 333, 337 coverage)."""
+    # Test with default string inputs to ensure the if clauses work
+    plotter = PlotlyPlotter()
+    
+    title_result, xlabel_result, ylabel_result = plotter._get_axis_and_title_labels()
+    
+    # Verify string inputs are converted to dicts
+    expected_title = {"text": "Rolling Windows Plot", "y": 0.9, "x": 0.5, "xanchor": "center", "yanchor": "top"}
+    expected_xlabel = {"title": "Token Count"}
+    expected_ylabel = {"title": "Average Frequency"}
+    
+    assert title_result == expected_title
+    assert xlabel_result == expected_xlabel
+    assert ylabel_result == expected_ylabel
+
+def test_get_axis_and_title_labels_xlabel_ylabel_dicts():
+    """Test _get_axis_and_title_labels with dict xlabel/ylabel (lines 335, 339 coverage)."""
+    plotter = PlotlyPlotter()
+    
+    # Create dict inputs for xlabel and ylabel
+    xlabel_dict_input = {"title": "Custom X Label", "color": "blue"}
+    ylabel_dict_input = {"title": "Custom Y Label", "color": "red"}
+    
+    # Bypass Pydantic validation by setting directly in __dict__
+    plotter.__dict__['xlabel'] = xlabel_dict_input
+    plotter.__dict__['ylabel'] = ylabel_dict_input
+    
+    # Call the method to test the dict handling
+    title_result, xlabel_result, ylabel_result = plotter._get_axis_and_title_labels()
+    
+    # Verify that the dict xlabel and ylabel are returned unchanged (lines 335, 339)
+    assert xlabel_result == xlabel_dict_input
+    assert ylabel_result == ylabel_dict_input
+    assert xlabel_result is plotter.xlabel  # Same object reference
+    assert ylabel_result is plotter.ylabel  # Same object reference
+
+def test_get_titlepad_with_existing_titlepad():
+    """Test _get_titlepad when titlepad is already set (line 352 coverage)."""
+    # Create plotter with titlepad already set
+    plotter = PlotlyPlotter(titlepad=100.0)
+    labels = {"Test Label": 10, "Another Label": 20}
+    
+    # Call _get_titlepad - should return early with existing titlepad value
+    result = plotter._get_titlepad(labels)
+    
+    # Verify it returns the existing titlepad value (line 352)
+    assert result == 100.0
+
+def test_get_titlepad_large_height():
+    """Test _get_titlepad when max height >= 50 (line 376 coverage)."""
+    from unittest.mock import MagicMock, patch
+    
+    plotter = PlotlyPlotter(titlepad=None)  # No existing titlepad
+    labels = {"Very Long Label Name That Should Be Tall": 10}
+    
+    # Mock matplotlib components to control the height calculation
+    with patch('matplotlib.pyplot.subplots') as mock_subplots, \
+         patch('matplotlib.pyplot.close') as mock_close:
+        
+        # Create mock objects
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_renderer = MagicMock()
+        mock_annotation = MagicMock()
+        mock_bbox = MagicMock()
+        
+        # Set up the mock chain
+        mock_subplots.return_value = (mock_fig, mock_ax)
+        mock_fig.canvas.get_renderer.return_value = mock_renderer
+        mock_ax.annotate.return_value = mock_annotation
+        mock_annotation.get_window_extent.return_value = mock_bbox
+        mock_bbox.height = 60  # Set height >= 50 to trigger line 376
+        
+        # Call _get_titlepad
+        result = plotter._get_titlepad(labels)
+        
+        # Verify it returns max(heights) + 50 (line 376)
+        expected = 60 + 50  # 110
+        assert result == expected
+        
+        # Verify matplotlib functions were called
+        mock_subplots.assert_called_once()
+        mock_close.assert_called_once()
 
 def test_default_initialization(basic_plotter):
     """Tests initialization with default values."""
@@ -461,6 +564,19 @@ def test_call_with_kwargs(basic_plotter, sample_df):
     # and ensures that we have the right template set.
     assert basic_plotter.fig.layout.template.layout.mapbox.style == "dark"
 
+def test_call_show_plot_true(sample_df):
+    """Test that fig.show() is called when show_plot=True (line 322 coverage)."""
+    from unittest.mock import patch
+    
+    plotter = PlotlyPlotter()
+    
+    # Mock the fig.show method to capture the call
+    with patch('plotly.graph_objects.Figure.show') as mock_show:
+        # Call with show_plot=True (default)
+        plotter(df=sample_df, show_plot=True)
+        
+        # Verify fig.show() was called with the correct config
+        mock_show.assert_called_once_with(config={"displaylogo": False})
 
 def test_plot_milestone_label_basic(basic_line_plot):
     """Test basic milestone label plotting."""
@@ -619,6 +735,18 @@ def test_plot_milestone_marker_default_style(basic_line_plot):
     assert shape.line.width == 1
     assert shape.line.color == "teal"
 
+def test_save_image_format_line_435(basic_line_plot, tmp_path):
+    """Test save method with non-HTML format (line 435 coverage)."""
+    from unittest.mock import patch
+    
+    save_path = tmp_path / "test_plot.png"
+    
+    # Mock pio.write_image to avoid kaleido dependency issues
+    with patch('plotly.io.write_image') as mock_write_image:
+        basic_line_plot.save(save_path)
+        
+        # Verify that pio.write_image was called (line 435)
+        mock_write_image.assert_called_once_with(basic_line_plot.fig, save_path)
 
 def test_save_html(basic_line_plot, tmp_path):
     """Tests saving plot as HTML file."""
