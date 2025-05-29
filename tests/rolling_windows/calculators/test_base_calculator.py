@@ -637,6 +637,24 @@ def test_extract_string_pattern_from_spacy_rule(basic_calculator):
     result = basic_calculator._extract_string_pattern(pattern)
     assert result == "test|pattern"
 
+def test_spacy_rule_to_lower_dict_with_text_key():
+    """Test spacy_rule_to_lower with dict containing TEXT key (line 88 coverage)."""
+    from lexos.rolling_windows.calculators.base_calculator import spacy_rule_to_lower
+    
+    # Test with TEXT key (should be converted to LOWER)
+    patterns = {"TEXT": "hello", "POS": "NOUN"}
+    result = spacy_rule_to_lower(patterns)
+    
+    expected = {"LOWER": "hello", "POS": "NOUN"}
+    assert result == expected
+    
+    # Test with ORTH key (should be converted to LOWER)
+    patterns2 = {"ORTH": "world", "TAG": "NN"}
+    result2 = spacy_rule_to_lower(patterns2)
+    
+    expected2 = {"LOWER": "world", "TAG": "NN"}
+    assert result2 == expected2
+
 @pytest.fixture
 def sample_doc4(nlp):
     """Create sample spaCy Doc.
