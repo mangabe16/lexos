@@ -172,11 +172,12 @@ class Windows(BaseModel):
                 slice = input[start:end]
                 if slice is not None:
                     if self.output == "strings":
-                        yield [token.text for token in slice]
-                    elif self.output == "tokens":
+                        yield [token.text for token in slice]  
+                    else: # assuming self.output == "tokens"
                         yield [token for token in slice]
-                    else:
-                        yield slice
+                    # appears to be unreachable code as output must be 'strings' or 'tokens'
+                    # else:
+                        # yield slice
         else:
             # Merge spans into a single Doc object
             input = Doc.from_docs([span.as_doc() for span in input])

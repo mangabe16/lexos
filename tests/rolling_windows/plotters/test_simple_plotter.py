@@ -7,6 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import matplotlib
+
+matplotlib.use('Agg')  # Use non-GUI backend to avoid TclError
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -740,3 +742,46 @@ def test_show_jupyter_fallback(plotter_with_plot2):
     with patch.object(plotter_with_plot2.fig, "show", side_effect=UserWarning):
         result = plotter_with_plot2.show()
         assert result == plotter_with_plot2.fig
+
+# interpolation tests
+
+def test_interpolate_numpy_fallback():
+    """Test interpolate function with unrecognized interpolation_kind (line 61 coverage)."""
+    from lexos.rolling_windows.plotters.simple_plotter import interpolate
+    
+    # Create test data
+    x = np.array([0, 1, 2, 3, 4])
+    y = np.array([0, 2, 4, 6, 8])
+    xx = np.array([0.5, 1.5, 2.5, 3.5])
+    
+    # Use an interpolation_kind that's not "pchip" or in legacy_interp1d list
+    # This should trigger the else clause on line 61
+    result = interpolate(x, y, xx, interpolation_kind="unknown_method")
+    
+    # Verify it returns results (using np.interp as fallback)
+    assert isinstance(result, np.ndarray)
+    assert len(result) == len(xx)
+    
+    # Expected values from np.interp
+    expected = np.interp(xx, x, y)
+    np.testing.assert_array_equal(result, expected)
+
+def test_interpolate_none_interpolation_kind():
+    """Test interpolate function with None interpolation_kind (line 61 coverage)."""
+    from lexos.rolling_windows.plotters.simple_plotter import interpolate
+    
+    # Create test data
+    x = np.array([0, 1, 2, 3])
+    y = np.array([1, 3, 5, 7])
+    xx = np.array([0.5, 1.5, 2.5])
+    
+    # Use None as interpolation_kind - should trigger else clause on line 61
+    result = interpolate(x, y, xx, interpolation_kind=None)
+    
+    # Verify it returns results using np.interp
+    assert isinstance(result, np.ndarray)
+    assert len(result) == len(xx)
+    
+    # Expected values from np.interp
+    expected = np.interp(xx, x, y)
+    np.testing.assert_array_equal(result, expected)
