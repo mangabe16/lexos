@@ -18,6 +18,7 @@ from scipy.sparse import csr_matrix
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 from lexos.visualization.bubbleviz import BubbleChart
+from unittest.mock import patch 
 
 # Fixtures
 
@@ -1082,3 +1083,24 @@ def test_show_returns_same_figure(sample_bubble_chart5):
     fig2 = sample_bubble_chart5.show()
     assert fig1 is fig2
     plt.close("all")  # Close figure to avoid "RuntimeWarning: More than 20 figures have been opened."
+
+def test_bubblechart_showfig_false_and_close():
+    """Test BubbleChart with showfig=False and close functionality."""
+    # This list of strings will trigger `processors.process_item`
+    data = ["apple", "banana", "apple", "orange"]
+
+    chart = BubbleChart(data=data)
+    fig = chart(showfig=False)  # Triggers return self.fig and plt.close()
+    assert fig is not None
+    assert chart.fig is not None
+
+    # Close the figure to test .close()
+    chart.close()
+
+@patch("lexos.visualization.processors.process_item", return_value={"apple": 2, "banana": 1})
+def test_bubblechart_item_processing_and_close(mock_proc):
+    """Test BubbleChart with item processing and close functionality."""
+    chart = BubbleChart(data=["apple", "banana"])
+    fig = chart(showfig=False)
+    assert fig is not None
+    chart.close()
