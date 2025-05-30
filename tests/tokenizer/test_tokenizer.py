@@ -42,7 +42,10 @@ import pytest
 from spacy.tokens import Doc, Token
 
 from lexos.exceptions import LexosException
+from lexos.exceptions import LexosException
 from src.lexos.tokenizer import Tokenizer
+from src.lexos.tokenizer import SliceTokenizer
+from src.lexos.tokenizer import WhitespaceTokenizer
 from src.lexos.tokenizer import SliceTokenizer
 from src.lexos.tokenizer import WhitespaceTokenizer
 
@@ -51,6 +54,21 @@ from src.lexos.tokenizer import WhitespaceTokenizer
 def tokenizer() -> Tokenizer:
     """Fixture for the Tokenizer class."""
     return Tokenizer()
+
+@pytest.fixture
+def sliceTokenizer():
+    """Fixture for the SliceTokenizer class."""
+    return SliceTokenizer(n = 4)
+
+@pytest.fixture
+def whitespaceTokenizer():
+    """Fixture for the WhitespaceTokenizer class."""
+    return WhitespaceTokenizer()
+
+def test_incorrect_model_exception():
+    """Raises LexosException when an incorrect model is provided."""
+    with pytest.raises(LexosException, match=f"Error loading model non_existent_model. Please check the name and try again. You may need to install the model on your system."):
+        tokenizer = Tokenizer(model="non_existent_model")
 
 
 @pytest.fixture
@@ -95,6 +113,12 @@ def test_call(tokenizer: Tokenizer) -> None:
     assert isinstance(doc, Doc)
     assert doc.text == "This is a test."
 
+@pytest.mark.xfail(reason="Type hinting is making this test difficult")
+def test_call_incorrect_iterable(tokenizer):
+    """Raises LexosException when an a non-string / non-string iterable is provided in a call to tokenizer."""
+    with pytest.raises(LexosException, match="Input must be a string or an iterable of strings."):
+        doc = tokenizer(["yabadaba", 123])
+
 
 def test_call_multiple_texts(tokenizer: Tokenizer) -> None:
     """Creates a list of spaCy Doc objects from a list of strings."""
@@ -114,6 +138,10 @@ def test_make_doc(tokenizer: Tokenizer) -> None:
     assert isinstance(doc, Doc)
     assert tokenizer.max_length == 40
     assert "senter" in tokenizer.nlp.disabled
+    doc = tokenizer.make_doc("This is another test.", max_length=40, disable=["senter"])
+    assert isinstance(doc, Doc)
+    assert tokenizer.max_length == 40
+    assert "senter" in tokenizer.nlp.disabled
 
 
 def test_make_docs(tokenizer: Tokenizer) -> None:
@@ -122,6 +150,12 @@ def test_make_docs(tokenizer: Tokenizer) -> None:
     docs = list(tokenizer.make_docs(texts))
     assert all(isinstance(doc, Doc) for doc in docs)
     assert [doc.text for doc in docs] == texts
+    texts = ["This is a another test.", "Another another test."]
+    docs = list(tokenizer.make_docs(texts, max_length=200, disable=["senter"]))
+    assert all(isinstance(doc, Doc) for doc in docs)
+    assert [doc.text for doc in docs] == texts
+    assert tokenizer.max_length == 200
+    assert "senter" in tokenizer.nlp.disabled
     texts = ["This is a another test.", "Another another test."]
     docs = list(tokenizer.make_docs(texts, max_length=200, disable=["senter"]))
     assert all(isinstance(doc, Doc) for doc in docs)

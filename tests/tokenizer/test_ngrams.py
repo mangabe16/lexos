@@ -43,6 +43,7 @@ import pytest
 import spacy
 
 from lexos.exceptions import LexosException
+from lexos.exceptions import LexosException
 from lexos.tokenizer import SliceTokenizer
 from lexos.tokenizer.ngrams import Ngrams
 from lexos.exceptions import LexosException
