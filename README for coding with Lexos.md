@@ -31,10 +31,13 @@ We use a centralized Git workflow, meaning everyone clones and pushes directly t
 
 1. **Clone the Repository**  
      Open your terminal (PowerShell on Windows) and run:
+
      ```bash
      git clone https://github.com/scottkleinman/uv_lexos.git
      ```
+
 2. **Navigate into the Project Directory**
+
      ```bash
      cd uv_lexos
      ```
@@ -49,36 +52,45 @@ We use a centralized Git workflow, meaning everyone clones and pushes directly t
      If you haven't already, install uv according to the [official documentation](https://astral.sh/uv/).
 
      - For **Windows (PowerShell)**:
+
          ```powershell
          irm https://astral.sh/uv/install.ps1 | iex
          ```
+
      - For **macOS/Linux (Bash/Zsh)**:
+
          ```bash
          curl -LsSf https://astral.sh/uv/install.sh | sh
          ```
 
 2. **Verify Installation**  
      Close and reopen your terminal, then run:
+
      ```bash
      uv --version
      ```
 
 3. **Create Virtual Environment and Install Dependencies**  
      From the `uv_lexos` project root:
+
      ```bash
      uv venv
      uv pip sync pyproject.toml
      ```
+
      This creates a `.venv` directory and installs all dependencies listed in `pyproject.toml`.
 
 4. **Activate Your Virtual Environment**  
      You must activate your virtual environment every time you start a new terminal session.
 
      - **Windows (PowerShell):**
+
          ```powershell
          .venv\Scripts\activate
          ```
+
      - **macOS/Linux:**
+
          ```bash
          source .venv/bin/activate
          ```
@@ -105,25 +117,31 @@ uv run python -m spacy download en_core_web_sm
 We use **pytest** for testing and **coverage.py** to measure test coverage.
 
 - **Run All Tests:**
+
     ```bash
     uv run pytest
     ```
 
 - **Run Tests for a Specific Module (e.g., dtm):**
+
     ```bash
     uv run pytest tests/dtm
     ```
 
 - **Run All Tests with Code Coverage:**
+
     ```bash
     uv run pytest --cov=src --cov-report=term-missing
     ```
+
     This displays a coverage report in your terminal.
 
 - **Run Tests for a Specific Module with HTML Coverage Report:**
+
     ```bash
     uv run pytest --cov=src/lexos/dtm --cov-report=html tests/dtm
     ```
+
     After running, open `htmlcov/index.html` in your browser to inspect coverage.
 
 ---
@@ -133,21 +151,25 @@ We use **pytest** for testing and **coverage.py** to measure test coverage.
 **Ruff** is used for fast linting and formatting.
 
 - **Install Ruff:**
+
     ```bash
     uv add ruff
     ```
 
 - **Lint Your Code:**
+
     ```bash
     uv run ruff check .
     ```
 
 - **Auto-Fix Linting Issues:**
+
     ```bash
     uv run ruff check . --fix
     ```
 
 - **Format Your Code:**
+
     ```bash
     uv run ruff format .
     ```
@@ -159,6 +181,7 @@ We use **pytest** for testing and **coverage.py** to measure test coverage.
 We follow a centralized workflow where everyone pushes to the main repository directly (requiring write permissions).
 
 - **Stay Updated (Pull main into dev):**
+
     ```bash
     git checkout dev
     git pull origin main
@@ -166,6 +189,7 @@ We follow a centralized workflow where everyone pushes to the main repository di
     ```
 
 - **Create a New Feature/Fix Branch:**
+
     ```bash
     git checkout dev
     git pull origin dev
@@ -173,6 +197,7 @@ We follow a centralized workflow where everyone pushes to the main repository di
     ```
 
 - **Commit Your Changes:**
+
     ```bash
     git status
     git add .  # or git add <specific-files>
@@ -180,15 +205,18 @@ We follow a centralized workflow where everyone pushes to the main repository di
     ```
 
 - **Push Your Branch:**
+
     ```bash
     git push -u origin feature/your-awesome-feature
     ```
+
     > **Note:** This requires write access to the `scottkleinman/uv_lexos` repository.
 
 - **Open a Pull Request (PR):**  
     Once your work is ready and pushed, go to the GitHub repository in your browser. GitHub will prompt you to create a PR from your new branch to the `dev` branch. Fill out the description, assign reviewers, and submit.
 
 - **Delete Local and Remote Branches (After Merge):**
+
     ```bash
     git checkout dev
     git pull origin dev
