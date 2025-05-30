@@ -1,7 +1,7 @@
 """ngrams.py.
 
-Last Update: Jan 24, 2025
-Last Tested: TBD
+Last Update: May 24, 2025
+Last Tested: May 26, 2025
 
 Current usage:
 
@@ -99,7 +99,7 @@ class Ngrams(BaseModel):
     model_config = validation_config
 
     @property
-    def stopwords(self) -> list[str]:
+    def stopwords(self) -> bool | list[str] | None:
         """Get the list of stopwords."""
         return self.filter_stops
 
