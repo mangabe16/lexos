@@ -22,7 +22,7 @@ dependencies = [
     "nbformat>=5.10.4",
     "pandas>=2.2.3",
     "plotly>=6.0.0",
-    "puremagic",
+    "puremagic>=2.0.0b2",
     "pydantic>=2.10.4",
     "pydantic-extra-types>=2.10.2",
     "pypdf>=5.1.0",
@@ -60,7 +60,6 @@ addopts = ["--import-mode=importlib", ]
 [tool.uv.sources]
 xx-sent-ud-sm = { url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0-py3-none-any.whl" }
 en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
-puremagic = { url = "https://github.com/cdgriffith/puremagic/archive/refs/tags/2.0.0b2.tar.gz" }
 
 [tool.ruff.lint]
 # Enable all `pydocstyle` rules, limiting to those that adhere to the
