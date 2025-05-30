@@ -16,6 +16,10 @@ You can install Python using **uv** with `uv python install 3.12`. If you alread
 
 **Git** is used for version control. If you don't have it installed, you can download it from [git-scm.com](https://git-scm.com/).
 
+### Visual Studio Code (VS Code)
+
+We recommend using [Visual Studio Code](https://code.visualstudio.com/) as your code editor. It has excellent support for Python and Git, and you can install extensions for code linting and formatting.
+
 ---
 
 ## Getting the Code
@@ -127,6 +131,24 @@ source .venv/bin/activate
  ```
 
 Your terminal prompt should now show `(uv_lexos)` or `(.venv)` at the beginning.
+
+---
+
+## Setting up VS Code for Python Development
+
+We recommend the following VS Code extensions for Python development:
+
+- Even Better TOML: For better syntax highlighting and formatting of `pyproject.toml`.
+- GitLens: Enhances Git capabilities in VS Code.
+- Jupyter: If you plan to work with Jupyter notebooks.
+- Markdownlint: For linting Markdown files.
+- Pylance: Provides rich type information and IntelliSense for Python.
+- Python: Official extension for Python development.
+- Ruff: For linting and formatting Python code (see below for further instructions).
+
+You can install these extensions from the VS Code marketplace or by searching for them in the Extensions view (Ctrl+Shift+X).
+
+The Lexos repo has a file called `.vscode.json`, which contains a path to a Windows Python exectuable in your virtual environment. If you are on Windows, you need to change that path to the appropriate one on your computer. If you are on a Mac, you will need to do the same, but you will need to provide a valid posix (Mac or Linux) path to Python (which will be a `.bin` file) in the `bin` folder of your virtual environment. Once you have done this, your Jupyter notebooks should work correctly in VS Code from anywhere within the project folder.
 
 ---
 
