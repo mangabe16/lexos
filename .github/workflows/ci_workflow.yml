@@ -4,12 +4,9 @@
 
 name: CI
 
-# I think that this will perform CI on _any_ branch whenever there is a push or pull request.
 on:
-  push:
-    branches: [ $default-branch ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -50,4 +47,4 @@ jobs:
 
     - name: Test with pytest
       run: |
-        pytest
+        uv run pytest tests --tb=short --disable-warnings -v
