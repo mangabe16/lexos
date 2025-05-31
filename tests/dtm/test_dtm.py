@@ -57,14 +57,22 @@ def dtm_with_terms(nlp: spacy.language.Language) -> DTM:
 @pytest.fixture
 def mock_dtm() -> DTM:
     """Create DTM with mocked vocabulary terms."""
-    dtm = DTM()
+    dtm_instance = DTM()
 
     class MockVectorizer:
-        vocabulary_terms = {"term2": 5, "term1": 3, "Term3": 7, "10term": 2, "2term": 4}
+        # These are the terms in the order we expect them from TextacyVectorizer
+        terms_list = ["10term", "2term", "Term3", "term1", "term2"]
+    
+    dtm_instance.vectorizer = MockVectorizer()
 
-    dtm.vectorizer = MockVectorizer()
-    return dtm
+    # Create a csr_matrix that, when summed along axis=0,
+    # yields the desired total counts for each term.
+    # example sums: {"10term": 2, "2term": 4, "Term3": 7, "term1": 3, "term2": 5}
+    # The matrix below has 1 row (doc) and 5 coumns (terms), where each value is the total count
+    dtm_instance.doc_term_matrix = csr_matrix(np.array([[2, 4, 7, 3, 5]]))
+    dtm_instance.labels = ["doc1"] # a dummy label as it's a mock
 
+    return dtm_instance
 
 @pytest.fixture
 def mock_df_dtm() -> DTM:
@@ -189,25 +197,30 @@ def test_sorted_terms_list_with_different_alg(nlp: spacy.language.Language) -> N
 def test_sorted_terms_list_no_vectorizer(dtm_with_terms: DTM) -> None:
     """Test behavior when vectorizer is not initialized."""
     dtm_with_terms.vectorizer = None
-    with pytest.raises(AttributeError):
+    with pytest.raises(LexosException, match="Vectorizer or its 'terms_list' attribute is not available to get sorted terms."):
         _ = dtm_with_terms.sorted_terms_list
 
 
 def test_sorted_term_counts_basic(mock_dtm: DTM) -> None:
-    """Test basic natural sorting of term counts."""
-    expected = {"2term": 4, "10term": 2, "term1": 3, "term2": 5, "Term3": 7}
+    """Test basic natural sorting of term counts with correctly summed values."""
+    # This 'expected dict now reflects the actual sums of the terms, sorted naturally
+    expected = {"10term": 2, "2term": 4, "Term3": 7, "term1": 3, "term2": 5}
     assert mock_dtm.sorted_term_counts == expected
 
 
 def test_sorted_term_counts_empty() -> None:
-    """Test sorting with empty vocabulary."""
-    dtm = DTM()
+    """Test sorted_term_counts returns empty dict for empty DTM or uninitialized matrix."""
+    # Test DTM without building (doc_term_matrix is None)
+    dtm_unitialized = DTM()
+    assert dtm_unitialized.sorted_term_counts == {}
 
-    class MockVectorizer:
-        vocabulary_terms = {}
-
-    dtm.vectorizer = MockVectorizer()
-    assert dtm.sorted_term_counts == {}
+    # Test DTM with an empty doc_term_matrix
+    dtm_empty_matrix = DTM()
+    class EmptyMockVectorizer:
+        terms_list = []
+    dtm_empty_matrix.vectorizer = EmptyMockVectorizer()
+    dtm_empty_matrix.doc_term_matrix = csr_matrix((0, 0)) # Explicitely an empty sparse matrix
+    assert dtm_empty_matrix.sorted_term_counts == {}
 
 
 def test_sorted_term_counts_different_alg(mock_dtm: DTM) -> None:
@@ -220,8 +233,7 @@ def test_sorted_term_counts_different_alg(mock_dtm: DTM) -> None:
 def test_sorted_term_counts_no_vectorizer() -> None:
     """Test behavior when vectorizer is not initialized."""
     dtm = DTM()
-    with pytest.raises(AttributeError):
-        _ = dtm.sorted_term_counts
+    assert dtm.sorted_term_counts == {}
 
 
 def test_basic_percentages(mock_df: pd.DataFrame) -> None:
