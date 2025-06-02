@@ -1,6 +1,6 @@
 """record.py.
 
-Last updated: June 1, 2025
+Last updated: June 2, 2025
 Last tested: It works in a noteboook, but no unit tests written yet.
 
 Wrapping texts and spaCy Docs in a Pydantic model provides a lot of extra functionality, particularly through the model_dump() and model_dump_json() methods. See the Pydantic documentation for more information.
@@ -28,6 +28,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     computed_field,
+    field_serializer,
     validate_call,
 )
 from spacy.schemas import DocJSONSchema
@@ -54,6 +55,23 @@ class Record(BaseModel):
         validate_assignment=True,
         json_schema_extra=DocJSONSchema.schema(),
     )
+
+    @field_serializer("content")
+    def serialize_content(self, content: Doc | str):
+        """Serialize the content to bytes if it is a Doc object.
+
+        Args:
+            content (Doc | str): The content to serialize.
+
+        Returns:
+            bytes | str: The serialized content as bytes if it is a Doc, otherwise the original string.
+        """
+        if isinstance(content, Doc):
+            content.user_data["extensions"] = {}
+            for ext in self.extensions:
+                content.user_data["extensions"][ext] = [token._.get(ext) for token in content]
+            return content.to_bytes()
+        return content
 
     def __repr__(self):
         """Return a string representation of the record."""
@@ -142,6 +160,7 @@ class Record(BaseModel):
 
         return doc
 
+    # WARNING: This method is deprecated in favour of field serializer.
     def _doc_to_bytes(self) -> bytes:
         """Convert the content to bytes if it is a Doc object.
 
@@ -302,6 +321,7 @@ class Record(BaseModel):
         # Make UUID serialisable
         data["id"] = str(data["id"])
 
+        # WARNING: This code is deprecated in favour of field serializer.
         # Convert the content to bytes if it is a Doc object
         if self.is_parsed:
             data["content"] = self._doc_to_bytes()
