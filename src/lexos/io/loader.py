@@ -4,6 +4,7 @@ Last Update: 2025-05-26
 Tested: 2025-01-14
 """
 
+import mimetypes
 import zipfile
 from pathlib import Path
 from typing import Optional, Self
@@ -52,10 +53,13 @@ class Loader(BaseLoader):
         if Path(path).suffix == ".pickle":
             return "application/vnd.python.pickle"
         results = puremagic.magic_string(file_start, path)
-        if results:
-            return results[0].mime_type
-        else:
+        if not results:
             return None
+        else:
+            mime_type = results[0].mime_type
+            if mime_type == "":
+                mime_type, _ = mimetypes.guess_type(path)
+            return mime_type
 
     def _load_docx_file(self, path: Path | str) -> None:
         """Load a docx file.
