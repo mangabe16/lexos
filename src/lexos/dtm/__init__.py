@@ -201,10 +201,7 @@ class DTM(BaseModel):
         # This uses the natsort library based on the instance's 'alg'
         sorted_items = natsorted(term_counts_dict.items(), key=lambda item: item[0], alg=self.alg)
         return dict(sorted_items)
-
-
-        
-
+      
     def _get_term_percentages(
         self,
         df: pd.DataFrame,
