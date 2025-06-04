@@ -18,6 +18,7 @@ from wordcloud import WordCloud
 
 from lexos.dtm import DTM
 from lexos.visualization.plotly_wordcloud import plotly_wordcloud
+from lexos.visualization.cloud import wordcloud 
 
 # Fixtures
 
@@ -186,3 +187,29 @@ def test_save_to_file(tmp_path):
 
     assert output_path.exists()
     assert output_path.suffix == ".html"
+
+def test_wordcloud_list_of_lists():
+    """Test Plotly WordCloud from list of lists."""
+    data = [["hello", "world"], ["test", "document"]]
+    fig = plotly_wordcloud(data, show=False)
+    assert isinstance(fig, go.Figure)
+
+def test_wordcloud_list_of_docs(nlp, sample_text):
+    """Test Plotly WordCloud from list of spaCy Docs."""
+    doc = nlp(sample_text)
+    data = [doc, doc]
+    fig = plotly_wordcloud(data, show=False)
+    assert isinstance(fig, go.Figure)
+
+def test_wordcloud_list_of_strings():
+    """Test Plotly WordCloud from list of strings."""
+    data = ["one", "two", "two", "three"]
+    fig = plotly_wordcloud(data, show=False)
+    assert isinstance(fig, go.Figure)
+
+def test_wordcloud_dict_input():
+    """Test Plotly WordCloud from dictionary input."""
+    data = {"word": 3, "cloud": 2}
+    fig = plotly_wordcloud(data, show=False)
+    assert isinstance(fig, go.Figure)
+
