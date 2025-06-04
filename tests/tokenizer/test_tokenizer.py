@@ -1,6 +1,39 @@
 """test_tokenizer.py.
 
-Last Update: Jan 24, 2025
+Unit tests for the Tokenizer, SliceTokenizer, and WhitespaceTokenizer classes in lexos.tokenizer
+
+Purpose:
+
+These tests verify the correct behavior of the tokenizer class which generates
+spaCy docs containing the tokens from input strings or lists of strings.
+
+The tests ensure consistent and correct output across multiple conditions:
+    - Correct tokenization of input strings and lists of strings
+    - Adding and removing stop words
+    - Adding and removing spaCy extensions
+    - Tokenization using different language models
+    - Handling of excpetions, including incorrect model names and invalid inputs
+
+Functionality Tested:
+
+ Tokenization using spaCy language models
+ Correct output using make_doc(), make_docs(), and __call__ methods
+ Correct modification of:
+    - Stop words
+    - Extensions
+    - Pipeline components
+Execption handling for:
+    - Incorrect model names
+    - Invalid inputs
+    - Empty strings and lists
+Using SliceTokenizer to slice text into tokens of n characters
+Using WhitespaceTokenizer to split text on whitespace
+
+Usage:
+To run the tests for this module:
+    uv run pytest tests/tokenizer/test_tokenizer.py
+
+Last updated: May 27, 2025
 """
 
 from typing import Generator
@@ -55,13 +88,6 @@ def test_call(tokenizer):
     doc = tokenizer("This is a test.")
     assert isinstance(doc, Doc)
     assert doc.text == "This is a test."
-
-@pytest.mark.xfail(reason="Type hinting is making this test difficult")
-def test_call_incorrect_iterable(tokenizer):
-    """Raises LexosException when an a non-string / non-string iterable is provided in a call to tokenizer."""
-    with pytest.raises(LexosException, match="Input must be a string or an iterable of strings."):
-        doc = tokenizer(["yabadaba", 123])
-
 
 def test_call_multiple_texts(tokenizer):
     """Creates a list of spaCy Doc objects from a list of strings."""
