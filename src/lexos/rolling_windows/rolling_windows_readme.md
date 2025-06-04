@@ -1,5 +1,23 @@
 # Rolling Windows Module
 
+## Table of Contents
+1. [Overview](#overview)
+2. [Key Components](#key-components)
+   - [The Windows Class](#1-the-windows-class)
+   - [Calculator Classes](#2-calculator-classes)
+   - [Plotter Classes](#3-plotter-classes)
+3. [Choosing Your Analysis Type](#choosing-your-analysis-type)
+4. [Search Modes](#search-modes)
+5. [Window Size Guidelines](#window-size-guidelines)
+6. [How It Works](#how-it-works)
+7. [Quick Start Example](#quick-start-example)
+8. [Complete Workflow Example](#complete-workflow-example)
+9. [Practical Applications](#practical-applications)
+10. [Advanced Features](#advanced-features)
+11. [Troubleshooting Common Issues](#troubleshooting-common-issues)
+12. [Dependencies](#dependencies)
+13. [Testing](#testing)
+
 ## Overview
 
 The Rolling Windows module is a powerful text analysis tool that tracks how patterns change throughout documents. It creates a "moving spotlight" that slides through your text, counting specific words or patterns in each section to reveal temporal dynamics and narrative structures.
@@ -42,9 +60,35 @@ rw = windows(input=doc, n=100, window_type="tokens", output="strings")
 > - spaCy `Doc` objects  
 > - `list` of strings or tokens  
 
+> **Important: Windows Are Consumed!**  
+> After using a windows object once (like converting to a list), you need to create fresh windows for each calculator. This is why you'll need to create new windows for each analysis.
+
 ### 2. Calculator Classes
 
 Calculators analyze the patterns within each window. The module includes several calculator types:
+
+## Choosing Your Analysis Type
+
+| Calculator | Use When | What it measures | Output |
+|------------|----------|------------------|--------|
+| `Counts` | You need raw occurrence numbers | Total number of matches per window | Raw frequencies |
+| `Averages` | Comparing texts of different lengths or standardizing | Matches per unit (normalized) | Frequency rates |
+| `Ratios` | Comparing balance between exactly 2 patterns | Relative proportion | Values from 0.0 to 1.0 |
+
+#### `Counts` Calculator
+Provides raw occurrence counts without normalization.
+
+```python
+from lexos.rolling_windows.calculators import Counts
+
+counter = Counts()
+counter(
+    patterns=["love", "death"],
+    windows=rw,
+    mode="exact",
+    case_sensitive=False
+)
+```
 
 #### `Averages` Calculator
 Calculates the average frequency of patterns across windows, normalizing for window size.
@@ -52,28 +96,74 @@ Calculates the average frequency of patterns across windows, normalizing for win
 ```python
 from lexos.rolling_windows.calculators import Averages
 
-averages = Averages(
+averages = Averages()
+averages(
     patterns=["love", "death"],
     windows=rw,
-    mode="exact"
+    mode="exact",
+    case_sensitive=False
 )
 ```
 
-#### `Counts` Calculator  
-Provides raw occurrence counts without normalization.
+**When to use Averages instead of Counts:**
+- Comparing texts of different lengths
+- Comparing different window sizes
+- Creating standardized measurements
+- Academic/scientific analysis
 
 #### `Ratios` Calculator
 Computes the ratio between two patterns (e.g., positive vs. negative words).
 
-**Search Modes:**  
-A search mode determines how the Rolling Windows module matches your specified patterns within each window of text. It controls whether the search looks for exact string matches, uses regular expressions for flexible pattern matching, applies linguistic rules with spaCy, or detects multi-word phrases. Choosing the right search mode allows you to tailor the analysis to your research question—whether you need simple keyword counts, advanced pattern recognition, or linguistic feature extraction.
+```python
+from lexos.rolling_windows.calculators import Ratios
+
+ratio_calc = Ratios()
+ratio_calc(
+    patterns=["positive", "negative"],  # Exactly 2 patterns required
+    windows=rw,
+    mode="exact",
+    case_sensitive=False
+)
+```
+
+**Understanding Ratios:**
+- **0.0** = Only the second pattern appears
+- **0.5** = Both patterns appear equally
+- **1.0** = Only the first pattern appears
+- Values closer to 0 favor the second pattern
+- Values closer to 1 favor the first pattern
+
+## Search Modes
+
+A search mode determines how the Rolling Windows module matches your specified patterns within each window of text. It controls whether the search looks for exact string matches, uses regular expressions for flexible pattern matching, applies linguistic rules with spaCy, or detects multi-word phrases.
+
+### Available Search Modes
+
 - `"exact"`: Precise string matching
-- `"regex"`: Regular expression patterns (e.g., `"^love.*"` for words starting with "love")
-- `"spacy_rule"`: Advanced linguistic pattern matching
+- `"regex"`: Regular expression patterns
+- `"spacy_rule"`: Advanced linguistic pattern matching  
 - `"multi_token"`: Phrase detection
+
+### Pattern Matching Examples
+
+| Pattern Type | Example | Mode | Use Case |
+|--------------|---------|------|----------|
+| Exact match | `["love", "hate"]` | `"exact"` | Simple word counting |
+| Word starts with | `[r"\bsh\w*"]` | `"regex"` | Words starting with "sh" |
+| Word ends with | `[r".*ing$"]` | `"regex"` | Words ending in "-ing" |
+| Numbers | `[r"\d+"]` | `"regex"` | Numeric content |
+| Capitalized words | `[r"\b[A-Z]\w*"]` | `"regex"` | Proper nouns, sentence starts |
+| Multi-word phrases | `["sherlock holmes"]` | `"exact"` | Exact phrase detection |
+| All proper nouns | `[[{"POS": "PROPN"}]]` | `"spacy_rule"` | Linguistic analysis |
+| All verbs | `[[{"POS": "VERB"}]]` | `"spacy_rule"` | Grammatical patterns |
 
 > **IMPORTANT TIP:**  
 > After creating a calculator, use the `.to_df()` method to convert results into a pandas DataFrame for further analysis or plotting.
+
+> **SpaCy Requirements:**  
+> - spaCy patterns require `window_type="tokens"` and `output="tokens"`
+> - Regex patterns use raw strings (e.g., `r"\bsh\w*"`)
+> - Use `case_sensitive=False` for case-insensitive matching
 
 ### 3. Plotter Classes
 
@@ -81,6 +171,8 @@ Visualize your results with two plotting options:
 
 #### `SimplePlotter`
 Generates high-quality static plots suitable for publications using Matplotlib.
+
+**Best for:** Reports, publications, presentations
 
 ```python
 from lexos.rolling_windows.plotters import SimplePlotter
@@ -92,12 +184,31 @@ plotter.plot(averages.to_df())
 #### `PlotlyPlotter`
 Generates interactive web-based visualizations with hover tooltips and zoom capabilities.
 
+**Best for:** Exploration, web presentation, detailed analysis with hover information
+
 ```python
 from lexos.rolling_windows.plotters import PlotlyPlotter
 
 interactive_plotter = PlotlyPlotter()
 interactive_plotter.plot(averages.to_df(), show_plot=True)
 ```
+
+**Interactive Features:**
+- **Hover** over points to see exact values
+- **Zoom** in/out with mouse wheel or zoom controls
+- **Pan** by clicking and dragging
+- **Toggle** lines on/off by clicking legend items
+- **Download** plot as PNG using the camera icon
+
+## Window Size Guidelines
+
+| Text Type | Window Type | Suggested Size | Reasoning |
+|-----------|-------------|----------------|-----------|
+| Short story | characters | 200-500 | Captures local patterns |
+| Novel/Book | characters | 500-2000 | Balances detail and trends |
+| Short text | tokens | 20-50 | Enough words for patterns |
+| Novel/Book | tokens | 50-200 | Captures thematic shifts |
+| Poetry | tokens (lines) | 5-20 | Respects verse structure |
 
 ## How It Works
 
@@ -110,6 +221,64 @@ interactive_plotter.plot(averages.to_df(), show_plot=True)
 > **TIP:**  
 > For a detailed, step-by-step walkthrough—including code examples and explanations—see the accompanying tutorial Jupyter notebook.
 
+## Quick Start Example
+
+```python
+import spacy
+from lexos.rolling_windows import Windows
+from lexos.rolling_windows.calculators import Averages
+from lexos.rolling_windows.plotters import SimplePlotter
+
+# Load text and create spaCy doc
+nlp = spacy.load("en_core_web_sm")
+with open("your_text.txt", "r", encoding="utf-8") as f:
+    raw_text = f.read()
+
+# Basic text cleaning (optional)
+text = raw_text.lower()
+doc = nlp(text)
+
+# Create 100-token windows
+windows = Windows()
+rw = windows(input=doc, n=100, window_type="tokens", output="strings")
+
+# Calculate pattern frequencies
+calc = Averages()
+calc(patterns=["love", "war"], windows=rw, mode="exact", case_sensitive=False)
+
+# Generate visualization
+plotter = SimplePlotter(title="Love vs War")
+plotter.plot(calc.to_df())
+
+# Save results
+calc.to_df().to_csv("analysis_results.csv")
+plotter.save("analysis_plot.png")
+```
+
+## Complete Workflow Example
+
+```python
+# 1. Load and prepare text
+with open("A_Scandal_in_Bohemia.txt", "r", encoding="utf-8") as f:
+    text = f.read().lower()
+
+# 2. Create windows (1000 characters each)
+windows = Windows()
+analysis_windows = windows(input=text, n=1000, window_type="characters", output="strings")
+
+# 3. Calculate average frequencies of 'a' and 'e'
+calculator = Averages()
+calculator(patterns=["a", "e"], windows=analysis_windows, mode="exact", case_sensitive=False)
+results = calculator.to_df()
+
+# 4. Create visualization
+plotter = SimplePlotter(title="Letter Frequencies: 'a' vs 'e'")
+plotter(df=results)
+
+# 5. Save everything
+plotter.save("analysis.png")
+results.to_csv("analysis_data.csv")
+```
 
 ## Practical Applications
 
@@ -141,48 +310,6 @@ Examine emotional or thematic content in texts:
 patterns = ["happy", "sad", "angry", "peaceful"]
 ```
 
-## Dependencies
-
-The Rolling Windows module requires:
-- `spacy` (with language model, e.g., `en_core_web_sm`)
-- `pandas` 
-- `numpy`
-- `matplotlib` (for static plots)
-- `plotly` (for interactive plots)
-- `pydantic` (for data validation)
-
-> **Developer Note:**  
-> Install the spaCy language model separately:  
-> 
-> ```bash
-> python -m spacy download en_core_web_sm
-> ```
-
-## Quick Start Example
-
-```python
-import spacy
-from lexos.rolling_windows import Windows
-from lexos.rolling_windows.calculators import Averages
-from lexos.rolling_windows.plotters import SimplePlotter
-
-# Load text and create spaCy doc
-nlp = spacy.load("en_core_web_sm")
-text = "Your text here..."
-doc = nlp(text)
-
-# Create 100-token windows
-windows = Windows()
-rw = windows(input=doc, n=100, window_type="tokens")
-
-# Calculate pattern frequencies
-calc = Averages(patterns=["love", "war"], windows=rw)
-
-# Generate visualization
-plotter = SimplePlotter(title="Love vs War")
-plotter.plot(calc.to_df())
-```
-
 ## Advanced Features
 
 ### Milestone Markers
@@ -207,6 +334,40 @@ Save results in various formats:
 - PNG/SVG (static plots)
 - HTML (interactive plots)
 - CSV (raw data)
+
+## Troubleshooting Common Issues
+
+**Problem:** "Windows are consumed" error  
+**Solution:** Create fresh windows for each calculator call
+
+**Problem:** spaCy patterns don't work  
+**Solution:** Ensure `window_type="tokens"` and `output="tokens"` for spaCy rules
+
+**Problem:** No matches found  
+**Solution:** Check case sensitivity, try `case_sensitive=False`
+
+**Problem:** Regex not working  
+**Solution:** Use raw strings (`r"pattern"`) and escape special characters
+
+**Problem:** Memory issues with large texts  
+**Solution:** Reduce window size or limit text length (e.g., `text[:1000000]`)
+
+## Dependencies
+
+The Rolling Windows module requires:
+- `spacy` (with language model, e.g., `en_core_web_sm`)
+- `pandas` 
+- `numpy`
+- `matplotlib` (for static plots)
+- `plotly` (for interactive plots)
+- `pydantic` (for data validation)
+
+> **Developer Note:**  
+> Install the spaCy language model separately:  
+> 
+> ```bash
+> python -m spacy download en_core_web_sm
+> ```
 
 ## Testing
 
