@@ -92,7 +92,7 @@ class DTM(BaseModel):
     model_config = validation_config
 
     @property
-    def shape(self) -> tuple[int, int]: # Change 1
+    def shape(self) -> tuple[int, int]:
         """Return the shape of the DTM.
 
         Returns:
@@ -150,7 +150,7 @@ class DTM(BaseModel):
             raise LexosException(f"Error building DTM: {e}")
 
     @property
-    def sorted_terms_list(self) -> list[str]: # Change 2
+    def sorted_terms_list(self) -> list[str]:
         """Return a natsorted list of terms in the DTM.
 
         Returns:
@@ -165,7 +165,7 @@ class DTM(BaseModel):
         return natsorted(self.vectorizer.terms_list, reverse=False, alg=self.alg)
 
     @property
-    def sorted_term_counts(self) -> dict[str, int]: # Change 3
+    def sorted_term_counts(self) -> dict[str, int]:
         """Return a natsorted dict of terms and their TOTAL counts across all documents in the DTM.
 
         Returns:
@@ -201,10 +201,7 @@ class DTM(BaseModel):
         # This uses the natsort library based on the instance's 'alg'
         sorted_items = natsorted(term_counts_dict.items(), key=lambda item: item[0], alg=self.alg)
         return dict(sorted_items)
-
-
-        
-
+      
     def _get_term_percentages(
         self,
         df: pd.DataFrame,

@@ -278,6 +278,14 @@ def test_scrub_with_string():
     result = scrub("TEST", ["lower_case"])
     assert result == "test"
 
+def test_scrub_with_pipeline():
+    """Test scrubbing with a pipeline of components."""
+    from lexos.scrubber.normalize import lower_case
+    from lexos.scrubber.remove import punctuation
+    Pipeline = ["digits", lower_case, (punctuation, {"only": "!"})]
+    result = scrub("TEST123.!", Pipeline)
+    assert result == "test."
+
 def test_scrub_with_invalid_component():
     """Test that scrub raises LexosException for an invalid component."""
     with pytest.raises(LexosException):

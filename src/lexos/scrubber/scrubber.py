@@ -255,15 +255,16 @@ def scrub(
     """
     for pipe in pipeline:
         if isinstance(pipe, (Callable, partial)):
-            return pipe(text)
+            text = pipe(text)
         elif isinstance(pipe, tuple):
             func, opts = pipe
-            return func(text, **opts)
+            text = func(text, **opts)
         else:
             try:
                 func = factory.get(pipe)
-                return func(text)
+                text = func(text)
             except AttributeError as e:
                 raise LexosException(e)
             except catalogue.RegistryError as e:
                 raise LexosException(e)
+    return text

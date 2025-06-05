@@ -10,6 +10,8 @@ from pydantic import ValidationError
 from scipy.sparse import csr_matrix
 from wordcloud import WordCloud
 
+
+
 from lexos.dtm import DTM
 from lexos.visualization.cloud import multicloud, wordcloud
 
@@ -279,3 +281,65 @@ def test_multicloud_single_doc():
     clouds = multicloud(["single text"], show=False)
     assert len(clouds) == 1
     assert isinstance(clouds[0], WordCloud)
+
+def test_wordcloud_list_of_strings():
+    """Test wordcloud generation from a list of strings."""
+    data = ["word1", "word2", "word1"]
+    wc = wordcloud(data, show=False)
+    assert isinstance(wc, WordCloud)
+
+def test_wordcloud_dict_input():
+    """Test wordcloud generation from a dictionary of word frequencies."""
+    data = {"word1": 2, "word2": 3}
+    wc = wordcloud(data, show=False)
+    assert isinstance(wc, WordCloud)
+
+def test_wordcloud_invalid_list_input():
+    """Test WordCloud with invalid list input."""
+    data = [{"invalid": "structure"}]
+    with pytest.raises(ValidationError):
+        wordcloud(data, show=False)
+def test_wordcloud_with_dataframe():
+    """Test WordCloud from pandas DataFrame."""
+    import pandas as pd
+    data = pd.DataFrame(
+        {"doc1": [2, 1], "doc2": [0, 4]},
+        index=["word1", "word2"]
+    )
+    wc = wordcloud(data, show=False)
+    assert isinstance(wc, WordCloud)
+
+def test_wordcloud_with_list_of_lists():
+    """Test WordCloud from list of lists."""
+    data = [["word1", "word2"], ["word2", "word3"]]
+    wc = wordcloud(data, show=False)
+    assert isinstance(wc, WordCloud)
+
+def test_wordcloud_with_list_of_docs(nlp):
+    """Test WordCloud from list of spaCy Docs."""
+    docs = [nlp("word1 word2"), nlp("word3 word2")]
+    wc = wordcloud(docs, show=False)
+    assert isinstance(wc, WordCloud)
+
+
+
+def test_wordcloud_fallback_raises_exception():
+    """Test WordCloud raises error on unsupported input."""
+    class CustomObj: pass
+    data = [CustomObj()]  # Will sneak past some type guards
+    with pytest.raises(ValidationError):
+        wordcloud(data, show=False)
+
+
+def test_multicloud_with_labels_and_show(tmp_path):
+    """Test Multicloud with labels and file save."""
+    labels = ["Doc1", "Doc2"]
+    multicloud(["text1", "text2"], labels=labels, show=True, filename=str(tmp_path / "out.png"))
+    assert (tmp_path / "out.png").exists()
+
+def test_wordcloud_figure_options_show(tmp_path):
+    """Test WordCloud save with figure options."""
+    figure_opts = {"figsize": (10, 5)}
+    wordcloud("test text", figure_opts=figure_opts, show=True, path=str(tmp_path / "fig.png"))
+    assert (tmp_path / "fig.png").exists()
+
