@@ -3,8 +3,8 @@
 This class assumes that the source stream consists of spaCy Doc objects
 (i.e. pre-tokenized texts).
 
-Last updated: 2025-30-05
-Tested: 2025-30-05.
+Last updated: 2025-05-06
+Tested: 2025-05-06.
 
 Notes:
 - The `save_text` method only a method to saves the chunk text to .txt files.
@@ -17,7 +17,7 @@ Notes:
 """
 
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Sequence
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, validate_call
@@ -35,14 +35,15 @@ validation_config = ConfigDict(
 
 
 class TokenCutter(BaseModel, validate_assignment=True):
-    """TokenCutter class for chunking spaCy Doc objects into smaller segments
+    """TokenCutter class for chunking spaCy Doc objects into smaller segments.
+
     based on token count, line breaks, sentences, or custom milestones. 
     Supports overlapping, merging, and export to disk.
-    """  # noqa: D205
+    """
 
     chunks: list[list[Doc]] = Field(default=[], json_schema_extra={"description": "The list of chunks."})
 
-    chunksize: Optional[int] = Field(
+    chunk_size: Optional[int] = Field(
         default=1000, gt=0, json_schema_extra={"description": "The desired chunk size in tokens."}
     )
     n: Optional[int] = Field(
@@ -76,8 +77,8 @@ class TokenCutter(BaseModel, validate_assignment=True):
 
     model_config = validation_config
 
-    def __iter__(self) -> Iterator:
-        """Make the class iterable.
+    def iter_chunks(self) -> Iterator:
+        """Iterate over the object's chunks.
 
         Returns:
             Iterator: An iterator containing the object's chunks.
@@ -126,10 +127,11 @@ class TokenCutter(BaseModel, validate_assignment=True):
         """
         if len(chunks) == 1:
             return chunks
+        merge_threshold = self.merge_threshold if self.merge_threshold is not None else 0.5
         if isinstance(self.n, int):
-            threshold = max([len(chunk) for chunk in chunks]) * self.merge_threshold
+            threshold = max([len(chunk) for chunk in chunks]) * merge_threshold
         else:
-            threshold = self.chunksize * self.merge_threshold
+            threshold = (self.chunk_size if self.chunk_size is not None else 1) * merge_threshold
         # If the length of the last chunk < threshold, merge it with the previous chunk
         if force is True or len(chunks[-1]) < threshold:
             # Get rid of the last chunk
@@ -163,8 +165,8 @@ class TokenCutter(BaseModel, validate_assignment=True):
     def _chunk_doc(
         self,
         doc: Doc,
-        attrs: list[int | str] = SPACY_ATTRS,
-        header: list[int | str] = ENTITY_HEADER,
+        attrs: "Sequence[int | str]" = SPACY_ATTRS,
+        header: Sequence[int | str] = ENTITY_HEADER,
     ) -> list[Doc]:
         """Split a Doc into chunks.
 
@@ -180,8 +182,8 @@ class TokenCutter(BaseModel, validate_assignment=True):
         if len(doc) == 0:
             raise LexosException("Document is empty.")
 
-        # Return the whole doc if it is less than the chunksize
-        if self.n is None and len(doc) <= self.chunksize:
+        # Return the whole doc if it is less than the chunk_size
+        if self.n is None and self.chunk_size is not None and len(doc) <= self.chunk_size:
             return [doc]
 
         # Get the names of the custom extensions
@@ -189,14 +191,14 @@ class TokenCutter(BaseModel, validate_assignment=True):
 
         # Split the doc into n chunks
         if isinstance(self.n, int):
-            chunks_arr = np.array_split(doc.to_array(attrs), self.n)
+            chunks_arr = np.array_split(doc.to_array(list(attrs)), self.n)
             # If there is only one chunk, skip the rest of the function
             if len(chunks_arr) == 1:
                 return [doc]
         else:
             chunks_arr = np.array_split(
-                doc.to_array(attrs),
-                np.arange(self.chunksize, len(attrs), self.chunksize),
+                doc.to_array(list(attrs)),
+                np.arange(self.chunk_size, len(attrs), self.chunk_size),
             )
             # Remove empty elements
             chunks_arr = [x for x in chunks_arr if x.size > 0]
@@ -217,7 +219,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
             new_doc = Doc(doc.vocab, words=words)
 
             # Add the attributes to the new chunk doc
-            new_doc.from_array(attrs, chunk)
+            new_doc.from_array(list(attrs), chunk)
 
             # Add entities to the new chunk doc
             if doc.ents and len(doc.ents) > 0:
@@ -225,7 +227,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
                 for i, token in enumerate(span):
                     ent_array[i, 0] = token.ent_iob
                     ent_array[i, 1] = token.ent_type
-                new_doc.from_array(header, ent_array)
+                new_doc.from_array(list(header), ent_array)
 
             # Add custom attributes to doc
             if len(extension_names) > 0:
@@ -331,7 +333,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
     def _split_doc(
         self,
         doc: Doc,
-        attrs: Optional[int | str] = SPACY_ATTRS,
+        attrs: Optional[Sequence[int | str]] = SPACY_ATTRS,
         merge_final: Optional[bool] = False,
     ) -> list[Doc]:
         """Split a spaCy doc into chunks by a fixed number of tokens.
@@ -347,8 +349,9 @@ class TokenCutter(BaseModel, validate_assignment=True):
         if len(doc) == 0:
             raise LexosException("Document is empty.")
 
+        attrs = attrs if attrs is not None else SPACY_ATTRS
         chunks = self._chunk_doc(doc, attrs)
-        chunks = self._apply_merge_threshold(chunks, force=merge_final)
+        chunks = self._apply_merge_threshold(chunks, force=merge_final if merge_final is not None else False)
         if self.overlap:
             chunks = self._apply_overlap(chunks)
         if self.strip_chunks:
@@ -380,7 +383,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
         for token in doc:
             if "\n" in token.text:
                 count += 1
-                if count % self.n == 0:  # Check if it's the nth occurrence
+                if self.n is not None and count % self.n == 0:  # Check if it's the nth occurrence
                     indices.append(token.i + 1)
         if len(indices) == 0:
             chunks.append(doc)
@@ -395,7 +398,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
         chunks = [chunk for chunk in chunks if len(chunk) > 0]
 
         # Apply the merge threshold and overlap
-        chunks = self._apply_merge_threshold(chunks, force=merge_final)
+        chunks = self._apply_merge_threshold(chunks, force=merge_final if merge_final is not None else False)
         if self.overlap:
             chunks = self._apply_overlap(chunks)
 
@@ -427,18 +430,19 @@ class TokenCutter(BaseModel, validate_assignment=True):
         # Split the doc into chunks of n sentences
         sents = list(doc.sents)
         chunks = []
-        for i in range(0, len(sents), self.n):
-            chunk_sents = sents[i : i + self.n]
+        n = self.n if self.n is not None else 1
+        for i in range(0, len(sents), n):
+            chunk_sents = sents[i : i + n]
             start_idx = chunk_sents[0].start
             end_idx = chunk_sents[-1].end
             chunks.append(doc[start_idx:end_idx].as_doc())
-        chunks.append(doc[end_idx:].as_doc())  # Append the remaining elements
+        # No need to append doc[end_idx:] since all sentences are already included in the chunks
 
         # Ensure there are no empty docs
         chunks = [chunk for chunk in chunks if len(chunk) > 0]
 
         # Apply the merge threshold and overlap
-        chunks = self._apply_merge_threshold(chunks, force=merge_final)
+        chunks = self._apply_merge_threshold(chunks, force=merge_final if merge_final is not None else False)
         if self.overlap:
             chunks = self._apply_overlap(chunks)
 
@@ -474,7 +478,8 @@ class TokenCutter(BaseModel, validate_assignment=True):
         elif keep_spans == "preceding":
             chunks = self._keep_milestones_preceding(doc, milestones)
         else:
-            chunks = self._keep_milestones_bool(doc, milestones, keep_spans=keep_spans)
+            # Only pass a boolean to keep_spans
+            chunks = self._keep_milestones_bool(doc, milestones, keep_spans=bool(keep_spans))
 
         # Ensure that all chunks are spaCy docs
         chunks = [
@@ -482,7 +487,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
         ]
 
         # Apply the merge threshold and overlap
-        chunks = self._apply_merge_threshold(chunks, force=merge_final)
+        chunks = self._apply_merge_threshold(chunks, force=merge_final if merge_final is not None else False)
         if self.overlap:
             chunks = self._apply_overlap(chunks)
 
@@ -569,19 +574,19 @@ class TokenCutter(BaseModel, validate_assignment=True):
     def split(
         self,
         docs: Doc | list[Doc],
-        chunksize: Optional[int] = None,
+        chunk_size: Optional[int] = None,
         n: Optional[int] = None,
         merge_threshold: Optional[float] = 0.5,
         overlap: Optional[int] = None,
         names: Optional[list[Path | str]] = None,
         newline: Optional[bool] = None,
         strip_chunks: Optional[bool] = True,
-    ) -> list[Doc | list[Doc]]:
+    ) -> list[list[Doc]]:
         """Split spaCy docs into chunks by a fixed number of tokens.
 
         Args:
             docs (Doc | list[Doc]): A spaCy doc or list of spaCy docs.
-            chunksize (Optional[int]): The number of tokens to split on.,
+            chunk_size (Optional[int]): The number of tokens to split on.,
             n (Optional[int]): The number of chunks to produce.
             merge_threshold (Optional[float]): The threshold to merge the last segment.
             overlap (Optional[int]): The number of tokens to overlap.
@@ -593,7 +598,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
             list[list[Doc]]: A list of spaCy docs (chunks).
         """
         self._set_attributes(
-            chunksize=chunksize,
+            chunk_size=chunk_size,
             n=n,
             merge_threshold=merge_threshold,
             overlap=overlap,
@@ -603,6 +608,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
         )
         for doc in ensure_list(docs):
             self.chunks.append(self._split_doc(doc))
+        return self.chunks
 
     @validate_call(config=validation_config)
     def split_on_linebreaks(
@@ -618,7 +624,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
 
         Args:
             docs (Doc | list[Doc]): A spaCy doc or list of spaCy docs.
-            n (Optional[int]): The number of linees per chunk.
+            n (Optional[int]): The number of lines per chunk.
             merge_threshold (Optional[float]): The threshold to merge the last segment.
             overlap (Optional[int]): The number of tokens to overlap.
             strip_chunks (Optional[bool]): Whether to strip leading and trailing whitespace in the chunks.
@@ -641,6 +647,7 @@ class TokenCutter(BaseModel, validate_assignment=True):
             raise LexosException("n must be greater than 0.")
         for doc in ensure_list(docs):
             self.chunks.append(self._split_doc_by_lines(doc))
+        return self.chunks
 
     @validate_call(config=validation_config)
     def split_on_milestones(
@@ -731,11 +738,11 @@ class TokenCutter(BaseModel, validate_assignment=True):
         """
         if names:
             self.names = names
-        elif self.names == []:
+        if not self.names:
             self.names = [
                 f"text{str(i+1).zfill(self.pad)}" for i in range(len(self.chunks))
             ]
         return {
-            str(name): chunks
+            str(name): [chunk.text for chunk in chunks]
             for name, chunks in zip(self.names, self.chunks)
         }

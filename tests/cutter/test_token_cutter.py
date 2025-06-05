@@ -1,6 +1,6 @@
 """test_token_cutter.py.
 
-Last updated: 2025-30-05
+Last updated: 2025-05-05
 """
 
 import numpy as np
@@ -169,7 +169,7 @@ def test_cutter_init_defaults():
     """Test TokenCutter initialization with default values."""
     cutter = TokenCutter()
     assert cutter.chunks == []
-    assert cutter.chunksize == 1000
+    assert cutter.chunk_size == 1000
     assert cutter.n is None
     assert cutter.names == []
     assert cutter.newline is False
@@ -183,7 +183,7 @@ def test_cutter_init_defaults():
 def test_cutter_init_custom():
     """Test TokenCutter initialization with custom values."""
     cutter = TokenCutter(
-        chunksize=500,
+        chunk_size=500,
         n=5,
         names=["doc1", "doc2"],
         newline=True,
@@ -193,7 +193,7 @@ def test_cutter_init_custom():
         pad=4,
         strip_chunks=False,
     )
-    assert cutter.chunksize == 500
+    assert cutter.chunk_size == 500
     assert cutter.n == 5
     assert cutter.names == ["doc1", "doc2"]
     assert cutter.newline is True
@@ -207,7 +207,7 @@ def test_cutter_init_custom():
 def test_cutter_iteration(cutter, doc):
     """Test iteration over TokenCutter chunks."""
     cutter.chunks = [[doc], [doc]]
-    chunks = list(cutter)
+    chunks = list(cutter.iter_chunks())
     assert len(chunks) == 2
     assert all(isinstance(chunk, list) for chunk in chunks)
 
@@ -222,7 +222,7 @@ def test_cutter_empty():
     """Test TokenCutter with empty chunks."""
     cutter = TokenCutter()
     assert len(cutter) == 0
-    assert list(cutter) == []
+    assert list(cutter.iter_chunks()) == []
 
 
 def test_cutter_invalid_pad():
@@ -231,15 +231,15 @@ def test_cutter_invalid_pad():
         TokenCutter(pad=-1)
 
 
-def test_cutter_invalid_chunksize():
-    """Test TokenCutter with invalid chunksize."""
+def test_cutter_invalid_chunk_size():
+    """Test TokenCutter with invalid chunk_size."""
     with pytest.raises(ValueError):
-        TokenCutter(chunksize=0)
+        TokenCutter(chunk_size=0)
 
 
 def test_merge_below_threshold(cutter, sample_chunks_for_merge_threshold):
     """Test merging when last chunk is below threshold."""
-    cutter.chunksize = len(sample_chunks_for_merge_threshold[0])
+    cutter.chunk_size = len(sample_chunks_for_merge_threshold[0])
     merged = cutter._apply_merge_threshold(sample_chunks_for_merge_threshold)
     assert len(merged) == 1
     # NB. Whitespace is supplied between merged chunks.
@@ -252,7 +252,7 @@ def test_no_merge_above_threshold(cutter, nlp):
         nlp("First chunk of text."),
         nlp("Second chunk that is long enough to exceed threshold."),
     ]
-    cutter.chunksize = len(chunks[0])
+    cutter.chunk_size = len(chunks[0])
     merged = cutter._apply_merge_threshold(chunks)
     assert len(merged) == 2
 
@@ -294,7 +294,7 @@ def test_single_chunk(cutter, nlp):
 
 def test_different_threshold(nlp):
     """Test with different merge threshold."""
-    cutter = TokenCutter(chunksize=5, merge_threshold=0.8)
+    cutter = TokenCutter(chunk_size=5, merge_threshold=0.8)
     chunks = [nlp("First chunk."), nlp("Very tiny.")]
     merged = cutter._apply_merge_threshold(chunks)
     assert len(merged) == 1
@@ -395,7 +395,7 @@ def test_chunk_doc_entity_array_filled_forced_chunking():
     nlp = spacy.load("en_core_web_sm")
     doc = nlp("Barack Obama was born in Hawaii.")
     assert len(doc.ents) > 0
-    cutter = TokenCutter(chunksize=1)
+    cutter = TokenCutter(chunk_size=1)
     chunks = cutter._chunk_doc(doc)
     assert len(chunks) > 1
     assert any(chunk.ents for chunk in chunks)
@@ -438,7 +438,7 @@ def test_chunk_doc_empty(cutter, nlp):
 def test_chunk_doc_smaller_than_chunk(cutter, nlp):
     """Test document smaller than chunk size."""
     doc = nlp("Small doc")
-    cutter.chunksize = 10
+    cutter.chunk_size = 10
     chunks = cutter._chunk_doc(doc)
     assert len(chunks) == 1
     assert chunks[0].text == "Small doc"
@@ -447,7 +447,7 @@ def test_chunk_doc_smaller_than_chunk(cutter, nlp):
 def test_chunk_doc_exact_size(cutter, nlp):
     """Test document exactly chunk size."""
     doc = nlp("One two three four five")
-    cutter.chunksize = 5
+    cutter.chunk_size = 5
     chunks = cutter._chunk_doc(doc)
     assert len(chunks) == 1
     assert len(chunks[0]) == 5
@@ -457,7 +457,7 @@ def test_chunk_doc_multiple_chunks(cutter, nlp):
     """Test document with multiple chunks."""
     # import numpy as np
     doc = nlp("One two three four five six seven eight nine ten")
-    cutter.chunksize = 3
+    cutter.chunk_size = 3
     chunks = cutter._chunk_doc(doc)
     assert len(chunks) == 4
     assert all(isinstance(chunk, Doc) for chunk in chunks)
@@ -630,14 +630,14 @@ def test_keep_milestones_preceding_boundaries(cutter, doc):
 
 def test_set_attributes_single(cutter):
     """Test setting single attribute."""
-    cutter._set_attributes(chunksize=500)
-    assert cutter.chunksize == 500
+    cutter._set_attributes(chunk_size=500)
+    assert cutter.chunk_size == 500
 
 
 def test_set_attributes_multiple(cutter):
     """Test setting multiple attributes."""
-    cutter._set_attributes(chunksize=500, n=5, newline=True)
-    assert cutter.chunksize == 500
+    cutter._set_attributes(chunk_size=500, n=5, newline=True)
+    assert cutter.chunk_size == 500
     assert cutter.n == 5
     assert cutter.newline is True
 
@@ -671,7 +671,7 @@ def test_set_attributes_type_validation(cutter):
 
 def test_split_doc_by_tokens(cutter, doc_split_doc):
     """Test splitting by token count."""
-    cutter.chunksize = 5
+    cutter.chunk_size = 5
     chunks = cutter._split_doc(doc_split_doc)
     # The default merge_threshold merges the last two chunks
     assert len(chunks) == 2
@@ -689,7 +689,7 @@ def test_split_doc_by_n(cutter, doc_split_doc):
 
 def test_split_doc_merge_final(cutter, doc_split_doc):
     """Test merging final chunk."""
-    cutter.chunksize = 5
+    cutter.chunk_size = 5
     cutter.merge_threshold = 0.5
     chunks = cutter._split_doc(doc_split_doc, merge_final=True)
     assert len(chunks[-1]) > 5
@@ -697,7 +697,7 @@ def test_split_doc_merge_final(cutter, doc_split_doc):
 
 def test_split_doc_with_overlap(cutter, doc_split_doc):
     """Test splitting with overlap."""
-    cutter.chunksize = 5
+    cutter.chunk_size = 5
     cutter.overlap = 2
     chunks = cutter._split_doc(doc_split_doc)
     assert len(chunks[0]) > 5
@@ -722,7 +722,7 @@ def test_split_doc_empty(cutter, nlp):
 def test_split_doc_single_chunk(cutter, nlp):
     """Test document smaller than chunk size."""
     doc = nlp("Small doc")
-    cutter.chunksize = 10
+    cutter.chunk_size = 10
     chunks = cutter._split_doc(doc)
     assert len(chunks) == 1
     assert chunks[0].text == "Small doc"
@@ -735,7 +735,7 @@ def test_split_doc_properties(cutter):
     doc = nlp_attrs(
         "This is a test document with multiple tokens for testing chunking mechanisms."
     )
-    cutter.chunksize = 5
+    cutter.chunk_size = 5
     chunks = cutter._split_doc(doc)
     assert all(isinstance(chunk, Doc) for chunk in chunks)
     assert chunks[0][0]._.custom_attr == "value"
@@ -1111,11 +1111,12 @@ def test_save_text_no_chunks(cutter_save, output_dir):
         cutter_save.save_text(output_dir)
 
 
-def test_save_text_no_output_dir(cutter_save):
+def test_save_text_no_output_dir(nlp):
     """Test error when no output directory provided."""
-    cutter.chunks = [["first"], ["second"]]
+    cutter = TokenCutter()
+    cutter.chunks = [[nlp("first")], [nlp("second")]]
     with pytest.raises(ValueError):
-        cutter_save.save_text(None)
+        cutter.save_text(None)
 
 
 def test_save_text_mismatched_names(cutter_save, nlp, output_dir):
@@ -1132,9 +1133,9 @@ def test_save_text_invalid_path(cutter_save):
         cutter_save.save_text("/invalid/path/here")
 
 
-def test_split_single_doc_chunksize(cutter, doc_for_split):
+def test_split_single_doc_chunk_size(cutter, doc_for_split):
     """Test splitting single doc by chunk size."""
-    cutter.split(doc_for_split, chunksize=3)
+    cutter.split(doc_for_split, chunk_size=3)
     assert len(cutter.chunks) == 1  # One list of chunks
     assert len(cutter.chunks[0]) == 6  # Number of chunks
 
@@ -1142,7 +1143,7 @@ def test_split_single_doc_chunksize(cutter, doc_for_split):
 def test_split_multiple_docs(cutter, nlp):
     """Test splitting multiple docs."""
     docs = [nlp("Doc one."), nlp("Doc two.")]
-    cutter.split(docs, chunksize=2)
+    cutter.split(docs, chunk_size=2)
     assert len(cutter.chunks) == 2
 
 
@@ -1154,13 +1155,13 @@ def test_split_by_n(cutter, doc_for_split):
 
 def test_split_with_overlap(cutter, doc_for_split):
     """Test splitting with overlap."""
-    cutter.split(doc_for_split, chunksize=5, overlap=2)
+    cutter.split(doc_for_split, chunk_size=5, overlap=2)
     assert len(cutter.chunks[0][0]) > 5
 
 
 def test_split_with_merge_threshold(cutter, doc_for_split):
     """Test splitting with merge threshold."""
-    cutter.split(doc_for_split, chunksize=3, merge_threshold=0.5)
+    cutter.split(doc_for_split, chunk_size=3, merge_threshold=0.5)
     assert len(cutter.chunks[0][-1]) >= 3
 
 
@@ -1174,7 +1175,7 @@ def test_split_by_newline(cutter, nlp):
 def test_split_strip_chunks(cutter, nlp):
     """Test stripping whitespace from chunks."""
     doc = nlp("  Text with spaces  ")
-    cutter.split(doc, chunksize=2, strip_chunks=True)
+    cutter.split(doc, chunk_size=2, strip_chunks=True)
     chunks = cutter.chunks
     assert chunks[0][0].text.strip() == "Text"
 
@@ -1182,7 +1183,7 @@ def test_split_strip_chunks(cutter, nlp):
 def test_split_custom_names(cutter, doc_for_split):
     """Test splitting with custom doc names."""
     names = ["test1"]
-    _ = cutter.split(doc_for_split, chunksize=5, names=names)
+    _ = cutter.split(doc_for_split, chunk_size=5, names=names)
     assert cutter.names == names
 
 
@@ -1266,7 +1267,7 @@ def test_split_on_milestones_multiple_docs(cutter, nlp):
 def test_split_on_milestones_keep_spans(cutter, doc, milestone_doc):
     """Test different keep_spans options."""
     milestones = [doc[1:2], doc[4:5]]  # "quick", "jumps"
-    cutter.chunksize = 3
+    cutter.chunk_size = 3
     cutter.merge_threshold = 0.0
     cutter.split_on_milestones(doc, milestones, keep_spans=True)
     # The, quick, brown fox, jumps, over the lazy dog.
@@ -1292,7 +1293,7 @@ def test_split_on_milestones_keep_spans(cutter, doc, milestone_doc):
 def test_split_on_milestones_merge_threshold(cutter, doc, milestone_doc):
     """Test merge threshold functionality."""
     milestones = [doc[1:2], doc[4:5]]  # "quick", "jumps"
-    cutter.chunksize = 3
+    cutter.chunk_size = 3
     # Cannot find a threshold that works, so need to test with merge_final
     cutter.split_on_milestones(doc, milestones, merge_final=True)
     assert cutter.chunks[0][0].text.strip() == "The"
@@ -1302,7 +1303,7 @@ def test_split_on_milestones_merge_threshold(cutter, doc, milestone_doc):
 def test_split_on_milestones_overlap(cutter, doc, milestone_doc):
     """Test overlap functionality."""
     milestones = [doc[1:2], doc[4:5]]  # "quick", "jumps"
-    cutter.chunksize = 3
+    cutter.chunk_size = 3
     # Cannot find a threshold that works, so need to test with merge_final
     cutter.split_on_milestones(doc, milestones, merge_final=True, overlap=1)
     assert cutter.chunks[0][0].text.strip() == "The brown"
