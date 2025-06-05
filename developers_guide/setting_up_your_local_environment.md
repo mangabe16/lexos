@@ -136,7 +136,12 @@ Your terminal prompt should now show `(uv_lexos)` or `(.venv)` at the beginning.
 
 ## Setting up VS Code for Python Development
 
-We recommend the following VS Code extensions for Python development:
+The Lexos repo has a file called `.vscode.json`, where you can configure the path to your Python interpreter in your local virtual environment. If you are on Windows, you need to change that path to the appropriate one on your computer, probably something like `C:\\Users\\Your_Name\\Documents\\uv_lexos\\.venv\\Scripts\\Python.exe`. If you are on a Mac, it will be something like `/Users/Your_Name/Documents/uv_lexos/.venv/bin/python`. This will point VS Code towards the Python interpreter installed for Lexos.
+
+> [!IMPORTANT]
+> Don't forget to configure this path. Without it, VS Code may not recognize your virtual environment correctly, and you may encounter issues running Python code or Jupyter notebooks.
+
+We also recommend installing the following VS Code extensions for Python development:
 
 - Even Better TOML: For better syntax highlighting and formatting of `pyproject.toml`.
 - GitLens: Enhances Git capabilities in VS Code.
@@ -147,9 +152,6 @@ We recommend the following VS Code extensions for Python development:
 - Ruff: For linting and formatting Python code (see below for further instructions).
 
 You can install these extensions from the VS Code marketplace or by searching for them in the Extensions view (Ctrl+Shift+X).
-
-> [!IMPORTANT]
-> The Lexos repo has a file called `.vscode.json`, which contains a path to a Windows Python exectuable in your virtual environment. If you are on Windows, you need to change that path to the appropriate one on your computer. If you are on a Mac, you will need to do the same, but you will need to provide a valid posix (Mac or Linux) path to Python (which will be a `.bin` file) in the `bin` folder of your virtual environment. Once you have done this, your Jupyter notebooks should work correctly in VS Code from anywhere within the project folder.
 
 ---
 
