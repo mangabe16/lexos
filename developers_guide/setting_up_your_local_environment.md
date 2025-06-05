@@ -148,7 +148,8 @@ We recommend the following VS Code extensions for Python development:
 
 You can install these extensions from the VS Code marketplace or by searching for them in the Extensions view (Ctrl+Shift+X).
 
-The Lexos repo has a file called `.vscode.json`, which contains a path to a Windows Python exectuable in your virtual environment. If you are on Windows, you need to change that path to the appropriate one on your computer. If you are on a Mac, you will need to do the same, but you will need to provide a valid posix (Mac or Linux) path to Python (which will be a `.bin` file) in the `bin` folder of your virtual environment. Once you have done this, your Jupyter notebooks should work correctly in VS Code from anywhere within the project folder.
+> [!IMPORTANT]
+> The Lexos repo has a file called `.vscode.json`, which contains a path to a Windows Python exectuable in your virtual environment. If you are on Windows, you need to change that path to the appropriate one on your computer. If you are on a Mac, you will need to do the same, but you will need to provide a valid posix (Mac or Linux) path to Python (which will be a `.bin` file) in the `bin` folder of your virtual environment. Once you have done this, your Jupyter notebooks should work correctly in VS Code from anywhere within the project folder.
 
 ---
 
