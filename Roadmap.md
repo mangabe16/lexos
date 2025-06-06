@@ -10,7 +10,6 @@ The Textacy module implements several other algorithms for identifying "keyterms
 
 This new module would have to be built from scratch.
 
-
 ## K-Means
 
 Most of the tools in the cluster module perform hierarchical clustering, which connect the most proximate objects into clusters (clades) and then iteratively link proximate clades until there is a single root. The number of clusters depends on what level of the tree you are at.
@@ -24,6 +23,8 @@ Although the other submodules in the cluster module, as well as the code for the
 The Corpus module encompasses the functions of both the Manage and the Statisics tools in the the web app. Its purpose is to allow users to manage documents and their metadata through a simple file storage system (in the future, it should be possible to plugin databases instead). Users should be able to load documents into a corpus, activate and deactivate them for analyse, and serialise them (and the entire corpus) to disk (more on that below). Users should also be able to generate basic statistics about their corpus (number of documents, etc.). More sophisticated statistics, such as interquartile range, should allow them to detect anomalous documents which may affect analysis.
 
 There is already a preliminary version of the Corpus module in its own branch; however, the code has not been run, so there are bound to be bugs and other ways in which the interface could be simplified, improved, or optimised. Once it is working, test functions need to be written. The current version has the start of a plugin system whereby additional calculators could be added to generate other types of statistic, and you may wish to investigate what might be useful.
+
+A note on serialisation: Pydantic has a lot of really useful serialisation functions, but serialising spacy Doc objects is a minefield. There are `to_bytes()` and `to_disk()` methods which work fine if your doc does not have any custom attributes. This is where you have to come up with lots of workarounds. It's by far the trickiest part of working with this module. For more on custom attributes, see the [spaCy docs](https://spacy.io/usage/processing-pipelines#custom-components-attributes).
 
 ## Classification
 
