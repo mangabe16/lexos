@@ -302,6 +302,16 @@ class Record(BaseModel):
             raise LexosException("Record is not parsed.")
 
     @validate_call(config=model_config)
+    def set(self, **props) -> None:
+        """Set a record property.
+
+        Args:
+            **props: A dict containing the properties to set on the record.
+        """
+        for k, v in props.items():
+            setattr(self, k, v)
+
+    @validate_call(config=model_config)
     def to_bytes(self, extensions: Optional[list[str]] = []) -> bytes:
         """Serialize the record to a dictionary.
 

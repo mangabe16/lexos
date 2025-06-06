@@ -508,6 +508,34 @@ class Corpus(BaseModel):
         self._update_corpus_state()
 
     @validate_call(config=model_config)
+    def set(self, id: str, **props) -> None:
+        """Set a property or properties of a record in the Corpus.
+
+        Args:
+            id (str): A document id.
+            **props (dict): The dict containing any other properties to set.
+        """
+        # Get the record by ID
+        record = self.records[id]
+
+        # Save the record's filepath, thenupdate the specified properties
+        old_filepath = record.meta.get("filepath", None)
+        for k, v in props.items():
+            record.set(k, v)
+
+        # If the filepath has changed, delete the old file
+        if record.meta.get("filepath", None) != old_filepath:
+            Path(old_filepath).unlink(missing_ok=True)
+
+        # If the record has a filepath, ensure the file is in the data directory
+        if record.filepath and record.filepath not in Path(self.corpus_dir / "data"):
+            record.to_disk(record.filepath, extensions=record.extensions)
+
+        # Update the record in the Corpus and update the corpus state
+        self.records[id] = record
+        self._update_corpus_state()
+
+    @validate_call(config=model_config)
     def term_counts(
         self, n: Optional[int] = 10, most_common: Optional[bool] = True
     ) -> Counter:
