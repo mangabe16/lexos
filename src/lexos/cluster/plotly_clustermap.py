@@ -58,11 +58,16 @@ class PlotlyClustermap(BaseModel):
         None, json_schema_extra={"description": "The title for the clustermap."}
     )
     showfig: Optional[bool] = Field(
-        False, json_schema_extra={"description": "Whether to show the figure when the instance is called."}
+        False,
+        json_schema_extra={
+            "description": "Whether to show the figure when the instance is called."
+        },
     )
     colorscale: Optional[str] = Field(
         "Viridis",
-        json_schema_extra={"description": "The colorscale for the heatmap portion of the clustermap. Can be a one of `Blackbody, Bluered, Blues, Cividis, Earth, Electric, Greens, Greys, Hot, Jet, Picnic, Portl and, Rainbow, RdBu, Reds, Viridis, YlGnBu, YlOrRd`."},
+        json_schema_extra={
+            "description": "The colorscale for the heatmap portion of the clustermap. Can be a one of `Blackbody, Bluered, Blues, Cividis, Earth, Electric, Greens, Greys, Hot, Jet, Picnic, Portl and, Rainbow, RdBu, Reds, Viridis, YlGnBu, YlOrRd`."
+        },
     )
     config: dict = dict(
         displaylogo=False,
@@ -148,7 +153,7 @@ class PlotlyClustermap(BaseModel):
             if isinstance(self.dtm, DTM):
                 self.labels = self.dtm.labels
             elif isinstance(self.dtm, pd.DataFrame):
-                self.labels = self.dtm.columns.values.tolist()[1:]
+                self.labels = self.dtm.index.values.tolist()
             else:
                 self.labels = [f"Doc{i + 1}" for i, _ in enumerate(self.dtm)]
 
@@ -381,4 +386,4 @@ class PlotlyClustermap(BaseModel):
             raise LexosException("You must call the instance before saving the figure.")
         if "file" in kwargs:
             kwargs["file"] = path
-        return self.fig.write_html(**kwargs)
+        return self.fig.write_image(**kwargs)

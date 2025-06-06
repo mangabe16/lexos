@@ -101,3 +101,5 @@ As a side note, it is worth considering using [https://github.com/cdgriffith/pur
 ### Step 2: Run the Tests
 
 `cd` into the project directory and run `uv run pytest`. This will run all the tests in the `tests` directory. Or you can run `uv run pytest tests/test_module.py` to run the tests in a specific module.
+
+uv run pytest tests/visualization/test_cloud.py

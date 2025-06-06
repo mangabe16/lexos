@@ -136,7 +136,7 @@ def test_wordcloud_with_round_mask():
 def test_wordcloud_save_to_file(tmp_path):
     """Test saving wordcloud to file."""
     path = tmp_path / "test_cloud.png"
-    wordcloud("test text", path=path, show=True)
+    wordcloud("test text", path=path, show=False)
     assert path.exists()
 
 
