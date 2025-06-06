@@ -7,6 +7,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import matplotlib as mpl  # added
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 
 nlp = spacy.load("en_core_web_sm")
+mpl.use("Agg")  # added
 
 # Fixtures
 
