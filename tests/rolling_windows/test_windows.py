@@ -197,6 +197,28 @@ def test_call_invalid_window_type(basic_windows):
             window_type="invalid"
         )
 
+def test_call_invalid_output_type(basic_windows):
+    """Test error handling for invalid output type in call method."""
+    with pytest.raises(LexosException, match="Output must be 'strings' or 'tokens'."):
+        basic_windows(input="test", output="invalid_output")
+
+def test_windows_invalid_output_type(nlp):
+    """Test error handling for invalid output type during initialization."""
+    doc = nlp("This is a test document.")
+    
+    with pytest.raises(LexosException, match="Output must be 'strings' or 'tokens'."):
+        Windows(
+            input=doc,
+            output="not_valid",  # Invalid output to trigger the uncovered branch
+            window_type="tokens"
+        )
+
+def test_windows_invalid_window_type_init():
+    """Test error handling for invalid window type during initialization."""
+    with pytest.raises(LexosException, match="Window type must be 'characters' or 'tokens'."):
+        Windows(window_type="invalid_type")
+
+
 def test_call_attribute_persistence(basic_windows):
     """Test persistence of attributes after call."""
     input_text = "Hello world"
@@ -284,10 +306,31 @@ def test_doc_windows_output_types(sample_doc, output_type, expected_type):
     assert len(results) > 0
     assert all(isinstance(w, expected_type) for w in results)
 
+
 def test_doc_windows_invalid_output():
     """Test error handling for invalid output type."""
     with pytest.raises(LexosException):
         _ = Windows(n=2, output="invalid")
+
+def test_get_doc_windows_invalid_output_direct(sample_doc):
+    """Test _get_doc_windows with invalid output type by setting it directly."""
+    windows = Windows(n=2, output="strings")  # Valid initialization
+    windows.output = "invalid"  # Directly set invalid output after init
+    
+    with pytest.raises(LexosException, match="Output must be 'strings', or 'tokens'."):
+        list(windows._get_doc_windows(sample_doc))
+
+
+def test_get_doc_windows_spans_output_direct(sample_doc):
+    """Test _get_doc_windows with spans output by setting it directly."""
+    windows = Windows(n=2, output="strings", window_type="tokens")  # Valid initialization  
+    windows.output = "spans"  # Directly set spans output after init
+    
+    generator = windows._get_doc_windows(sample_doc)
+    results = list(generator)
+    
+    assert len(results) > 0
+    assert all(isinstance(w, spacy.tokens.Span) for w in results)
 
 @pytest.mark.parametrize("window_type,alignment_mode", [
     ("characters", "strict"),
@@ -364,6 +407,18 @@ def test_span_list_windows_invalid_output(sample_spans):
     """Test error handling for invalid output type."""
     with pytest.raises(LexosException):
         _ = Windows(input=sample_spans, n=2, output="invalid", window_type="tokens")
+
+def test_get_span_list_windows_invalid_output_direct(sample_spans):
+    """Test _get_span_list_windows with invalid output type by setting it directly."""
+    windows = Windows(n=2, output="strings", window_type="tokens")  # Valid initialization
+    windows.output = "invalid"  # Directly set invalid output after init
+    
+    with pytest.raises(LexosException, match="Output must be 'strings', or 'tokens'."):
+        list(windows._get_span_list_windows(sample_spans))
+
+# Note: Line 179 (yeild slice) in _get_span_list_windows appears to be unreachable code
+# since the validation at line 164 only allows "strings" or "tokens" as output types,
+# and both cases are handled explicitly in the if/elif block above the else clause.
 
 def test_span_list_windows_character_mode(sample_spans):
     """Test span list windows in character mode."""
@@ -516,6 +571,14 @@ def test_token_list_windows_invalid_output(sample_tokens):
     """Test error handling for invalid output type."""
     with pytest.raises(LexosException):
         _ = Windows(input=sample_tokens, n=2, output="invalid", window_type="tokens")
+
+def test_get_token_list_windows_invalid_output_direct(sample_tokens):
+    """Test _get_token_list_windows with invalid output type by setting it directly."""
+    windows = Windows(n=2, output="strings", window_type="tokens")  # Valid initialization
+    windows.output = "invalid"  # Directly set invalid output after init
+    
+    with pytest.raises(LexosException, match="Output must be 'strings' or 'tokens'."):
+        list(windows._get_token_list_windows(sample_tokens))
 
 def test_token_list_windows_character_mode(sample_tokens):
     """Test token list windows in character mode."""

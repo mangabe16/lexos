@@ -98,7 +98,9 @@ class DTM(BaseModel):
         Returns:
             tuple[int, int]: The shape of the DTM.
         """
-        return self.doc_term_matrix.get_shape()
+        if self.doc_term_matrix is None:
+            raise LexosException("DTM must be built before accesing its shape")
+        return self.doc_term_matrix.shape
 
     def __call__(
         self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]
@@ -154,20 +156,52 @@ class DTM(BaseModel):
         Returns:
             list[str]: A natsorted list of terms in the DTM.
         """
+        if self.vectorizer is None or not hasattr(self.vectorizer, 'terms_list'):
+            # This handles cases where vectorizer might be None or not properly set up
+            # before attempting to access terms_list.
+            raise LexosException(
+                "Vectorizer or its 'terms_list' attribute is not available to get sorted terms."
+            )
         return natsorted(self.vectorizer.terms_list, reverse=False, alg=self.alg)
 
     @property
     def sorted_term_counts(self) -> dict[str, int]:
-        """Return a natsorted dict of terms and their counts in the DTM.
+        """Return a natsorted dict of terms and their TOTAL counts across all documents in the DTM.
 
         Returns:
-            dict[str, int]: A natsorted dict of terms and their counts.
+            dict[str, int]: A natsorted dict of terms and their total counts.
         """
-        terms_counts = natsorted(
-            self.vectorizer.vocabulary_terms.items(), reverse=False, alg=self.alg
-        )
-        return {term: count for term, count in terms_counts}
+        # 1. Handle edge cases: DTM not built or empty
+        if self.doc_term_matrix is None or self.doc_term_matrix.shape[1] == 0:
+            return {} # Return an empty dictionary if no DTM or no terms
 
+        # 2. Get the terms (column names) from the vectorizer
+        if not hasattr(self.vectorizer, 'terms_list') or not self.vectorizer.terms_list:
+            # Fallback for unexpected mock scenarios or custom vectorizers
+            # A well-formed DTM should always have terms_list if it has a non-empty matrix
+            raise LexosException(
+                "Vectorizer must have 'terms_list' attribute to get sorted term counts."
+            )
+        terms = self.vectorizer.terms_list
+
+        # 3. Calculate the sum of each term (column) across all documents
+        # .sum(axis=0) returns a 1xN matrix. .A1 flattens it to a 1D numpy array for sparse matrices.
+        term_totals = self.doc_term_matrix.sum(axis=0).A1.astype(int)
+
+        # 4. Create a dictionary mapping terms to their total counts
+        # Ensure terms and term_totals have the same length
+        if len(terms) != len(term_totals):
+            raise LexosException(
+                f"Mismatch between number of terms ({len(terms)}) "
+                f"and calculated term totals ({len(term_totals)})."
+            )
+        term_counts_dict = dict(zip(terms, term_totals))
+
+        # 5. Natsort the items (term-count pairs) by term name, then convert back to a dictionary
+        # This uses the natsort library based on the instance's 'alg'
+        sorted_items = natsorted(term_counts_dict.items(), key=lambda item: item[0], alg=self.alg)
+        return dict(sorted_items)
+      
     def _get_term_percentages(
         self,
         df: pd.DataFrame,

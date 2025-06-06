@@ -165,8 +165,10 @@ class Scrubber:
         for component in pipes:
             # If component exists, merge options
             if component.name in self.pipes:
-                instance_opts = self._components[self.pipes.get(name)].opts
-                component.opts = {**instance_opts, **opts}
+                 # Find the index of the existing component
+                idx = self.pipes.index(component.name)
+                instance_opts = self._components[idx].opts
+                component.opts = {**instance_opts, **component.opts}
             # Insert the component
             self._components.insert(pipe_index, component)
             pipe_index += 1
@@ -253,15 +255,16 @@ def scrub(
     """
     for pipe in pipeline:
         if isinstance(pipe, (Callable, partial)):
-            return pipe(text)
+            text = pipe(text)
         elif isinstance(pipe, tuple):
             func, opts = pipe
-            return func(text, **opts)
+            text = func(text, **opts)
         else:
             try:
                 func = factory.get(pipe)
-                return func(text)
-            except NameError as e:
+                text = func(text)
+            except AttributeError as e:
                 raise LexosException(e)
             except catalogue.RegistryError as e:
                 raise LexosException(e)
+    return text

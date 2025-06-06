@@ -35,7 +35,7 @@ Other features that need to be be implemented:
 
 ### Step 0: Install `uv`
 
-Instructions for installing `uv` can be found at https://docs.astral.sh/uv/getting-started/installation/. Use the appropriate `curl` or `irm` method for your version to install `uv` universally.
+Instructions for installing `uv` can be found at [https://docs.astral.sh/uv/getting-started/installation/](https://docs.astral.sh/uv/getting-started/installation/). Use the appropriate `curl` or `irm` method for your version to install `uv` universally.
 
 `uv` manages its own virtual environments for each project, so you don't need to install it into a dedicated virtual environment. If it does not find the appropriate version of Python on your system, it will download it automatically.
 
@@ -55,7 +55,11 @@ To add a dependency, use `uv add <package-name>`. To add a development dependenc
 
 #### spaCy Models
 
-I have not yet figured out how to use `uv` to automate the installation of spaCy models, so you will need to install them manually. Use `uv run python -m spacy download xx_sent_ud_sm` and `uv run python -m spacy download en_core_web_sm`.
+To add spaCy models to the package, you need to first get the urls for the models by running `python -m spacy info model_name --url`, replacing `model_name` with the name of the model. Then run `uv add` followed by the url. This will add the model to the `pyproject.toml` file and install it in the virtual environment. Since the two default models are `xx_sent_ud_sm` and `en_core_web_sm` are already in the the `pyproject.toml` file, they should hopefully download and automatically install when you create or sync the virtual environment.
+
+If you want to install models manually, you can run `uv run python -m spacy download xx_sent_ud_sm` and `uv run python -m spacy download en_core_web_sm` -- or change the model name to any other model you wish to install.
+
+Since automatic installation of models is not yet fully tests, the following are retained older notes which may be useful for future reference:
 
 One possible method for automatically installing the models would be to put this procedure in a separate script and then call it from `pyproject.toml` file in the `tool.uv.sources` table, as shown below:
 
@@ -92,7 +96,7 @@ Either way, at least one extra command has to be run on the command line. This p
 
 The `io` module uses `python-magic` to detect the mimetype of a file. This library requires the `libmagic` library to be installed on the system. However, the latest version of `python-magic` is unable to install the most recent version of `libmagic`. So the `pyproject.toml` file specifies `v0.4.14`, which is the last compatible version. Hopefully, `python-magic` will be updated to manage this dependency properly.
 
-As a side not, it is worth considering using https://github.com/cdgriffith/puremagic instead of `python-magic` for mimetype detection.
+As a side note, it is worth considering using [https://github.com/cdgriffith/puremagic](https://github.com/cdgriffith/puremagic) instead of `python-magic` for mimetype detection.
 
 ### Step 2: Run the Tests
 

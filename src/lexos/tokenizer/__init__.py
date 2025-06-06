@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Update: Jan 25, 2025
-Last Tested: Jan 25, 2025
+Last Update: May 27, 2025
+Last Tested: May 27, 2025
 
 Current usage:
 
@@ -98,8 +98,6 @@ class Tokenizer(BaseModel):
             return self.make_doc(texts)
         elif isinstance(texts, Iterable):
             return self.make_docs(texts)
-        else:
-            raise LexosException("Input must be a string or an iterable of strings.")
 
     @property
     def pipeline(self) -> list[str]:
@@ -160,7 +158,8 @@ class Tokenizer(BaseModel):
             self.max_length = max_length
             self.nlp.max_length = max_length
         if disable:
-            self.nlp.disabled.extend(disable)
+            # self.nlp.disabled.extend(disable)
+            self.nlp.select_pipes(disable=disable)
         return next(self.nlp.pipe([text], disable=disable, **kwargs))
 
     @validate_call
@@ -187,7 +186,8 @@ class Tokenizer(BaseModel):
             self.max_length = max_length
             self.nlp.max_length = max_length
         if disable:
-            self.nlp.disabled.extend(disable)
+            # self.nlp.disabled.extend(disable)
+            self.nlp.select_pipes(disable=disable)
         return self.nlp.pipe(texts, disable=disable, **kwargs)
 
     @validate_call
@@ -217,7 +217,9 @@ class SliceTokenizer(BaseModel, validate_assignment=True):
     """Simple slice tokenizer."""
 
     n: int = Field(description="The size of the tokens in characters.")
-    drop_ws: Optional[bool] = Field(default=True, description="Whether to drop whitespace from the tokens.")
+    drop_ws: Optional[bool] = Field(
+        default=True, description="Whether to drop whitespace from the tokens."
+    )
 
     @validate_call
     def __call__(self, text: str) -> list[str]:
@@ -227,7 +229,6 @@ class SliceTokenizer(BaseModel, validate_assignment=True):
             text (str): The text to tokenize.
 
         Returns:
-
             list[str]: A list of tokens.
         """
         if self.drop_ws:
@@ -244,6 +245,7 @@ class WhitespaceTokenizer(BaseModel):
 
         Args:
             text (str): The text to tokenize.
+
         Returns:
             list[str]: A list of tokens.
         """

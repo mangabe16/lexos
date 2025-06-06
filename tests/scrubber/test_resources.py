@@ -35,3 +35,12 @@ def test_html_text_extractor_handle_data():
     extractor.handle_data("Text")
     result = extractor.get_text()
     assert result == "SampleText"
+
+def test_re_emoji_narrow(monkeypatch):
+    """Test RE_EMOJI regex compilation for narrow Python builds (line 152)."""
+    import sys
+    import importlib
+    monkeypatch.setattr(sys, "maxunicode", 0xFFFF)
+    import lexos.scrubber.resources as resources
+    importlib.reload(resources)
+    assert resources.RE_EMOJI.pattern == r"[\u2600-\u26FF\u2700-\u27BF]"

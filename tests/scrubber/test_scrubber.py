@@ -1,6 +1,6 @@
 """test_scrubber.py.
 
-Last Update: 20 January 2025
+Last Update: 16 May 2025
 """
 
 from functools import partial
@@ -10,7 +10,7 @@ import pytest
 
 from lexos.exceptions import LexosException
 from lexos.scrubber.registry import scrubber_components
-from lexos.scrubber.scrubber_bk import Pipe, Scrubber, scrub
+from lexos.scrubber.scrubber import Pipe, Scrubber, scrub
 
 
 @pytest.fixture
@@ -23,6 +23,30 @@ def test_pipe_class():
     assert pipe.name == "digits"
     assert pipe.opts == {"only": ["1"]}
     assert pipe.factory == scrubber_components
+
+def test_pipe_class_exemption():
+    """Test the Pipe class and its __call__ method, including error handling."""
+    
+    # NameError branch: simulate factory.get raising NameError
+    import catalogue
+    class DummyFactory(catalogue.Registry):
+        def get(self, name):
+            raise NameError("dummy")
+
+    pipe_bad = Pipe(name="not_a_real_component", factory=DummyFactory("dummy"))
+    with pytest.raises(LexosException) as excinfo:
+        pipe_bad("test")
+    assert "dummy" in str(excinfo.value)
+
+    # RegistryError branch: simulate factory.get raising catalogue.RegistryError
+    class DummyFactory2(catalogue.Registry):
+        def get(self, name):
+            raise catalogue.RegistryError("dummy registry error")
+
+    pipe_bad2 = Pipe(name="not_a_real_component", factory=DummyFactory2("dummy2"))
+    with pytest.raises(LexosException) as excinfo2:
+        pipe_bad2("test")
+    assert "dummy registry error" in str(excinfo2.value)
 
 def test_add_pipe_string(scrubber):
     """Test adding a named component to the scrubber pipeline."""
@@ -130,6 +154,28 @@ def test_add_pipe_numeric_after(scrubber):
     scrubber.add_pipe("remove_whitespace", after=0)
     assert scrubber._components[1].name == "remove_whitespace"
 
+def test_get_pipe_index_before_out_of_bounds(scrubber):
+    """Test that _get_pipe_index raises ValueError for negative integer 'before'."""
+    scrubber.add_pipe("lower_case")
+    with pytest.raises(ValueError, match="Index -1 out of range."):
+        scrubber._get_pipe_index(before=-1)
+    with pytest.raises(ValueError, match="Index 2 out of range."):
+        scrubber._get_pipe_index(before=2)
+
+def test_add_pipe_invalid_component_type(scrubber):
+    """Test that add_pipe raises LexosException for invalid component type."""
+    class NotAComponent:
+        pass
+
+    with pytest.raises(LexosException, match="Components must be strings, tuples, functools.partial, or Pipe objects."):
+        scrubber.add_pipe(NotAComponent())
+
+def test_add_pipe_merge_opts(scrubber):
+    """Test that add_pipe merges options for an existing component."""
+    scrubber.add_pipe(("digits", {"a": 1, "b": 2}))
+    scrubber.add_pipe(("digits", {"b": 3, "c": 4}))
+    assert scrubber._components[1].opts == {"a": 1, "b": 3, "c": 4}
+
 def test_pipe(scrubber):
     """Test scrubbing texts with the pipeline."""
 
@@ -186,17 +232,33 @@ def test_invalid_pipe_name(scrubber):
     with pytest.raises(LexosException):
         scrubber._get_pipe_index(before="invalid_pipe")
 
+def test_get_pipe_index_after_out_of_range(scrubber):
+    """Test that _get_pipe_index raises ValueError for out-of-range 'after'."""
+    scrubber.add_pipe("lower_case")
+    with pytest.raises(ValueError, match="Index 1 out of range."):
+        scrubber._get_pipe_index(after=1)
+    with pytest.raises(ValueError, match="Index -1 out of range."):
+        scrubber._get_pipe_index(after=-1)
+
 def test_empty_pipeline(scrubber):
     """Test scrubbing with an empty pipeline returns the text."""
     assert scrubber.scrub("text") == "text"
 
+def test_get_pipe_index_invalid_combination_hits_final_raise(scrubber):
+    """Test that _get_pipe_index raises ValueError for truly invalid types."""
+    class Dummy: pass
+    with pytest.raises(ValueError, match="Invalid combination of before, after, first, last."):
+        scrubber._get_pipe_index(before=Dummy())
+
 def test_scrub_with_callable():
+    """Test scrubbing with a callable."""
     def mock_callable(text):
         return text.upper()
     result = scrub("test", [mock_callable])
     assert result == "TEST"
 
 def test_scrub_with_partial():
+    """Test scrubbing with a partial callable."""
     def mock_callable(text, suffix):
         return text + suffix
 
@@ -205,6 +267,7 @@ def test_scrub_with_partial():
     assert result == "test!"
 
 def test_scrub_with_tuple():
+    """Test scrubbing with a tuple containing a callable and its kwargs."""
     def mock_callable(text, prefix):
         return prefix + text
 
@@ -215,14 +278,23 @@ def test_scrub_with_string():
     result = scrub("TEST", ["lower_case"])
     assert result == "test"
 
+def test_scrub_with_pipeline():
+    """Test scrubbing with a pipeline of components."""
+    from lexos.scrubber.normalize import lower_case
+    from lexos.scrubber.remove import punctuation
+    Pipeline = ["digits", lower_case, (punctuation, {"only": "!"})]
+    result = scrub("TEST123.!", Pipeline)
+    assert result == "test."
+
 def test_scrub_with_invalid_component():
+    """Test that scrub raises LexosException for an invalid component."""
     with pytest.raises(LexosException):
         scrub("test", ["nonexistent_component"])
 
-def test_scrub_with_registry_error():
-    from unittest.mock import Mock
-    mock_factory = Mock()
-    mock_factory.get.side_effect = catalogue.RegistryError("Component not found")
-
+def test_scrub_string_else_branch():
+    """Test AttributeError exception."""
+    class DummyFactory:
+        def dummyFunction(input: str) -> str:
+            return input
     with pytest.raises(LexosException):
-        scrub("test", ["nonexistent_component"], factory=mock_factory)
+        result = scrub("abc", ["dummy_component"], factory=DummyFactory())
