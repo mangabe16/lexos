@@ -67,7 +67,9 @@ class BCT(BaseModel):
     @classmethod
     def _validate_text_color(cls, value):
         if not is_valid_colour(value):
-            raise LexosException("Value is not a valid colour: string not recognised as a valid colour.")
+            raise LexosException(
+                "Value is not a valid colour: string not recognised as a valid colour."
+            )
         return value
 
     @property
@@ -326,7 +328,7 @@ class BCT(BaseModel):
             plt.ioff()
 
         # Get the matplotlib figure for bootstrap consensus tree result
-        self._get_bootstrap_consensus_tree_fig()
+        # self._get_bootstrap_consensus_tree_fig() <-- comment this out for now, seems to show 2 figs
         fig = self._get_bootstrap_consensus_tree_fig()
 
         # Save the figure to the instance and show or close the plot

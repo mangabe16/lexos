@@ -1,7 +1,7 @@
 """plotly_dendrogram.py.
 
-Last Updated: February 24, 2025
-Last Tested: February 20, 2025
+Last Updated: June 5, 2025
+Last Tested: June 5, 2025
 
 Information here about how to add truncate mode: https://stackoverflow.com/questions/70801281/how-can-i-plot-a-truncated-dendrogram-plot-using-plotly
 """
@@ -9,9 +9,11 @@ Information here about how to add truncate mode: https://stackoverflow.com/quest
 from pathlib import Path
 from typing import Optional
 
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.cluster.hierarchy as sch
+import numpy as np  # Added numpy import
 from numpy.typing import ArrayLike
 from plotly.figure_factory import create_dendrogram
 from plotly.graph_objs.graph_objs import Scatter
@@ -28,7 +30,7 @@ class PlotlyDendrogram(BaseModel):
     Typical usage:
 
     ```python
-    from lexos.visualization.plotly.cluster.dendrogram import PlotlyDendrogram
+    from lexos.cluster import PlotlyDendrogram
 
     dendrogram = PlotlyDendrogram(dtm, showfig=True)
     dendrogram()
@@ -47,7 +49,7 @@ class PlotlyDendrogram(BaseModel):
     Needs some work in returning the figure as a figure
     and html and html div.
     ```
-    """
+    """  # End of class docstring
 
     dtm: Optional[ArrayLike | DTM | pd.DataFrame] = Field(
         None, json_schema_extra={"The document-term matrix."}
@@ -143,7 +145,7 @@ class PlotlyDendrogram(BaseModel):
         y_tickangle: Optional[int] = 0,
         layout: Optional[dict] = None,
     ):
-        """Call the instance."""
+        """Call the instance."""  # End of __call__ docstring
 
         def distfun(x: ArrayLike) -> ArrayLike:
             """Get the pairwise distance matrix.
@@ -153,7 +155,7 @@ class PlotlyDendrogram(BaseModel):
 
             Returns:
                 ArrayLike: The pairwise distance matrix.
-            """
+            """  # End of distfun docstring
             return pdist(x, metric=self.metric)
 
         def linkagefun(x: ArrayLike) -> ArrayLike:
@@ -164,7 +166,7 @@ class PlotlyDendrogram(BaseModel):
 
             Returns:
                 ArrayLike: The linkage matrix.
-            """
+            """  # End of linkagefun docstring
             return sch.linkage(x, self.method)
 
         # Set the attributes of the class
@@ -192,17 +194,18 @@ class PlotlyDendrogram(BaseModel):
         if self.dtm is None:
             raise LexosException("You must provide a document-term matrix.")
 
-        # Ensure there are labels
+        # Get the matrix based on the data type
+        matrix = self._get_valid_matrix()
+
+        # Ensure there are labels (moved after matrix validation to get correct shape)
         if not self.labels:
             if isinstance(self.dtm, DTM):
                 self.labels = self.dtm.labels
             elif isinstance(self.dtm, pd.DataFrame):
-                self.labels = self.dtm.columns.values.tolist()[1:]
-            else:
-                self.labels = [f"Doc{i + 1}" for i, _ in enumerate(self.dtm)]
-
-        # Get the matrix based on the data type
-        matrix = self._get_valid_matrix()
+                # Corrected to use index for labels, as rows are documents after transpose
+                self.labels = self.dtm.index.tolist()
+            else:  # If matrix is a numpy array or list (now handled by _get_valid_matrix converting to numpy)
+                self.labels = [f"Doc{i + 1}" for i in range(matrix.shape[0])]
 
         # Create the figure
         self.fig = create_dendrogram(
@@ -260,32 +263,31 @@ class PlotlyDendrogram(BaseModel):
             self.fig.show(config=self.config)
 
     def _get_valid_matrix(self):
-        """Get a valid matrix based on the data type of the dtm."""
+        """Get a valid matrix based on the data type of the dtm."""  # End of _get_valid_matrix docstring
         if isinstance(self.dtm, DTM):
             matrix = self.dtm.to_df()
             matrix.index.name = "terms"
             matrix = matrix.T
+        elif isinstance(self.dtm, list):  # Added handling for list input
+            matrix = np.array(self.dtm)  # Convert list to numpy array
         else:
             matrix = self.dtm
-        if isinstance(matrix, list):
-            first_row = len(matrix[0])
-            first_row = len(matrix)
-        else:
-            first_row = matrix.shape[0]
-        if first_row < 2:
+
+        # Now, `matrix` will always be a pandas DataFrame or a numpy array when we check `shape`
+        if matrix.shape[0] < 2:
             raise LexosException(
                 "The document-term matrix must have more than one document."
             )
         return matrix
 
     def _set_attrs(self, **kwargs):
-        """Set the attributes of the class."""
+        """Set the attributes of the class."""  # End of _set_attrs docstring
         for key, value in kwargs.items():
             if value is not None:
                 setattr(self, key, value)
 
     def show(self):
-        """Show the figure."""
+        """Show the figure."""  # End of show docstring
         if self.fig is None:
             raise LexosException(
                 "You must call the instance before showing the figure."
@@ -297,7 +299,7 @@ class PlotlyDendrogram(BaseModel):
 
         Wrapper from the Plotly Figure to_html method.
         See https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html.
-        """
+        """  # End of to_html docstring
         if self.fig is None:
             raise LexosException("You must call the instance before generating HTML.")
         return self.fig.to_html(**kwargs)
@@ -307,7 +309,7 @@ class PlotlyDendrogram(BaseModel):
 
         Wrapper from the Plotly Figure to_html method.
         See https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html.
-        """
+        """  # End of to_image docstring
         if self.fig is None:
             raise LexosException(
                 "You must call the instance before generating an image."
@@ -323,9 +325,10 @@ class PlotlyDendrogram(BaseModel):
         """
         if self.fig is None:
             raise LexosException("You must call the instance before saving the figure.")
-        if "file" in kwargs:
-            kwargs["file"] = path
-        return self.fig.write_html(**kwargs)
+        # Removed: if "file" in kwargs: kwargs["file"] = path
+        self.fig.write_html(
+            str(path), **kwargs
+        )  # Convert path to string for write_html
 
     @validate_call(config=model_config)
     def write_image(self, path: Path | str, **kwargs):
@@ -336,6 +339,7 @@ class PlotlyDendrogram(BaseModel):
         """
         if self.fig is None:
             raise LexosException("You must call the instance before saving the figure.")
-        if "file" in kwargs:
-            kwargs["file"] = path
-        return self.fig.write_html(**kwargs)
+        # Removed: if "file" in kwargs: kwargs["file"] = path
+        self.fig.write_image(
+            str(path), **kwargs
+        )  # Convert path to string for write_image
