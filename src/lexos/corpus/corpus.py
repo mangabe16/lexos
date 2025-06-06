@@ -1,9 +1,12 @@
 """corpus.py.
 
-Last updated: June 1, 2025
+Last updated: June 5, 2025
 Last tested: It works in a noteboook, but no unit tests written yet.
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
+
+To reproduce the web app's Statistics module, call `stats = Corpus.get_token_stats()` to get a `CorpusStats` object. Its method produce the web app's calculations and output. By default, the `get_token_stats()` method retrieves stats for the entire corpus, but you can pass parameters to filter active documents or settings accepted by the vectorizer. You can also pass an arbitrary list of tuples containing the record ID, name, and tokens to retrieve statistics for any list of pre-tokenised documents.
+
 
 # TODO:
 - Test.
@@ -28,6 +31,7 @@ from pydantic import (
 from spacy.tokens import Doc
 
 from lexos.corpus import Record
+from lexos.corpus.corpus_stats import CorpusStats
 from lexos.corpus.utils import LexosModelCache, RecordsDict
 from lexos.exceptions import LexosException
 
@@ -335,50 +339,69 @@ class Corpus(BaseModel):
         return result
 
     @validate_call(config=model_config)
-    def remove(
+    def get_stats(
         self,
-        id: Optional[str | list[str]] = None,
-        name: Optional[str | list[str]] = None,
-    ) -> None:
-        """Remove a record from the corpus by ID.
+        active_only: bool = True,
+        type: str = "tokens",
+        min_df: int | None = None,
+        max_df: int | None = None,
+        max_n_terms: int | None = None,
+        token_list: list[tuple[str, str, list[str]]] = None,
+    ) -> CorpusStats:
+        """Get the Corpus statistics.
 
         Args:
-            id (str | list[str]): The ID of the record to remove.
-            name (str | list[str]): The name of the record to remove.
+            active_only (bool): If True, only include active records in the statistics. Defaults to True.
+            type (str): The type of statistics to return. Can be "tokens" or "characters". Defaults to "tokens".
+            min_df (int | None): Minimum document frequency for terms to be included in the statistics. Defaults to None.
+            max_df (int | None): Maximum document frequency for terms to be included in the statistics. Defaults to None.
+            max_n_terms (int | None): Maximum number of terms to include in the statistics. Defaults to None.
+            token_list (list[tuple[str, str, list[str]]]): A list of tuples containing the record ID, name, and tokens. If not provided, it will be generated from the records.
+
+        Returns:
+            CorpusStats: An object containing the Corpus statistics.
         """
-        # Ensure either id or name is provided
-        if not id and not name:
-            raise LexosException(
-                "Must provide either an ID or a name to remove a record."
-            )
 
-        # Ensure id is a list
-        if isinstance(id, str):
-            ids = [id]
+        def get_token_strings(record: Record) -> list[str]:
+            """Get the token strings from a record.
 
-        # If name is provided, get the ID from the name
-        if name and not id:
-            if isinstance(name, str):
-                name = [name]
-            ids = self._get_by_name(name)
+            Args:
+                record (Record): The Record object to get the token strings from.
 
-        for id in ids:
-            # Remove the entry from the records dictionary and names list
-            try:
-                entry = self.records.pop(id)
-            except KeyError:
-                raise LexosException(
-                    f"Record with ID {id} does not exist in the Corpus."
-                )
-            try:
-                self.names.pop(entry["name"])
-            except KeyError:
-                raise LexosException(
-                    f"Record with name {entry['name']} does not exist in the Corpus."
-                )
+            Returns:
+                list[str]: A list of token strings from the record.
+            """
+            if record.is_parsed:
+                return [token.text for token in record.content]
+            # We could use xx_sent_ud_sm, but for now, split on whitespace
+            else:
+                return record.content.split()
 
-        # Update the Corpus state after removing the record
-        self._update_corpus_state()
+        if not token_list:
+            # Filter the records to only include active ones
+            if active_only:
+                records = [record for record in self.records if record.is_active]
+            # Otherwise, include all records
+            else:
+                records = records
+
+            # Get the token list from the records
+            if type == "tokens":
+                token_list = [
+                    (record.id, record.name, get_token_strings(record))
+                    for record in records
+                ]
+            elif type == "characters":
+                token_list = [
+                    (record.id, record.name, record.content.text)
+                    if record.is_parsed
+                    else (record.id, record.name, record.content)
+                    for record in records
+                ]
+
+        return CorpusStats(
+            docs=token_list, min_df=min_df, max_df=max_df, max_n_terms=max_n_terms
+        )
 
     @validate_call(config=model_config)
     def load(
@@ -437,6 +460,52 @@ class Corpus(BaseModel):
             path (Path | str): The path to save the Corpus to.
         """
         shutil.make_archive(path / f"{self.name}", "zip", self.corpus_dir)
+
+    @validate_call(config=model_config)
+    def remove(
+        self,
+        id: Optional[str | list[str]] = None,
+        name: Optional[str | list[str]] = None,
+    ) -> None:
+        """Remove a record from the corpus by ID.
+
+        Args:
+            id (str | list[str]): The ID of the record to remove.
+            name (str | list[str]): The name of the record to remove.
+        """
+        # Ensure either id or name is provided
+        if not id and not name:
+            raise LexosException(
+                "Must provide either an ID or a name to remove a record."
+            )
+
+        # Ensure id is a list
+        if isinstance(id, str):
+            ids = [id]
+
+        # If name is provided, get the ID from the name
+        if name and not id:
+            if isinstance(name, str):
+                name = [name]
+            ids = self._get_by_name(name)
+
+        for id in ids:
+            # Remove the entry from the records dictionary and names list
+            try:
+                entry = self.records.pop(id)
+            except KeyError:
+                raise LexosException(
+                    f"Record with ID {id} does not exist in the Corpus."
+                )
+            try:
+                self.names.pop(entry["name"])
+            except KeyError:
+                raise LexosException(
+                    f"Record with name {entry['name']} does not exist in the Corpus."
+                )
+
+        # Update the Corpus state after removing the record
+        self._update_corpus_state()
 
     @validate_call(config=model_config)
     def term_counts(
