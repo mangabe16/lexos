@@ -28,6 +28,8 @@ To run a specific function, use:
 uv run pytest tests/dtm/test_dtm.py::test_function_name
 ```
 
+## Checking Coverage
+
 To run tests with coverage, you can use the following command:
 
 ```bash
