@@ -8,7 +8,7 @@ from typing import Callable
 import catalogue
 from pydantic import validate_call
 
-from lexos.scrubber import normalize, remove, replace
+from lexos.scrubber import normalize, remove, replace, tags
 
 # Create the registry
 scrubber_components = catalogue.create("lexos", "scrubber_components")
@@ -45,9 +45,18 @@ scrubber_components.register("re_pattern", func=replace.pattern)
 scrubber_components.register("phone_numbers", func=replace.phone_numbers)
 scrubber_components.register("re_punctuation", func=replace.punctuation)
 scrubber_components.register("special_characters", func=replace.special_characters)
-scrubber_components.register("tag_map", func=replace.tag_map)
+scrubber_components.register("tag_map", func=replace.tag_map) # Deprecated
 scrubber_components.register("urls", func=replace.urls)
 scrubber_components.register("user_handles", func=replace.user_handles)
+
+# Register tag parser components
+scrubber_components.register("remove_attribute", func=tags.remove_attribute)
+scrubber_components.register("remove_comments", func=tags.remove_comments)
+scrubber_components.register("remove_doctype", func=tags.remove_doctype)
+scrubber_components.register("remove_element", func=tags.remove_element)
+scrubber_components.register("remove_tag", func=tags.remove_tag)
+scrubber_components.register("replace_attribute", func=tags.replace_attribute)
+scrubber_components.register("replace_tag", func=tags.replace_tag)
 
 
 @validate_call

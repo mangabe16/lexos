@@ -18,6 +18,7 @@ from . import resources
 
 validation_config = ConfigDict(arbitrary_types_allowed=True)
 
+
 @validate_call(config=validation_config)
 def currency_symbols(text: str, repl: str = "_CUR_") -> str:
     """Replace all currency symbols in `text` with `repl`.
@@ -62,8 +63,7 @@ def emails(text: str, repl: str = "_EMAIL_") -> str:
 
 @validate_call(config=validation_config)
 def emojis(text: str, repl: str = "_EMOJI_") -> str:
-    """
-    Replace all emoji and pictographs in `text` with `repl`.
+    """Replace all emoji and pictographs in `text` with `repl`.
 
     Args:
         text (str): The text in which emojis will be replaced.
@@ -128,9 +128,9 @@ def phone_numbers(text: str, repl: str = "_PHONE_") -> str:
     return resources.RE_PHONE_NUMBER.sub(repl, text)
 
 
-@validate_call(config=validation_config)
+# @validate_call(config=validation_config)
 def process_tag_replace_options(
-    orig_text: str, tag: str, action: str, attribute: str
+    orig_text: str, tag: str, action: str, attribute: str = None
 ) -> str:
     """Replace html-style tags in text files according to user options.
 
@@ -173,6 +173,24 @@ def process_tag_replace_options(
         )
 
         processed_text = re.sub(pattern, " ", orig_text)
+
+    elif action == "replace_tag":
+        # Pattern for opening tags with optional attributes
+        opening_pattern = re.compile(
+            r"<(" + re.escape(tag) + r")(\s+[^>]*)?>",
+            re.MULTILINE | re.DOTALL | re.UNICODE,
+        )
+        # Pattern for closing tags
+        closing_pattern = re.compile(
+            r"</\s*" + re.escape(tag) + r"\s*>", re.MULTILINE | re.DOTALL | re.UNICODE
+        )
+
+        attribute = "em"
+        # Replace opening tags, preserving attributes
+        processed_text = opening_pattern.sub(r"<" + attribute + r"\2>", orig_text)
+
+        # Replace closing tags
+        processed_text = closing_pattern.sub(r"</" + attribute + r">", processed_text)
 
     elif action == "replace_element":
         pattern = re.compile(
@@ -261,10 +279,10 @@ def special_characters(
     return text
 
 
+# WARNING: This function is deprecated. Use the functions in the `tags` module instead.
 @validate_call(config=validation_config)
 def tag_map(
     text: str,
-    # xmlhandlingoptions: list[dict],
     map: dict[str, dict[str, str]],
     remove_comments: Optional[bool] = True,
     remove_doctype: Optional[bool] = True,
@@ -274,13 +292,22 @@ def tag_map(
 
     Args:
         text (str): The text in which tags will be replaced.
-        map (dict[str, dict[str, str]]): A dictionary of tags and their options.
+        map (dict[str, dict[str, str]]): A dictionary of tags and their options. For instance, {"p": {"action": "remove_tag", "attribute": ""}}. This will remove all <p> tags.
         remove_comments (Optional[bool]): Whether to remove comments.
         remove_doctype (Optional[bool]): Whether to remove the doctype or xml declaration.
         remove_whitespace (Optional[bool]): Whether to remove whitespace.
 
     Returns:
         str: The text after tags have been replaced.
+
+    Notes:
+      - Action options are:
+        - "remove_tag": Remove the tag
+        - "remove_element": Remove the element and contents
+        - "replace_element": Replace the tag with the specified attribute
+        - The replacement of a tag with the value of an attribute may not be supported.
+          This needs a second look.
+        - The default behaviour of replacing tags with a single space also needs a second look.
     """
     if remove_whitespace:
         text = re.sub(
@@ -300,7 +327,7 @@ def tag_map(
     # Visit each tag:
     for tag, opts in map.items():
         action = opts["action"]
-        attribute = opts["attribute"]
+        attribute = opts.get("attribute", None)
         text = process_tag_replace_options(text, tag, action, attribute)
 
     # One last catch-all removes extra whitespace from all the removed tags
