@@ -8,7 +8,7 @@ It supports both exact and regex matching for selectors and attributes,
 and can filter elements based on attributes and their values.
 
 Last Updated: June 7, 2025
-Last Tested: TBD.
+Last Tested: June 7, 2025
 """
 
 import re
@@ -111,8 +111,8 @@ def remove_attribute(
     attribute: str = None,
     mode: str = "html",
     matcher_type: str = "exact",
-    attribute_value: str = None,
-    attribute_filter: str = None,
+    attribute_value: Optional[str] = None,
+    attribute_filter: Optional[str] = None,
 ) -> str:
     """Removes attributes from HTML/XML elements.
 
@@ -416,6 +416,9 @@ def replace_attribute(
 
             # Keep original value unless a replacement is specified
             if replace_value:
+                print(f"Detected replace_value '{replace_value}'. Replacing '{old_attribute}' with '{new_attribute}' in '{element.name}'")
+                print(f"attribute_value: {attribute_value}")
+                # If the old attribute is a string, split it into a list
                 old_attribute_str = " ".join(element[old_attribute])
                 replace_value = old_attribute_str.replace(
                     attribute_value, replace_value

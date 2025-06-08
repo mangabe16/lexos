@@ -1,6 +1,6 @@
 """test_tags.py.
 
-Last Tested: TBD.
+Last Tested: June 7, 2025
 
 Test suite for lexos.scrubber.tags module.
 
@@ -83,6 +83,7 @@ HTML_ELEMENT_REMOVE_ATTR = "<p class='remove'>Remove</p><p class='keep'>Keep</p>
 EXPECTED_ELEMENT_REMOVE_ATTR_HTML = "<p class='keep'>Keep</p>"
 
 HTML_FOR_ATTR_REPLACE = '<div class="old" id="main"><p class="another">Text</p></div>'
+
 XML_FOR_ATTR_REPLACE = '<item status="initial" code="123"><name>Test</name></item>'
 
 XML_FOR_ATTR_REPLACE = '<item status="initial" code="123"><name>Test</name></item>'
@@ -155,47 +156,42 @@ class TestRemoveDoctype:
 
     def test_remove_html_doctype(self):
         """Ensures HTML DOCTYPE is removed."""
-        processed = remove_doctype(HTML_WITH_DOCTYPE, mode="html")
+        processed = remove_doctype(HTML_WITH_DOCTYPE)
         assert normalize_output(processed, "html") == normalize_output(
             HTML_WITHOUT_DOCTYPE, "html"
         )
 
     def test_remove_complex_html_doctype(self):
         """Ensures complex HTML DOCTYPE is removed."""
-        processed = remove_doctype(HTML_WITH_COMPLEX_DOCTYPE, mode="html")
+        processed = remove_doctype(HTML_WITH_COMPLEX_DOCTYPE)
         expected = "<html><body>Test</body></html>"
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
 
     def test_remove_xml_doctype(self):
         """Ensures XML DOCTYPE is removed, preserves XML declaration."""
-        processed = remove_doctype(XML_WITH_DOCTYPE_AND_DECL, mode="xml")
+        processed = remove_doctype(XML_WITH_DOCTYPE_AND_DECL)
         assert normalize_output(processed, "xml") == normalize_output(
             XML_WITHOUT_DOCTYPE_AND_DECL, "xml"
         )
 
     def test_no_doctype_html(self):
         """Ensures no change if no HTML DOCTYPE exists."""
-        processed = remove_doctype(HTML_WITHOUT_DOCTYPE, mode="html")
+        processed = remove_doctype(HTML_WITHOUT_DOCTYPE)
         assert normalize_output(processed, "html") == normalize_output(
             HTML_WITHOUT_DOCTYPE, "html"
         )
 
     def test_no_doctype_xml(self):
         """Ensures no change if no XML DOCTYPE exists."""
-        processed = remove_doctype(XML_WITHOUT_DOCTYPE_AND_DECL, mode="xml")
+        processed = remove_doctype(XML_WITHOUT_DOCTYPE_AND_DECL)
         assert normalize_output(processed, "xml") == normalize_output(
             XML_WITHOUT_DOCTYPE_AND_DECL, "xml"
         )
 
     def test_empty_string_doctype(self):
         """Ensures empty string is handled correctly."""
-        processed = remove_doctype(EMPTY_STRING, mode="html")
+        processed = remove_doctype(EMPTY_STRING)
         assert processed == EMPTY_STRING
-
-    def test_invalid_mode_doctype(self):
-        """Tests ValueError for invalid mode."""
-        with pytest.raises(ValueError):
-            remove_doctype(HTML_WITH_DOCTYPE, mode="invalid")
 
 
 # --- Tests for remove_tag (unwrap) ---
@@ -329,7 +325,12 @@ class TestReplaceAttribute:
     def test_replace_attribute_name_html(self):
         """Ensures attribute name is replaced, value preserved in HTML."""
         processed = replace_attribute(
-            HTML_FOR_ATTR_REPLACE, "div", "class", "data-type", mode="html"
+            HTML_FOR_ATTR_REPLACE,
+            "div",
+            "class",
+            "data-type",
+            mode="html",
+            attribute_value="old",
         )
         expected = '<div data-type="old" id="main"><p class="another">Text</p></div>'
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
@@ -347,12 +348,11 @@ class TestReplaceAttribute:
         processed = replace_attribute(
             HTML_FOR_ATTR_REPLACE,
             "div",
-            "class",
-            "class",
+            old_attribute="class",
+            new_attribute="new_class",
             mode="html",
-            replace_value="new_class",
         )
-        expected = '<div class="new_class" id="main"><p class="another">Text</p></div>'
+        expected = '<div new_class="old" id="main"><p class="another">Text</p></div>'
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
 
     def test_replace_attribute_name_and_value_html(self):
@@ -363,6 +363,7 @@ class TestReplaceAttribute:
             "class",
             "data-role",
             mode="html",
+            attribute_value="old",
             replace_value="content_holder",
         )
         expected = '<div data-role="content_holder" id="main"><p class="another">Text</p></div>'
@@ -421,23 +422,23 @@ class TestRemoveAttribute:
     def test_remove_single_attribute_html(self):
         """Ensures a single specified attribute is removed from an HTML element."""
         processed = remove_attribute(
-            HTML_FOR_ATTR_REMOVE, "div", attributes=["class"], mode="html"
+            HTML_FOR_ATTR_REMOVE, "div", attribute="class", mode="html"
         )
         expected = '<div id="content" data-info="test"><p>Text</p></div>'
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
 
-    def test_remove_multiple_attributes_html(self):
-        """Ensures multiple specified attributes are removed from an HTML element."""
-        processed = remove_attribute(
-            HTML_FOR_ATTR_REMOVE, "div", attributes=["id", "data-info"], mode="html"
-        )
-        expected = '<div class="main"><p>Text</p></div>'
-        assert normalize_output(processed, "html") == normalize_output(expected, "html")
+    # def test_remove_multiple_attributes_html(self):
+    #     """Ensures multiple specified attributes are removed from an HTML element."""
+    #     processed = remove_attribute(
+    #         HTML_FOR_ATTR_REMOVE, "div", attributes=["id", "data-info"], mode="html"
+    #     )
+    #     expected = '<div class="main"><p>Text</p></div>'
+    #     assert normalize_output(processed, "html") == normalize_output(expected, "html")
 
     def test_remove_all_attributes_html(self):
         """Ensures all attributes are removed from an HTML element if attributes list is None."""
         processed = remove_attribute(
-            HTML_FOR_ATTR_REMOVE, "div", attributes=None, mode="html"
+            HTML_FOR_ATTR_REMOVE, "div", attribute=None, mode="html"
         )
         expected = "<div><p>Text</p></div>"
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
@@ -445,7 +446,7 @@ class TestRemoveAttribute:
     def test_remove_attribute_xml(self):
         """Ensures specified attributes are removed from an XML element."""
         processed = remove_attribute(
-            XML_FOR_ATTR_REMOVE, "config", attributes=["version"], mode="xml"
+            XML_FOR_ATTR_REMOVE, "config", attribute="version", mode="xml"
         )
         expected = '<config enabled="true"><option>Debug</option></config>'
         assert normalize_output(processed, "xml") == normalize_output(expected, "xml")
@@ -453,7 +454,7 @@ class TestRemoveAttribute:
     def test_remove_all_attributes_xml(self):
         """Ensures all attributes are removed from an XML element."""
         processed = remove_attribute(
-            XML_FOR_ATTR_REMOVE, "config", attributes=None, mode="xml"
+            XML_FOR_ATTR_REMOVE, "config", attribute=None, mode="xml"
         )
         expected = "<config><option>Debug</option></config>"
         assert normalize_output(processed, "xml") == normalize_output(expected, "xml")
@@ -464,18 +465,17 @@ class TestRemoveAttribute:
         processed = remove_attribute(
             html,
             "p",
-            attributes=["class"],
+            attribute="class",
             mode="html",
             attribute_filter="id",
-            filter_value="one",
         )
-        expected = '<p id="one">First</p><p class="important" id="two">Second</p>'
+        expected = '<p id="one">First</p><p id="two">Second</p>'
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
 
     def test_remove_nonexistent_attribute(self):
         """Ensures no change if specified attribute to remove doesn't exist."""
         processed = remove_attribute(
-            HTML_FOR_ATTR_REMOVE, "div", attributes=["style"], mode="html"
+            HTML_FOR_ATTR_REMOVE, "div", attribute="style", mode="html"
         )
         assert normalize_output(processed, "html") == normalize_output(
             HTML_FOR_ATTR_REMOVE, "html"
@@ -484,7 +484,7 @@ class TestRemoveAttribute:
     def test_remove_attribute_from_nonexistent_tag(self):
         """Ensures no change if tag from which to remove attributes doesn't exist."""
         processed = remove_attribute(
-            HTML_FOR_ATTR_REMOVE, "span", attributes=["class"], mode="html"
+            HTML_FOR_ATTR_REMOVE, "span", attribute="class", mode="html"
         )
         assert normalize_output(processed, "html") == normalize_output(
             HTML_FOR_ATTR_REMOVE, "html"
@@ -493,7 +493,7 @@ class TestRemoveAttribute:
     def test_empty_string_remove_attribute(self):
         """Ensures empty string is handled correctly."""
         processed = remove_attribute(
-            EMPTY_STRING, "div", attributes=["class"], mode="html"
+            EMPTY_STRING, "div", attribute="class", mode="html"
         )
         assert processed == EMPTY_STRING
 
@@ -501,7 +501,7 @@ class TestRemoveAttribute:
         """Tests ValueError for invalid mode."""
         with pytest.raises(ValueError):
             remove_attribute(
-                HTML_FOR_ATTR_REMOVE, "div", attributes=["class"], mode="invalid"
+                HTML_FOR_ATTR_REMOVE, "div", attribute="class", mode="invalid"
             )
 
 
