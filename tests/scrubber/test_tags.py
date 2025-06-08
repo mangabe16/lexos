@@ -1,6 +1,6 @@
 """test_tags.py.
 
-Last Tested: June 7, 2025
+Last Tested: June 8, 2025
 
 Test suite for lexos.scrubber.tags module.
 
@@ -15,7 +15,10 @@ This suite provides a good starting point for testing your `tags.py` module. You
 import pytest
 from bs4 import BeautifulSoup
 
+from lexos.exceptions import LexosException
 from lexos.scrubber.tags import (
+    _match_elements,
+    _match_value,
     remove_attribute,
     remove_comments,
     remove_doctype,
@@ -111,6 +114,11 @@ HTML_TAG_REPLACE_NO_PRESERVE_ATTR = '<i class="italic-text">Emphasized</i>'
 class TestRemoveComments:
     """Tests for the remove_comments function."""
 
+    def test_match_invalid_mode(self):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException, match="Mode must be either 'html' or 'xml'"):
+            _match_elements("p", HTML_FOR_MATCH, mode="invalid")
+
     def test_remove_html_comments(self):
         """Ensures HTML comments are removed."""
         processed = remove_comments(HTML_WITH_COMMENTS, mode="html")
@@ -145,8 +153,8 @@ class TestRemoveComments:
         assert processed == EMPTY_STRING
 
     def test_invalid_mode_comments(self):
-        """Tests ValueError for invalid mode."""
-        with pytest.raises(ValueError):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException):
             remove_comments(HTML_WITH_COMMENTS, mode="invalid")
 
 
@@ -197,6 +205,11 @@ class TestRemoveDoctype:
 # --- Tests for remove_tag (unwrap) ---
 class TestRemoveTag:
     """Tests for the remove_tag (unwrap) function."""
+
+    def test_match_invalid_mode(self):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException, match="Mode must be either 'html' or 'xml'"):
+            _match_elements("p", HTML_FOR_MATCH, mode="invalid")
 
     def test_unwrap_html_tag(self):
         """Ensures HTML tag is unwrapped, content preserved."""
@@ -251,14 +264,19 @@ class TestRemoveTag:
         assert processed == EMPTY_STRING
 
     def test_invalid_mode_unwrap(self):
-        """Tests ValueError for invalid mode."""
-        with pytest.raises(ValueError):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException):
             remove_tag(HTML_FOR_UNWRAP, "div", mode="invalid")
 
 
 # --- Tests for remove_element ---
 class TestRemoveElement:
     """Tests for the remove_element function."""
+
+    def test_match_invalid_mode(self):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException, match="Mode must be either 'html' or 'xml'"):
+            _match_elements("p", HTML_FOR_MATCH, mode="invalid")
 
     def test_remove_html_element(self):
         """Ensures HTML element and its content are removed."""
@@ -313,14 +331,19 @@ class TestRemoveElement:
         assert processed == EMPTY_STRING
 
     def test_invalid_mode_remove_element(self):
-        """Tests ValueError for invalid mode."""
-        with pytest.raises(ValueError):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException):
             remove_element(HTML_FOR_ELEMENT_REMOVE, "p", mode="invalid")
 
 
 # --- Tests for replace_attribute ---
 class TestReplaceAttribute:
     """Tests for the replace_attribute function."""
+
+    def test_match_invalid_mode(self):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException, match="Mode must be either 'html' or 'xml'"):
+            _match_elements("p", HTML_FOR_MATCH, mode="invalid")
 
     def test_replace_attribute_name_html(self):
         """Ensures attribute name is replaced, value preserved in HTML."""
@@ -408,8 +431,8 @@ class TestReplaceAttribute:
         assert processed == EMPTY_STRING
 
     def test_invalid_mode_replace_attribute(self):
-        """Tests ValueError for invalid mode."""
-        with pytest.raises(ValueError):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException):
             replace_attribute(
                 HTML_FOR_ATTR_REPLACE, "div", "class", "id", mode="invalid"
             )
@@ -418,6 +441,11 @@ class TestReplaceAttribute:
 # --- Tests for remove_attribute ---
 class TestRemoveAttribute:
     """Tests for the remove_attribute function."""
+
+    def test_match_invalid_mode(self):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException, match="Mode must be either 'html' or 'xml'"):
+            _match_elements("p", HTML_FOR_MATCH, mode="invalid")
 
     def test_remove_single_attribute_html(self):
         """Ensures a single specified attribute is removed from an HTML element."""
@@ -498,8 +526,8 @@ class TestRemoveAttribute:
         assert processed == EMPTY_STRING
 
     def test_invalid_mode_remove_attribute(self):
-        """Tests ValueError for invalid mode."""
-        with pytest.raises(ValueError):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException):
             remove_attribute(
                 HTML_FOR_ATTR_REMOVE, "div", attribute="class", mode="invalid"
             )
@@ -508,6 +536,11 @@ class TestRemoveAttribute:
 # --- Tests for replace_tag ---
 class TestReplaceTag:
     """Tests for the replace_tag function."""
+
+    def test_match_invalid_mode(self):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException, match="Mode must be either 'html' or 'xml'"):
+            _match_elements("p", HTML_FOR_MATCH, mode="invalid")
 
     def test_replace_html_tag_simple(self):
         """Ensures a simple HTML tag is replaced."""
@@ -570,8 +603,8 @@ class TestReplaceTag:
         assert processed == EMPTY_STRING
 
     def test_replace_tag_invalid_mode(self):
-        """Tests ValueError for invalid mode."""
-        with pytest.raises(ValueError):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException):
             replace_tag(HTML_FOR_TAG_REPLACE, "div", "section", mode="invalid")
 
     def test_replace_tag_multiple_instances(self):
@@ -593,3 +626,269 @@ class TestReplaceTag:
             '<div id="outer"><strong class="inner-span"><em>Content</em></strong></div>'
         )
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
+
+### PRIVATE FUNCTION TESTS ###
+
+# --- Tests for _match_value ---
+class TestMatchValue:
+    """Tests for the _match_value helper function."""
+
+    @pytest.mark.parametrize(
+        "text_list, pattern, match_type, expected",
+        [
+            # Exact matches
+            (["hello", "world"], "hello world", "exact", True),
+            (["hello", "world"], "hello", "exact", True), # "hello" in "hello world"
+            (["hello", "world"], "world", "exact", True), # "world" in "hello world"
+            (["singleword"], "singleword", "exact", True),
+            (["hello", "world"], "goodbye", "exact", False),
+            (["test"], "testing", "exact", False), # "testing" not in "test"
+            ([], "anything", "exact", False), # "anything" not in ""
+            (["content"], "", "exact", True), # "" in "content" is True
+            ([], "", "exact", True), # "" in "" is True
+            # Regex matches
+            (["hello", "world", "123"], r"world", "regex", True),
+            (["hello", "world", "123"], r"\d+", "regex", True),
+            (["item-001"], r"item-\d{3}", "regex", True),
+            (["item-001"], r"item-\d{2}a", "regex", False),
+            (["apple", "banana"], r"^apple", "regex", True),
+            (["apple", "banana"], r"na$", "regex", True), # Matches "banana"
+            (["apple", "banana"], r"orange", "regex", False),
+            ([], r"anything", "regex", False),
+            (["content"], r"", "regex", True), # Empty pattern matches
+            ([], r"", "regex", True), # Empty pattern matches
+        ],
+    )
+    def test_matches(self, text_list: list[str], pattern: str, match_type: str, expected: bool):
+        """Tests various scenarios for exact and regex matching.
+
+        Args:
+            text_list: The list of strings to join and match against.
+            pattern: The pattern to match.
+            match_type: The type of match ('exact' or 'regex').
+            expected: The expected boolean result.
+        """
+        assert _match_value(text_list, pattern, match_type) == expected
+
+    def test_invalid_match_type(self):
+        """Tests that an invalid match type raises LexosException."""
+        with pytest.raises(LexosException) as excinfo:
+            _match_value(["test"], "pattern", "invalid_type")
+        assert "Type must be either 'exact' or 'regex'." in str(excinfo.value)
+
+    def test_exact_match_substring_behavior(self):
+        """Explicitly tests the 'pattern in joined_text' behavior for exact matches."""
+        assert _match_value(["longstring"], "str", "exact") is True
+        assert _match_value(["longstring"], "long", "exact") is True
+        assert _match_value(["longstring"], "ing", "exact") is True
+        assert _match_value(["longstring"], "longstring", "exact") is True
+        assert _match_value(["not", "in", "list"], "in list", "exact") is True # "in list" in "not in list"
+        assert _match_value(["not", "in", "list"], "notin", "exact") is False
+
+    def test_regex_match_special_characters(self):
+        """Tests regex matching with special characters."""
+        assert _match_value(["version 1.0"], r"version \d\.\d", "regex") is True
+        assert _match_value(["(brackets)"], r"\(brackets\)", "regex") is True
+        assert _match_value(["test?"], r"test\?", "regex") is True
+
+    def test_default_match_type_is_exact(self):
+        """Tests that the default match type is 'exact'."""
+        assert _match_value(["hello", "world"], "hello world") is True # type defaults to "exact"
+        assert _match_value(["hello", "world"], "goodbye") is False # type defaults to "exact"
+        # This regex pattern would match if type="regex", but should fail with default "exact"
+        assert _match_value(["item-001"], r"item-\d{3}") is False
+
+# --- Test Data for _match_elements ---
+HTML_FOR_MATCH = """
+<html>
+  <head><title>Test Page</title></head>
+  <body>
+    <div id="main" class="container">
+      <p class="para first">First paragraph.</p>
+      <p class="para second" data-custom="value1">Second paragraph.</p>
+      <span>A span</span>
+      <div class="container">
+        <p class="para third">Third paragraph.</p>
+      </div>
+    </div>
+    <div id="footer" class="container">
+      <p>Footer p</p>
+    </div>
+  </body>
+</html>
+"""
+
+XML_FOR_MATCH = """
+<root>
+  <item id="1" type="A">
+    <name>Item A1</name>
+    <value>100</value>
+  </item>
+  <item id="2" type="B" status="active">
+    <name>Item B2</name>
+    <value>200</value>
+  </item>
+  <item id="3" type="A" status="inactive">
+    <name>Item A3</name>
+    <value>300</value>
+  </item>
+</root>
+"""
+
+
+# --- Tests for _match_elements ---
+class TestMatchElements:
+    """Tests for the _match_elements helper function."""
+
+    def test_match_html_tag_basic(self):
+        """Tests basic tag selection in HTML."""
+        soup, elements = _match_elements("p", HTML_FOR_MATCH, mode="html")
+        assert len(elements) == 4
+        assert all(el.name == "p" for el in elements)
+
+    def test_match_xml_tag_basic(self):
+        """Tests basic tag selection in XML."""
+        soup, elements = _match_elements("item", XML_FOR_MATCH, mode="xml")
+        assert len(elements) == 3
+        assert all(el.name == "item" for el in elements)
+
+    def test_match_html_css_class_selector(self):
+        """Tests CSS class selector in HTML."""
+        soup, elements = _match_elements(".para", HTML_FOR_MATCH, mode="html")
+        assert len(elements) == 3
+        assert all("para" in el.get("class", []) for el in elements)
+
+    def test_match_html_css_id_selector(self):
+        """Tests CSS ID selector in HTML."""
+        soup, elements = _match_elements("#main", HTML_FOR_MATCH, mode="html")
+        assert len(elements) == 1
+        assert elements[0].name == "div"
+        assert elements[0]["id"] == "main"
+
+    def test_match_html_attribute_presence(self):
+        """Tests filtering by attribute presence in HTML."""
+        soup, elements = _match_elements("p", HTML_FOR_MATCH, mode="html", attribute="data-custom")
+        assert len(elements) == 1
+        assert elements[0].name == "p"
+        assert elements[0].has_attr("data-custom")
+        assert "second" in elements[0].get("class", [])
+
+    def test_match_xml_attribute_presence(self):
+        """Tests filtering by attribute presence in XML."""
+        soup, elements = _match_elements("item", XML_FOR_MATCH, mode="xml", attribute="status")
+        assert len(elements) == 2
+        assert all(el.has_attr("status") for el in elements)
+
+    def test_match_html_attribute_exact_value(self):
+        """Tests filtering by exact attribute value in HTML."""
+        soup, elements = _match_elements(
+            "p", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value="para first", matcher_type="exact"
+        )
+        assert len(elements) == 1
+        assert "first" in elements[0].get("class", [])
+
+    def test_match_xml_attribute_exact_value(self):
+        """Tests filtering by exact attribute value in XML."""
+        soup, elements = _match_elements(
+            "item", XML_FOR_MATCH, mode="xml", attribute="type", attribute_value="A", matcher_type="exact"
+        )
+        assert len(elements) == 2
+        assert all(el["type"] == "A" for el in elements)
+
+    def test_match_html_attribute_regex_value(self):
+        """Tests filtering by regex attribute value in HTML."""
+        # Assuming _match_value and _match_elements correctly use matcher_type="regex"
+        # for attribute values.
+        soup, elements = _match_elements(
+            "p", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value=r"para\s(first|second)", matcher_type="regex"
+        )
+        assert len(elements) == 2
+        classes = {" ".join(el.get("class", [])) for el in elements}
+        assert "para first" in classes
+        assert "para second" in classes
+
+    def test_match_xml_attribute_regex_value(self):
+        """Tests filtering by regex attribute value in XML."""
+        soup, elements = _match_elements(
+            "item", XML_FOR_MATCH, mode="xml", attribute="status", attribute_value=r"active|inactive", matcher_type="regex"
+        )
+        assert len(elements) == 2
+        statuses = {el["status"] for el in elements}
+        assert "active" in statuses
+        assert "inactive" in statuses
+
+    def test_match_html_attribute_filter_presence(self):
+        """Tests attribute_filter for attribute presence in HTML."""
+        soup, elements = _match_elements("div", HTML_FOR_MATCH, mode="html", attribute_filter="id")
+        assert len(elements) == 2 # main and footer
+        assert all(el.has_attr("id") for el in elements)
+
+    def test_match_html_attribute_filter_with_value(self):
+        """Tests attribute_filter with a specific value in HTML."""
+        soup, elements = _match_elements(
+            "div", HTML_FOR_MATCH, mode="html", attribute_filter="class", attribute_value="container", matcher_type="exact"
+        )
+        soup, elements = _match_elements(
+            "div", HTML_FOR_MATCH, mode="html",
+            attribute="class",  # This is used by the _match_value call
+            attribute_filter="class", # This is used for el.has_attr(attribute_filter)
+            attribute_value="container",
+            matcher_type="exact"
+        )
+        assert len(elements) == 3 # main, inner div, footer
+        assert all("container" in el.get("class", []) for el in elements)
+
+    def test_match_no_elements_found_tag(self):
+        """Tests scenario where no elements match the tag."""
+        soup, elements = _match_elements("nonexistent", HTML_FOR_MATCH, mode="html")
+        assert len(elements) == 0
+
+    def test_match_no_elements_found_attribute(self):
+        """Tests scenario where no elements match the attribute filter."""
+        soup, elements = _match_elements(
+            "p", HTML_FOR_MATCH, mode="html", attribute="data-nonexistent", attribute_value="any"
+        )
+        assert len(elements) == 0
+
+    def test_match_invalid_mode(self):
+        """Tests LexosException for invalid mode."""
+        with pytest.raises(LexosException, match="Mode must be either 'html' or 'xml'"):
+            _match_elements("p", HTML_FOR_MATCH, mode="invalid")
+
+    def test_match_empty_string_input(self):
+        """Tests behavior with empty string input."""
+        soup, elements = _match_elements("p", EMPTY_STRING, mode="html")
+        assert len(elements) == 0
+        assert str(soup) == "" # Or based on how BS4 handles empty string
+
+    def test_match_selector_priority_over_attribute_filter(self):
+        """Tests that the main selector is applied first."""
+        # Select only 'span' tags, then filter by class (which no span has)
+        soup, elements = _match_elements(
+            "span", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value="container"
+        )
+        assert len(elements) == 0 # No spans have class "container"
+
+    def test_attribute_vs_attribute_filter_precedence(self):
+        """Tests the precedence: if attribute_filter is present, its block is used.
+
+        The `elif attribute:` block should not be reached if `attribute_filter` is set.
+        """
+        # `attribute_filter` is "id", `attribute` is "class".
+        # The filtering should happen based on "id".
+        soup, elements = _match_elements(
+            "div", HTML_FOR_MATCH, mode="html",
+            attribute_filter="id", # This condition will be true
+            attribute="class", # This should be ignored for has_attr check if attribute_filter is used
+            attribute_value="main" # This value will be checked against el[attribute] (i.e. el["class"])
+        )
+
+        assert len(elements) == 1
+
+    def test_invalid_matcher_type_raises_exception(self):
+        """Tests that an exception is raised if matcher_type is None."""
+        # `matcher_type` is None, so `_match_value` should use "exact"
+        with pytest.raises(LexosException, match="Type must be either 'exact' or 'regex'"):
+            soup, elements = _match_elements(
+                "p", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value="para first", matcher_type=None
+            )

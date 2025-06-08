@@ -7,8 +7,8 @@ and their attributes in HTML or XML documents.
 It supports both exact and regex matching for selectors and attributes,
 and can filter elements based on attributes and their values.
 
-Last Updated: June 7, 2025
-Last Tested: June 7, 2025
+Last Updated: June 8, 2025
+Last Tested: June 8, 2025
 """
 
 import re
@@ -16,12 +16,14 @@ from typing import Optional
 
 from bs4 import BeautifulSoup, Comment
 
+from lexos.exceptions import LexosException
+
 
 def _match_elements(
     selector: str,
     text: str,
     mode: str = "html",
-    matcher_type: Optional[str] = None,
+    matcher_type: Optional[str] = "exact",
     attribute: Optional[str | list[str]] = None,
     attribute_value: Optional[str] = None,
     attribute_filter: Optional[str] = None,
@@ -42,7 +44,7 @@ def _match_elements(
     """
     # Validate mode
     if mode not in ["html", "xml"]:
-        raise ValueError("Mode must be either 'html' or 'xml'.")
+        raise LexosException("Mode must be either 'html' or 'xml'.")
 
     # Parse the document
     parser = "lxml-xml" if mode == "xml" else "html.parser"
@@ -63,7 +65,8 @@ def _match_elements(
                 el
                 for el in elements
                 if el.has_attr(attribute_filter)
-                and _match_value(el[attribute], attribute_value, matcher_type)
+                # and _match_value(el[attribute], attribute_value, matcher_type)
+                and _match_value(el[attribute_filter], attribute_value, matcher_type)
             ]
         else:
             # Filter elements that have the attribute regardless of value
@@ -86,7 +89,7 @@ def _match_elements(
     return soup, elements
 
 
-def _match_value(text: list[str], pattern: str, type: str = "exact") -> bool:
+def _match_value(text: str | list[str], pattern: str, type: str = "exact") -> bool:
     """Match a string exactly or by regex pattern.
 
     Args:
@@ -97,12 +100,15 @@ def _match_value(text: list[str], pattern: str, type: str = "exact") -> bool:
     Returns:
         True if the text matches the specified type, False otherwise.
     """
+    if isinstance(text, list):
+        # Join list of strings into a single string for matching
+        text = " ".join(text)
     if type == "exact":
-        return pattern in " ".join(text)
+        return pattern in text
     elif type == "regex":
-        return re.search(pattern, " ".join(text)) is not None
+        return re.search(pattern, text) is not None
     else:
-        raise ValueError("Type must be either 'exact' or 'regex'.")
+        raise LexosException("Type must be either 'exact' or 'regex'.")
 
 
 def remove_attribute(
@@ -132,7 +138,7 @@ def remove_attribute(
         Processed text with attributes removed from matching elements
 
     Raises:
-        ValueError: If mode is not "html" or "xml"
+        LexosException: If mode is not "html" or "xml"
 
     Examples:
         >>> text = '<div class="main" id="content">Text</div>'
@@ -189,7 +195,7 @@ def remove_comments(text: str, mode: str = "html") -> str:
         String containing the HTML/XML content with all comments removed
 
     Raises:
-        ValueError: If mode is not "html" or "xml"
+        LexosException: If mode is not "html" or "xml"
 
     Examples:
         >>> html = '<!-- Header comment --><div>Content</div><!-- Footer -->'
@@ -202,7 +208,7 @@ def remove_comments(text: str, mode: str = "html") -> str:
     """
     # Validate mode
     if mode not in ["html", "xml"]:
-        raise ValueError("Mode must be either 'html' or 'xml'.")
+        raise LexosException("Mode must be either 'html' or 'xml'.")
 
     # Parse the document
     parser = "lxml-xml" if mode == "xml" else "html.parser"
@@ -264,8 +270,7 @@ def remove_element(
         Processed text with matching elements removed
 
     Raises:
-        ValueError: If mode is not "html" or "xml"
-        ImportError: If BeautifulSoup is not installed
+        LexosException: If mode is not "html" or "xml"
 
     Examples:
         >>> text = "<p class='a'>Keep</p><p class='b'>Remove</p><div>Remove</div>"
@@ -312,7 +317,7 @@ def remove_tag(
         Processed text with matching tags unwrapped but content preserved
 
     Raises:
-        ValueError: If mode is not "html" or "xml"
+        LexosException: If mode is not "html" or "xml"
 
     Examples:
         >>> text = "<div><p>Keep this</p></div><span>And this</span>"
@@ -368,7 +373,7 @@ def replace_attribute(
         Processed text with attributes replaced in matching elements
 
     Raises:
-        ValueError: If mode is not "html" or "xml"
+        LexosException: If mode is not "html" or "xml"
 
     Examples:
         >>> # Replace class attribute with data-type, keeping the value
@@ -416,7 +421,9 @@ def replace_attribute(
 
             # Keep original value unless a replacement is specified
             if replace_value:
-                print(f"Detected replace_value '{replace_value}'. Replacing '{old_attribute}' with '{new_attribute}' in '{element.name}'")
+                print(
+                    f"Detected replace_value '{replace_value}'. Replacing '{old_attribute}' with '{new_attribute}' in '{element.name}'"
+                )
                 print(f"attribute_value: {attribute_value}")
                 # If the old attribute is a string, split it into a list
                 old_attribute_str = " ".join(element[old_attribute])
@@ -465,7 +472,7 @@ def replace_tag(
         Processed text with matching tags replaced but content preserved
 
     Raises:
-        ValueError: If mode is not "html" or "xml"
+        LexosException: If mode is not "html" or "xml"
 
     Examples:
         >>> text = "<div><p>Keep this</p></div>"
