@@ -41,7 +41,6 @@ This displays a coverage report in your terminal.
 > [!IMPORTANT]
 > In the command above, `src` refers to the source directory of the test file. For some reason, the pytest-cov plugin generates a report for _all_ Lexos modules unless you specify the path to the test file's folder _twice_ (e.g. `tests/scrubber`). Doing this will generate a coverage report for all test files in the folder, which is at least better. So far, attempts to specify the path to a single file has always generated a report containing all test files in the folder. This is an ongoing issue with pytest-cov.
 
-
 To generate an HTML coverage report, something like use:
 
 ```bash
