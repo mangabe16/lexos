@@ -1,7 +1,7 @@
 """registry.py.
 
-Last Update: 2025-01-19
-Tested: 2025-01-19
+Last Update: 2025-06-08
+Tested: 2025-06-08
 """
 from typing import Callable
 
@@ -45,7 +45,6 @@ scrubber_components.register("re_pattern", func=replace.pattern)
 scrubber_components.register("phone_numbers", func=replace.phone_numbers)
 scrubber_components.register("re_punctuation", func=replace.punctuation)
 scrubber_components.register("special_characters", func=replace.special_characters)
-scrubber_components.register("tag_map", func=replace.tag_map) # Deprecated
 scrubber_components.register("urls", func=replace.urls)
 scrubber_components.register("user_handles", func=replace.user_handles)
 
