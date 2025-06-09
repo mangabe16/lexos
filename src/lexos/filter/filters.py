@@ -83,7 +83,7 @@ class BaseFilter(BaseModel):
 
     def _set_extensions(self, attr: str, default: Any):
         """Set the extensions."""
-        if not Token.has_extension(attr, default):
+        if not Token.has_extension(attr):
             Token.set_extension(attr, default=default, force=True)
 
     def get_matched_doc(self) -> Doc:
