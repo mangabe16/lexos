@@ -1,7 +1,7 @@
 """replace.py.
 
-Last Update: 2025-01-15
-Tested: 2025-01-15
+Last Update: 2025-06-08
+Tested: 2025-06-08
 """
 
 import html
@@ -17,6 +17,7 @@ from lexos.util import ensure_list, to_collection
 from . import resources
 
 validation_config = ConfigDict(arbitrary_types_allowed=True)
+
 
 @validate_call(config=validation_config)
 def currency_symbols(text: str, repl: str = "_CUR_") -> str:
@@ -62,8 +63,7 @@ def emails(text: str, repl: str = "_EMAIL_") -> str:
 
 @validate_call(config=validation_config)
 def emojis(text: str, repl: str = "_EMOJI_") -> str:
-    """
-    Replace all emoji and pictographs in `text` with `repl`.
+    """Replace all emoji and pictographs in `text` with `repl`.
 
     Args:
         text (str): The text in which emojis will be replaced.
@@ -126,66 +126,6 @@ def phone_numbers(text: str, repl: str = "_PHONE_") -> str:
         str: The text with phone numbers replaced.
     """
     return resources.RE_PHONE_NUMBER.sub(repl, text)
-
-
-@validate_call(config=validation_config)
-def process_tag_replace_options(
-    orig_text: str, tag: str, action: str, attribute: str
-) -> str:
-    """Replace html-style tags in text files according to user options.
-
-    Args:
-        orig_text: The user's text containing the original tag.
-        tag: The particular tag to be processed.
-        action: A string specifying the action to be performed on the tag.
-        attribute: Replacement value for tag when "replace_with_attribute" is specified.
-
-    Returns:
-        str: The text after the specified tag is processed.
-
-    Notes:
-      - Action options are:
-        - "remove_tag": Remove the tag
-        - "remove_element": Remove the element and contents
-        - "replace_element": Replace the tag with the specified attribute
-        - The replacement of a tag with the value of an attribute may not be supported.
-          This needs a second look.
-        - The default behaviour of replacing tags with a single space also needs a second look.
-    """
-    if action == "remove_tag":
-        # searching for variants this specific tag:  <tag> ...
-        pattern = re.compile(
-            r"<(?:" + tag + r'(?=\s)(?!(?:[^>"\']|"[^"]*"|\'[^\']*\')*?(?<=\s)'
-            r'\s*=)(?!\s*/?>)\s+(?:".*?"|\'.*?\'|[^>]*?)+|/?' + tag + r"\s*/?)>",
-            re.MULTILINE | re.DOTALL | re.UNICODE,
-        )
-
-        # substitute all matching patterns with one space
-        processed_text = re.sub(pattern, " ", orig_text)
-
-    elif action == "remove_element":
-        # <[whitespaces] TAG [SPACE attributes]> contents </[whitespaces]TAG>
-        # as applied across newlines, (re.MULTILINE), on re.UNICODE,
-        # and .* includes newlines (re.DOTALL)
-        pattern = re.compile(
-            r"<\s*" + re.escape(tag) + r"( .+?>|>).+?</\s*" + re.escape(tag) + ">",
-            re.MULTILINE | re.DOTALL | re.UNICODE,
-        )
-
-        processed_text = re.sub(pattern, " ", orig_text)
-
-    elif action == "replace_element":
-        pattern = re.compile(
-            r"<\s*" + re.escape(tag) + r".*?>.+?</\s*" + re.escape(tag) + ".*?>",
-            re.MULTILINE | re.DOTALL | re.UNICODE,
-        )
-
-        processed_text = re.sub(pattern, attribute, orig_text)
-
-    else:
-        processed_text = orig_text  # Leave Tag Alone
-
-    return processed_text
 
 
 @validate_call(config=validation_config)
@@ -258,55 +198,6 @@ def special_characters(
         for k, v in ruleset.items():
             match = re.compile(k)
             text = re.sub(match, v, text)
-    return text
-
-
-@validate_call(config=validation_config)
-def tag_map(
-    text: str,
-    # xmlhandlingoptions: list[dict],
-    map: dict[str, dict[str, str]],
-    remove_comments: Optional[bool] = True,
-    remove_doctype: Optional[bool] = True,
-    remove_whitespace: Optional[bool] = False,
-) -> str:
-    """Handle tags that are found in the text.
-
-    Args:
-        text (str): The text in which tags will be replaced.
-        map (dict[str, dict[str, str]]): A dictionary of tags and their options.
-        remove_comments (Optional[bool]): Whether to remove comments.
-        remove_doctype (Optional[bool]): Whether to remove the doctype or xml declaration.
-        remove_whitespace (Optional[bool]): Whether to remove whitespace.
-
-    Returns:
-        str: The text after tags have been replaced.
-    """
-    if remove_whitespace:
-        text = re.sub(
-            r"[\n\s\t\v ]+", " ", text, re.UNICODE
-        )  # Remove extra white space
-    if remove_doctype:
-        doctype = re.compile(r"<!DOCTYPE.*?>", re.DOTALL)
-        text = re.sub(doctype, "", text)  # Remove DOCTYPE declarations
-        text = re.sub(r"(<\?.*?>)", "", text)  # Remove xml declarations
-    if remove_comments:
-        text = re.sub(r"(<!--.*?-->)", "", text)  # Remove comments
-
-    # This matches the DOCTYPE and all internal entity declarations
-    doctype = re.compile(r"<!DOCTYPE.*?>", re.DOTALL)
-    text = re.sub(doctype, "", text)  # Remove DOCTYPE declarations
-
-    # Visit each tag:
-    for tag, opts in map.items():
-        action = opts["action"]
-        attribute = opts["attribute"]
-        text = process_tag_replace_options(text, tag, action, attribute)
-
-    # One last catch-all removes extra whitespace from all the removed tags
-    if remove_whitespace:
-        text = re.sub(r"[\n\s\t\v ]+", " ", text, re.UNICODE)
-
     return text
 
 
