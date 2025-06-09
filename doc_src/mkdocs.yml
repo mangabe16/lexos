@@ -5,11 +5,11 @@ site_url: https://lexos.github.io/en/latest/
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Tutorial:
-      - Overview: tutorial/index.md
-  #     - Getting Started: tutorial/getting_started.md
-  #     - Loading Texts: tutorial/loading_texts.md
-  #     - Scrubbing Texts: tutorial/scrubbing_texts.md
+  - User Guide:
+      - Overview: user_guide/index.md
+      - Getting Started: user_guide/getting_started.md
+      - Loading Texts: user_guide/loading_texts.md
+      - Scrubbing Texts: user_guide/scrubbing_texts.md
   #     - Tokenizing Texts: tutorial/tokenizing_texts.md
   #     - Cutting Documents: tutorial/cutting_docs.md
   #     - The Document-Term Matrix: tutorial/the_document_term_matrix.md
@@ -119,14 +119,14 @@ markdown_extensions:
   - attr_list
   - pymdownx.snippets:
       check_paths: true
-  - tables
-  - toc:
-      permalink: "¤"
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - tables
+  - toc:
+      permalink: "¤"
 
 copyright: Copyright &copy; 2022- <a href="https://wheatoncollege.edu/academics/special-projects-initiatives/lexomics/" target="_blank">The Lexomics Project</a>
 
@@ -177,5 +177,6 @@ plugins:
             signature_crossrefs: true
             summary: true
             extensions:
+            # - griff_fieldz: https://github.com/pyapp-kit/griffe-fieldz
             - griffe_pydantic:
                 schema: false
