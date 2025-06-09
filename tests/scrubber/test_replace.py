@@ -15,7 +15,6 @@ from lexos.scrubber.replace import (
     process_tag_replace_options,
     punctuation,
     special_characters,
-    tag_map,
     urls,
     user_handles,
 )
