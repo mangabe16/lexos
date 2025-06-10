@@ -1,22 +1,22 @@
 """test_replace.py.
 
-Last Update: 2025-01-14.
+Last Update: 2025-06-08.
 """
 import pytest
+
 from lexos.scrubber.replace import (
     currency_symbols,
     digits,
     emails,
     emojis,
     hashtags,
+    pattern,
     phone_numbers,
+    process_tag_replace_options,
     punctuation,
     special_characters,
-    tag_map,
     urls,
     user_handles,
-    pattern,
-    process_tag_replace_options,
 )
 
 
@@ -63,34 +63,6 @@ def test_phone_numbers():
     expected = "Call me at _PHONE_ or _PHONE_."
     assert phone_numbers(text) == expected
 
-def test_process_tag_replace_options_remove_tag():
-    """Test removing a tag but keeping its content."""
-    text = "<p>This is a <b>test</b>.</p>"
-    result = process_tag_replace_options(text, "b", "remove_tag", "")
-    # Should remove <b> and </b> tags, but keep content
-    assert result == "<p>This is a  test .</p>"
-
-def test_process_tag_replace_options_remove_element():
-    """Test removing an element entirely."""
-    text = "<p>This is a <b>test</b>.</p>"
-    result = process_tag_replace_options(text, "b", "remove_element", "")
-    # Should remove <b>test</b> entirely
-    assert result == "<p>This is a  .</p>"
-
-def test_process_tag_replace_options_replace_element():
-    """Test replacing an element with a specific string."""
-    text = "<p>This is a <b>test</b>.</p>"
-    result = process_tag_replace_options(text, "b", "replace_element", "_BOLD_")
-    # Should replace <b>test</b> with _BOLD_
-    assert result == "<p>This is a _BOLD_.</p>"
-
-def test_process_tag_replace_options_default():
-    """Test default behavior when action is unknown."""
-    text = "<p>This is a <b>test</b>.</p>"
-    result = process_tag_replace_options(text, "b", "unknown_action", "")
-    # Should leave text unchanged
-    assert result == "<p>This is a <b>test</b>.</p>"
-
 def test_punctuation():
     """Test replacing punctuation."""
     text = "Hello, world!"
@@ -110,13 +82,6 @@ def test_special_characters_html_unescape():
     text = "This &amp; that &lt;test&gt;"
     expected = "This & that <test>"
     assert special_characters(text, is_html=True) == expected
-
-def test_tag_map():
-    """Test replacing tags using tag_map."""
-    text = "<html><body><p>This is a test.   </p></body></html>"
-    tag_map_dict = {"p": {"action": "remove_tag", "attribute": ""}}
-    assert tag_map(text, map=tag_map_dict) == "<html><body> This is a test.    </body></html>"
-    assert tag_map(text, map=tag_map_dict, remove_whitespace=True) == "<html><body> This is a test. </body></html>"
 
 def test_urls():
     """Test replacing URLs."""

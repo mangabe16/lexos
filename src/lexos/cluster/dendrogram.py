@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import scipy.cluster.hierarchy as sch
 from matplotlib.axes import Axes
@@ -153,6 +154,12 @@ class Dendrogram(BaseModel):
         # Get the matrix based on the data type
         matrix = self._get_valid_matrix()
 
+        # Check to see if the number of labels matches the number of rows
+        if len(self.labels) != matrix.shape[0]:
+            raise LexosException(
+                "The number of labels must match the number of documents."
+            )
+
         # Generate the pairwise distance and linkage matrices
         X = pdist(matrix, metric=self.metric)
         Z = sch.linkage(X, self.method)
@@ -188,16 +195,53 @@ class Dendrogram(BaseModel):
 
     def _get_valid_matrix(self):
         """Get a valid matrix based on the data type of the dtm."""
-        error_msg = "The document-term matrix must have more than one document."
-        if isinstance(self.dtm, pd.DataFrame) and self.dtm.shape[0] < 3:
-            raise LexosException(error_msg)
-        elif self.dtm.shape[0] < 2:
-            raise LexosException(error_msg)
+        shape_error = "The document-term matrix must have more than one document."
+        type_error = "The document-term matrix must contain only numeric values."
+        label_error = "The number of labels must match the number of documents."
+
+        # DTM input
         if isinstance(self.dtm, DTM):
+            if len(self.dtm.labels) < 2:
+                raise LexosException(shape_error)
             df = self.dtm.to_df()
             df.index.name = "terms"
-            return df.T
-        return self.dtm
+            matrix = df.T
+
+        # DataFrame input
+        elif isinstance(self.dtm, pd.DataFrame):
+            if self.dtm.shape[0] < 3:
+                raise LexosException(shape_error)
+            if not np.issubdtype(self.dtm.values.dtype, np.number):
+                raise LexosException(type_error)
+            matrix = self.dtm
+
+        # Raw array/list input
+        else:
+            matrix = self.dtm
+
+            # List input
+            if isinstance(matrix, list):
+                if len(matrix) < 2:
+                    raise LexosException(shape_error)
+                if not all(isinstance(x, (int, float)) for row in matrix for x in row):
+                    raise LexosException(type_error)
+
+            # NumPy array input
+            elif isinstance(matrix, np.ndarray):
+                # Consolidated NumPy array checks
+                if matrix.shape[0] < 2:
+                    raise LexosException(shape_error)
+                if not np.issubdtype(matrix.dtype, np.number):
+                    raise LexosException(type_error)
+            # You might want an 'else' here if there are other unsupported types
+            else:
+                raise LexosException("Unsupported document-term matrix type.")
+
+        # Check labels vs matrix row count
+        if self.labels and len(self.labels) != matrix.shape[0]:
+            raise LexosException(label_error)
+
+        return matrix
 
     @validate_call
     def save(self, path: Path | str):

@@ -28,21 +28,23 @@ To run a specific function, use:
 uv run pytest tests/dtm/test_dtm.py::test_function_name
 ```
 
+## Checking Coverage
+
 To run tests with coverage, you can use the following command:
 
 ```bash
-uv run pytest --cov=src --cov-report=term-missing
+uv run pytest --cov src src --cov-report=term-missing
 ```
 
 This displays a coverage report in your terminal.
 
-!!! Important
-    The `--cov=src` option specifies the source directory to measure coverage for. You can adjust this to target specific modules or directories as needed.
+> [!IMPORTANT]
+> In the command above, `src` refers to the source directory of the test file. For some reason, the pytest-cov plugin generates a report for _all_ Lexos modules unless you specify the path to the test file's folder _twice_ (e.g. `tests/scrubber`). Doing this will generate a coverage report for all test files in the folder, which is at least better. So far, attempts to specify the path to a single file has always generated a report containing all test files in the folder. This is an ongoing issue with pytest-cov.
 
-To generate an HTML coverage report, use:
+To generate an HTML coverage report, something like use:
 
 ```bash
-uv run pytest --cov=src/lexos/dtm --cov-report=html tests/dtm
+uv run pytest --cov tests/dtm tests/dtm --cov-report=html
 ```
 
 After running, open `htmlcov/index.html` in your browser to inspect coverage. As with the terminal report, you can adjust the `--cov` option to target specific modules or directories.

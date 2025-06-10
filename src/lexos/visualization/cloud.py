@@ -8,6 +8,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
+
+import matplotlib
+matplotlib.use("Agg")  # additional line
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -108,6 +111,7 @@ def wordcloud(
         wc = WordCloud(**opts).generate_from_frequencies(counts)
 
     # Plot or return the WordCloud
+    # Why is it only if show=true? what if the user wants show=false? We can still save the figure, just dont show it by plotting it
     if show:
         if figure_opts:
             plt.figure(**figure_opts)
@@ -118,6 +122,8 @@ def wordcloud(
         plt.imshow(wc)
         plt.show()
     else:
+        if path:
+            wc.to_file(path)
         return wc
 
 
