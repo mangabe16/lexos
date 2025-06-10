@@ -114,7 +114,7 @@ new_data_loader1.load_dataset(existing_data_loader2)
 ```
 
 !!! note
-  The `Loader` class also has a `load_dataset()` method for merging data sets into an existing `Loader` instance. It takes a `DataLoader` instance as an argument and merges it into the given `Loader` object.
+    The `Loader` class also has a `load_dataset()` method for merging data sets into an existing `Loader` instance. It takes a `DataLoader` instance as an argument and merges it into the given `Loader` object.
 
 The `DatasetLoader.load()` method accepts files, urls, and directories of files in `.txt`, `.csv`, `.tsv`, `.xlsx`, `json`, and `jsonl` format, as well zip archives containing files in those formats. As shown above, `.txt` files must be line-delimited, without a header, and must be accompanied by a list of `labels`.
 
