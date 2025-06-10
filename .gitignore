@@ -30,7 +30,7 @@ profile_default/
 ipython_config.py
 
 # mkdocs documentation
-# /site
+docs/
 
 # Vscode config files
 .vscode.json
