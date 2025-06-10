@@ -22,8 +22,8 @@ Remember that the content of your type hints and docstrings will be used to gene
 
 Since we don't know the source of the data that will be passed to your module, it is essential to validate the data before processing it. Lexos uses Pydantic for data validation, which allows you to define data models and ensure that the data conforms to the expected structure. As a general procedure, we try to use Pydantic validation with all public methods and functions in the Lexos API. This helps catch errors early and provides clear feedback to users about the data they are providing. You can find more information about using Pydantic in the [A Short Primer on Pydantic](pydantic_primer.md) section of the developer guide.
 
-!!! Warning
-    Pydantic does not accept spaCy docs out of the box. You need to configure it to do so by importing the spaCy `Doc` JSON schema and using Pydantic's `model_config` attribute to pass it to Pydantic. Look at some of the existing modules for examples of how to do this.
+> [!WARNING]
+> Pydantic does not accept spaCy docs out of the box. You need to configure it to do so by importing the spaCy `Doc` JSON schema and using Pydantic's `model_config` attribute to pass it to Pydantic. Look at some of the existing modules for examples of how to do this.
 
 ## Testing Your Module
 
