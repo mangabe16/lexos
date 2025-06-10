@@ -1,6 +1,6 @@
 # Creating a Module
 
-To create a new module in the Lexos project, you should follow these steps:
+To create a new module in the Lexos project, you should create a new branch from `main` and follow these steps:
 
 1. **Create a New Directory**: Create a new directory for your module inside the Lexos `src` package. The directory name should be descriptive and follow the naming conventions of the project. If you are creating a submodule of an existing module, simply create the new directory inside the parent module's folder.
 
