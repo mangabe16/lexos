@@ -38,3 +38,6 @@ ipython_config.py
 
 # Private development files
 deprecated/
+
+#test
+src/lexos/cutter/token_chunks/*.txt
