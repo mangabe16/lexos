@@ -4,10 +4,10 @@ We use a centralized Git workflow, meaning everyone clones the main repository o
 
 ## Naming Branches
 
-The naming convention for branches is as follows:
+The naming convention for branches is as follows (where `module` is the name of the module you are working on):
 
-- **Feature Branches:** `module/feature/your-awesome-feature`
-- **Bug Fix Branches:** `module/fix/your-bug-fix`
+- **Feature Branches:** `module-feature-your-awesome-feature`
+- **Bug Fix Branches:** `module-fix-your-bug-fix`
 
 This helps in organizing the branches based on the module and the type of work being done, as well as helping other developers immediately identify the purpose of the branch. However, you do not have to follow this convention strictly if the situation calls for something that makes more sense. The most important thing is to be consistent and descriptive in your branch names.
 
