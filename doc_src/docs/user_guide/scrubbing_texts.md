@@ -1,4 +1,4 @@
-## About Scrubber
+# Overview
 
 Scrubber can be defined as a _destructive_ preprocessor. In other words, it changes the text as loaded in ways that potentially make mapping the results onto the original text impossible. It is therefore best used before other procedures so that the scrubbed text is essentially treated as the "original" text. This differs from the [Tokenizer](user_guide/tokenizing_texts.md), which divides the text into "tokens" (often words) without destroying the original text.
 
