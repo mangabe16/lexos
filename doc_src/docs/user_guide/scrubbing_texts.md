@@ -103,5 +103,4 @@ scrubber_components.register("title_case", func=title_case)
 ```
 
 !!! important
-    To use a custom scrubbing function, you must register it _before_ you call `load_component()` or `load_components()`.
-
+   To use a custom scrubbing function, you must register it _before_ you call `load_component()` or `load_components()`.
