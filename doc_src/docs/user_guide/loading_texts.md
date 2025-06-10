@@ -1,4 +1,6 @@
-# Overview
+# Loading Texts
+
+## Overview
 
 A typical workflow would create a `Loader` object and call `loader.load()` to load the data from disk or download it from the internet. You can access all loaded texts by calling `Loader.texts`.
 
