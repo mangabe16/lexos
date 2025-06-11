@@ -13,10 +13,9 @@ nav:
         - Scrubbing Texts: user_guide/scrubbing_texts.md
         - Normalize: user_guide/scrubber/normalize.md
         - Remove: user_guide/scrubber/remove.md
+        - Replace: user_guide/scrubber/replace.md
         # - Pipeline: user_guide/scrubber/pipeline.md
         # - Registry: user_guide/scrubber/registry.md
-        # - Remove: user_guide/scrubber/remove.md
-        # - Replace: user_guide/scrubber/replace.md
         # - Resources: user_guide/scrubber/resources.md
         # - Tags: user_guide/scrubber/tags.md
   #     - Tokenizing Texts: tutorial/tokenizing_texts.md
