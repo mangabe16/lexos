@@ -35,7 +35,7 @@ def pipe(func: Callable, *args, **kwargs) -> Callable:
 
 
 @validate_call
-def make_pipeline(*funcs: tuple[Callable[[str], str], ...]) -> Callable[[str], str]:
+def make_pipeline(*funcs: Callable[[str], str]) -> Callable[[str], str]:
     """Make a callable pipeline.
 
     Make a callable pipeline that passes a text through a series of
@@ -61,7 +61,7 @@ def make_pipeline(*funcs: tuple[Callable[[str], str], ...]) -> Callable[[str], s
     ```
 
     Args:
-        *funcs (tuple[Callable[[Any], Any], ...]): A series of functions to be applied to the text.
+        *funcs (Callable[[str], str): A series of functions to be applied to the text.
 
     Returns:
         Callable[[str], str]: Pipeline composed of ``*funcs`` that applies each in sequential order.

@@ -1,6 +1,6 @@
 """test_text_cutter.py.
 
-Last updated: 2025-01-13
+Last updated: 2025-06-26
 """
 
 from pathlib import Path
@@ -15,24 +15,29 @@ from pydantic import ValidationError
 
 @pytest.fixture
 def cutter():
+    """Create a new instance of TextCutter for general use."""
     return TextCutter()
 
 @pytest.fixture
 def sample_text():
+    """Return a sample multiline string used for buffer-based tests."""
     return "Line1\nLine2\nLine3\nLine4\nLine5\n"
 
 @pytest.fixture
 def text_file(tmp_path, sample_text):
+    """Create a temporary text file from sample_text and return the file path."""
     file_path = tmp_path / "test.txt"
     file_path.write_text(sample_text)
     return file_path
 
 @pytest.fixture
 def sample_milestones_text():
+    """Return a single-line text string used for milestone tests."""
     return "The quick brown fox jumps over the lazy dog."
 
 @pytest.fixture
 def mock_milestones():
+    """Provide a list of mock StringSpan milestone markers for testing."""
     return [
         StringSpan(start=4, end=9, text="quick"),
         StringSpan(start=26, end=30, text="over")
@@ -40,12 +45,14 @@ def mock_milestones():
 
 @pytest.fixture
 def milestones_text_file(tmp_path, sample_milestones_text):
+    """Create a temporary file containing sample milestone text."""
     file_path = tmp_path / "test.txt"
     file_path.write_text(sample_milestones_text)
     return file_path
 
 @pytest.fixture
 def sample_paths():
+    """Return a list of dummy Path objects representing text files."""
     return [
         Path("test1.txt"),
         Path("test2.txt")
@@ -53,10 +60,12 @@ def sample_paths():
 
 @pytest.fixture
 def custom_names():
+    """Provide a list of custom string-based document names."""
     return ["custom1", "custom2"]
 
 @pytest.fixture
 def sample_chunks():
+    """Return a nested list representing two documents with two chunks each."""
     return [
         ["chunk1-1", "chunk1-2"],
         ["chunk2-1", "chunk2-2"]
@@ -64,12 +73,14 @@ def sample_chunks():
 
 @pytest.fixture
 def output_dir(tmp_path):
+    """Create and return a temporary directory to store output chunk files."""
     out_dir = tmp_path / "output"
     out_dir.mkdir()
     return out_dir
 
 @pytest.fixture
 def cutter_for_save():
+    """Return a TextCutter instance preloaded with chunks for save() testing."""
     cutter = TextCutter()
     cutter.chunks = [
         ["First chunk.", "Second chunk."],
@@ -92,6 +103,17 @@ def test_iter(cutter, sample_text):
     cutter.split(sample_text, n=2, merge_threshold=0.0, file=False)
     chunks = cutter.chunks[0]
     assert len(chunks) == 2
+
+def test_iter_method(cutter):
+    """Test that __iter__ returns an iterator over the chunk groups."""
+    cutter.chunks = [["a", "b"], ["c"]]
+    collected_chunks = list(iter(cutter))
+    assert collected_chunks == [["a", "b"], ["c"]]
+
+def test_len_method(cutter):
+    """Test that __len__ correctly returns the number of source chunk groups."""
+    cutter.chunks = [["chunk1"], ["chunk2"], ["chunk3"]]
+    assert len(cutter) == 3
 
 def test_process_file(cutter, text_file):
     """Test processing file in chunks."""
@@ -118,6 +140,12 @@ def test_merge_final_chunks(cutter):
     assert len(merged_chunks) == 2
     assert merged_chunks[0] == "chunk1"
     assert merged_chunks[1] == "chunk2chunk3"
+
+def test_merge_final_single_chunk(cutter):
+    """Test merging a generator with one final chunk."""
+    chunks = iter(["lastchunk"])
+    result = list(cutter._merge_final_chunks(chunks))
+    assert result == ["lastchunk"]
 
 def test_write_chunk(cutter, tmp_path):
     """Test writing chunk to output directory."""
@@ -174,6 +202,11 @@ def test_split_with_custom_delimiter_pad(cutter, text_file, tmp_path):
     assert all("-" in file.name for file in output_files)
     assert all(len(file.stem.split("-")[1]) == 4 for file in output_files)
 
+def test_split_sets_custom_path_names(cutter, text_file):
+    """Test that split sets custom names when Path objects are passed."""
+    cutter.split(sources=text_file, chunksize=10, file=True, names=("custom.txt"))
+    assert "custom" in cutter.names[0]
+
 def test_process_buffer_with_n(cutter, sample_text):
     """Test processing buffer with n chunks."""
     cutter.n = 3
@@ -191,6 +224,17 @@ def test_process_file_with_n(cutter, text_file):
     assert chunks[0] == "Line1\nLine2\nLine3"
     assert chunks[1] == "\nLine4\nLine5\n"
 
+def test_process_file_triggers_early_break(cutter, tmp_path):
+    """Test that _process_file triggers early break on empty chunk."""
+    test_file = tmp_path / "early_break.txt"
+    test_file.write_text("Short\n")
+    cutter.n = 10
+    cutter.newline = False
+    cutter.chunksize = 1000
+    chunks = cutter._process_file(test_file, n=True)
+    assert isinstance(chunks, list)
+    assert len(chunks) < 10
+
 def test_process_buffer_with_n_newline(cutter, text_file):
     """Test cutting file with newline option."""
     cutter.split(sources=text_file, file=True, n=2, merge_threshold=0.0, newline=True)
@@ -199,6 +243,15 @@ def test_process_buffer_with_n_newline(cutter, text_file):
     assert chunks[0] == "Line1\nLine2\nLine3\n"
     assert chunks[1] == "Line4\nLine5\n"
 
+def test_process_buffer_newline_chunk_empty(cutter):
+    """Test _process_buffer with newline=True where chunk becomes empty."""
+    cutter.n = 2
+    cutter.newline = True
+    short_text = "Line1\n"
+    chunks = cutter._process_buffer(short_text, n=True)
+    assert isinstance(chunks, list)
+    assert len(chunks) <= 2
+
 def test_split_file_basic(cutter, milestones_text_file, mock_milestones):
     """Test basic file splitting."""
     cutter.split_on_milestones(milestones_text_file, mock_milestones)
@@ -206,8 +259,27 @@ def test_split_file_basic(cutter, milestones_text_file, mock_milestones):
     assert len(cutter.chunks[0]) == 3
     assert cutter.chunks[0] == ["The", "brown fox jumps", "the lazy dog."]
 
-def test_split_buffer(cutter, sample_milestones_text, mock_milestones):
-    """Test splitting string buffer."""
+def test_split_on_milestones_sets_custom_path_names(cutter, milestones_text_file, mock_milestones):
+    """Test split_on_milestones with custom Path-style names input."""
+    text = milestones_text_file.read_text()
+    cutter.split_on_milestones(text, mock_milestones, names=["named.txt"], file=False)
+    assert cutter.names[0] == "named"
+
+def test_split_on_milestones_writes_to_disk(cutter, milestones_text_file, mock_milestones, output_dir):
+    """Test that split_on_milestones writes output files when output_dir is set."""
+    cutter.split_on_milestones(
+        sources=milestones_text_file,
+        milestones=mock_milestones,
+        output_dir=output_dir,
+        file=True,
+    )
+    written_files = list(output_dir.glob("*.txt"))
+    assert len(written_files) == 3
+    for f in written_files:
+        assert f.read_text()
+
+def test_split_buffer_milestones(cutter, sample_milestones_text, mock_milestones):
+    """Test splitting string buffer on milestones."""
     cutter.split_on_milestones(sample_milestones_text, mock_milestones, file=False)
     assert len(cutter.chunks) == 1
     assert len(cutter.chunks[0]) == 3
@@ -326,6 +398,12 @@ def test_name_default(cutter):
     result = cutter._get_name("source", 1)
     assert result == "text001"
 
+def test_get_name_from_path_object(cutter):
+    """Test fallback to Path(source).stem in _get_name()."""
+    cutter.names = []
+    source = Path("document.txt")
+    name = cutter._get_name(source, 0)
+    assert name == "document"
 
 def test_save_basic(cutter_for_save, output_dir):
     """Test basic save functionality."""

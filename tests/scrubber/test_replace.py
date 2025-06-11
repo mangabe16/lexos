@@ -1,18 +1,20 @@
 """test_replace.py.
 
-Last Update: 2025-01-14.
+Last Update: 2025-06-08.
 """
 import pytest
+
 from lexos.scrubber.replace import (
     currency_symbols,
     digits,
     emails,
     emojis,
     hashtags,
+    pattern,
     phone_numbers,
+    process_tag_replace_options,
     punctuation,
     special_characters,
-    tag_map,
     urls,
     user_handles,
 )
@@ -48,17 +50,25 @@ def test_hashtags():
     expected = "This is a _HASHTAG_."
     assert hashtags(text) == expected
 
+def test_pattern():
+    """Test replacing patterns."""
+    text = "This is a test."
+    pattern_dict = {"test": "_PATTERN_"}
+    expected = "This is a _PATTERN_."
+    assert pattern(text, pattern=pattern_dict) == expected
+
 def test_phone_numbers():
     """Test replacing phone numbers."""
-    text = "Call me at 123-456-7890."
-    expected = "Call me at _PHONE_."
+    text = "Call me at 123-456-7890 or 1.123.456.7890."
+    expected = "Call me at _PHONE_ or _PHONE_."
     assert phone_numbers(text) == expected
 
 def test_punctuation():
     """Test replacing punctuation."""
     text = "Hello, world!"
-    expected = "Hello  world "
-    assert punctuation(text) == expected
+    assert punctuation(text) == "Hello  world "
+    assert punctuation(text, only="!") == "Hello, world "
+    assert punctuation(text, exclude=",") == "Hello, world "
 
 def test_special_characters():
     """Test replacing special characters."""
@@ -67,12 +77,11 @@ def test_special_characters():
     expected = "This is a test and example."
     assert special_characters(text, ruleset=ruleset) == expected
 
-def test_tag_map():
-    """Test replacing tags using tag_map."""
-    text = "<html><body><p>This is a test.</p></body></html>"
-    tag_map_dict = {"p": {"action": "remove_tag", "attribute": ""}}
-    expected = "<html><body> This is a test. </body></html>"
-    assert tag_map(text, map=tag_map_dict) == expected
+def test_special_characters_html_unescape():
+    """Test replacing special characters with is_html=True (HTML unescape branch)."""
+    text = "This &amp; that &lt;test&gt;"
+    expected = "This & that <test>"
+    assert special_characters(text, is_html=True) == expected
 
 def test_urls():
     """Test replacing URLs."""

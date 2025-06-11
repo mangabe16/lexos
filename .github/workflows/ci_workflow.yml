@@ -2,14 +2,11 @@
 # It will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
-name: uv_lexos
+name: CI
 
-# I think that this will perform CI on _any_ branch whenever there is a push or pull request.
 on:
-  push:
-    branches: [ $default-branch ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -35,21 +32,19 @@ jobs:
     - name: Install the project
       run: uv sync --locked --all-extras --dev
 
-    # The block below may not be right. See https://docs.astral.sh/uv/guides/integration/github/#caching
-    # - name: Define a cache dependency glob
-    #   uses: astral-sh/setup-uv@v5
-    #   with:
-    #     enable-cache: true
-    #     cache-dependency-glob: "uv.lock"
+    # The block below caches the workflow to speed up runs.
+    # The configuration may not be right. See https://docs.astral.sh/uv/guides/integration/github/#caching
+    - name: Define a cache dependency glob
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
 
-    # The block below should be changed to lint with ruff, but that is not a current dev dependency, so it is disabled for the moment in this config file.
-    # - name: Lint with flake8
-    #   run: |
-    #     # stop the build if there are Python syntax errors or undefined names
-    #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    # Stop the build if there are Python syntax errors or undefined names
+    - name: Lint with Ruff
+      run: |
+        uvx ruff check --output-format=github .
 
     - name: Test with pytest
       run: |
-        pytest
+        uv run pytest tests --tb=short --disable-warnings -v

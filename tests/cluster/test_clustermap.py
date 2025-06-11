@@ -5,18 +5,23 @@ Last Update: February 27, 2025
 
 import os
 
+import matplotlib as mpl  # added
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
 import spacy
 from scipy.cluster.hierarchy import linkage
+import seaborn as sns
 
 from lexos.cluster import ClusterMap
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 
+
 nlp = spacy.load("en_core_web_sm")
+mpl.use("Agg")  # added
+
 
 # Fixtures
 
@@ -253,6 +258,65 @@ def test_call_with_custom_labels(sample_dtm):
     clustermap(dtm=sample_dtm, labels=custom_labels)
 
     assert clustermap.labels == custom_labels
+
+
+def test_call_row_color_len_match(sample_dtm):
+    """Test clustermap with custom labels."""
+    row_colors = ["red", "blue", "green"]
+    custom_labels = ["A", "B", "C", "D", "E"]
+
+    clustermap = ClusterMap()
+
+    with pytest.raises(LexosException) as exc_info:
+        clustermap(
+            dtm=sample_dtm,
+            row_colors=row_colors,
+            colors_ratio=0.05,
+            labels=custom_labels,
+        )
+    assert (
+        "The length of `row_colors` must have be greater than the number of labels."
+        in str(exc_info.value)
+    )
+
+
+def test_call_default_color_check(sample_dtm):
+    """Test default color palette option."""
+    default_colors = "default"
+
+    clustermap = ClusterMap()
+    clustermap(
+        dtm=sample_dtm,
+        row_colors=default_colors,
+        col_colors=default_colors,
+        colors_ratio=0.05,
+    )
+    clustermap()
+    expected_palette = sns.husl_palette(8, s=0.45)
+    actual_col_colors, actual_row_colors = clustermap._get_colors()
+
+    assert np.allclose(actual_col_colors, expected_palette)
+    assert np.allclose(actual_row_colors, expected_palette)
+
+
+def test_call_invalid_col_palette_name(sample_dtm):
+    """Test clustermap with invalid custom column palette."""
+    col_colors = "this_palette_does_not_exist"
+    clustermap = ClusterMap()
+
+    with pytest.raises(LexosException) as exc_info:
+        clustermap(dtm=sample_dtm, col_colors=col_colors, colors_ratio=0.05)
+    assert "Invalid column palette." in str(exc_info.value)
+
+
+def test_call_invalid_row_palette_name(sample_dtm):
+    """Test clustermap with invalid custom row palette."""
+    row_colors = "this_palette_does_not_exist"
+    clustermap = ClusterMap()
+
+    with pytest.raises(LexosException) as exc_info:
+        clustermap(dtm=sample_dtm, row_colors=row_colors, colors_ratio=0.05)
+    assert "Invalid row palette." in str(exc_info.value)
 
 
 def test_call_with_parameters(sample_dtm):

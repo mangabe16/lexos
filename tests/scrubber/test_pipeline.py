@@ -5,7 +5,11 @@ Last Update: 2025-01-14.
 from functools import partial
 
 import pytest
-from lexos.scrubber.pipeline import pipe
+from lexos.scrubber.pipeline import (
+    pipe,
+    make_pipeline,
+    make_pipeline_from_tuple,
+)
 
 
 def sample_function(x, y=0):
@@ -35,3 +39,29 @@ def test_pipe_positional_and_keyword_args():
     assert func() == 5
     assert func.__name__ == "sample_function"
 
+
+def dummy_upper(text: str) -> str:
+    return text.upper()
+
+def dummy_replace_a_with_x(text: str) -> str:
+    return text.replace('A', 'X')
+
+def test_make_pipeline():
+    """Test creating a pipeline with multiple functions."""
+    from lexos.scrubber.remove import punctuation
+    pipeline = make_pipeline(dummy_upper,
+                             dummy_replace_a_with_x,
+                             pipe(punctuation, only=[".", "?", "!"]))
+    result = pipeline("a cat, and a bat.!?")
+    # Should first uppercase, then replace 'A' with 'X'
+    assert result == "X CXT, XND X BXT"
+
+def dummy_add_exclamation(text: str) -> str:
+    return text + "!"
+
+def test_make_pipeline_from_tuple():
+    """Test creating a pipeline from a tuple of functions."""
+    funcs = (dummy_upper, dummy_add_exclamation)
+    pipeline = make_pipeline_from_tuple(funcs)
+    result = pipeline("hello")
+    assert result == "HELLO!"

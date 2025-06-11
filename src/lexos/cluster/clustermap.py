@@ -81,16 +81,22 @@ class ClusterMap(BaseModel):
         True, json_schema_extra={"description": "Whether to cluster the columns."}
     )
     row_linkage: Optional[np.ndarray] = Field(
-        None, json_schema_extra={"description": "Precomputed linkage matrix for the rows. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats."}
+        None,
+        json_schema_extra={
+            "description": "Precomputed linkage matrix for the rows. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats."
+        },
     )
     col_linkage: Optional[np.ndarray] = Field(
-        None, json_schema_extra={"description": "Precomputed linkage matrix for the columns. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats."}
+        None,
+        json_schema_extra={
+            "description": "Precomputed linkage matrix for the columns. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats."
+        },
     )
-    row_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = Field(
-        None, json_schema_extra={"description": "The row colors."}
+    row_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = (
+        Field(None, json_schema_extra={"description": "The row colors."})
     )
-    col_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = Field(
-        None, json_schema_extra={"description": "The column colors."}
+    col_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = (
+        Field(None, json_schema_extra={"description": "The column colors."})
     )
     mask: Optional[np.ndarray | pd.DataFrame] = Field(
         None, json_schema_extra={"description": "The mask for the clustermap."}
@@ -141,8 +147,12 @@ class ClusterMap(BaseModel):
         col_cluster: Optional[bool] = None,
         row_linkage: Optional[np.ndarray] = None,
         col_linkage: Optional[np.ndarray] = None,
-        row_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = None,
-        col_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = None,
+        row_colors: Optional[
+            list | pd.DataFrame | pd.Series | str | ListedColormap
+        ] = None,
+        col_colors: Optional[
+            list | pd.DataFrame | pd.Series | str | ListedColormap
+        ] = None,
         mask: Optional[np.ndarray | pd.DataFrame] = None,
         dendrogram_ratio: Optional[float | tuple[float, float]] = None,
         colors_ratio: Optional[float] = None,
@@ -264,15 +274,19 @@ class ClusterMap(BaseModel):
         # Not sure if this is necessary for column colours
         # if isinstance(self.col_colors, list) and len(self.dtm.labels) >= len(self.col_colors):
         #     raise LexosException("The length of `col_colors` must have be greater than the number of labels.")
-        if isinstance(self.row_colors, list) and len(self.dtm.labels) >= len(self.row_colors):
-            raise LexosException("The length of `row_colors` must have be greater than the number of labels.")
+        if isinstance(self.row_colors, list) and len(self.dtm.labels) >= len(
+            self.row_colors
+        ):
+            raise LexosException(
+                "The length of `row_colors` must have be greater than the number of labels."
+            )
 
         # Convert palette to vectors drawn on the side of the matrix
         # None means no colours, "default" means use the husl palette
         if self.col_colors is None:
             col_colors = None
         elif self.col_colors == "default":
-                col_colors = sns.husl_palette(8, s=0.45)
+            col_colors = sns.husl_palette(8, s=0.45)
         else:
             try:
                 col_colors = sns.color_palette(self.col_colors, len(self.col_colors))

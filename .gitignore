@@ -33,6 +33,7 @@ ipython_config.py
 docs/
 
 # Vscode config files
+.vscode.json
 .vscode/
 
 # Private development files

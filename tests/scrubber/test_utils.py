@@ -41,3 +41,12 @@ def test_get_tags_with_processing_instructions():
     assert result["tags"] == ["child", "root"]
     assert result["attributes"] == [{"child": {"attr": "value"}}]
 
+def test_get_tags_processing_instruction_extraction():
+    """Ensure get_tags triggers bs4.element.ProcessingInstruction extraction (line 48)."""
+    # Place a processing instruction outside the root element
+    text = '<?myproc instruction?><root><child attr="value">Content</child></root'
+    # This is malformed XML (missing > at the end), so ElementTree will fail and BS4 will be used
+    result = get_tags(text)
+    # The test is to ensure no error and tags are extracted
+    assert "root" in result["tags"]
+    assert "child" in result["tags"]
