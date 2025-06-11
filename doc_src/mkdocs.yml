@@ -14,10 +14,8 @@ nav:
         - Normalize: user_guide/scrubber/normalize.md
         - Remove: user_guide/scrubber/remove.md
         - Replace: user_guide/scrubber/replace.md
-        # - Pipeline: user_guide/scrubber/pipeline.md
-        # - Registry: user_guide/scrubber/registry.md
-        # - Resources: user_guide/scrubber/resources.md
-        # - Tags: user_guide/scrubber/tags.md
+        - Tags: user_guide/scrubber/tags.md
+        - Internal Components: user_guide/scrubber/internal_components.md
   #     - Tokenizing Texts: tutorial/tokenizing_texts.md
   #     - Cutting Documents: tutorial/cutting_docs.md
   #     - The Document-Term Matrix: tutorial/the_document_term_matrix.md
