@@ -27,7 +27,9 @@ class TextacyKeywords(BaseModel):
         doc = self.tokenizer.make_doc(self.text)
 
         if self.method == "textrank":
-            results: List[Tuple[str, float]] = extract.keyterms.textrank(doc, normalize="lemma", topn=self.topn)
+            results: List[Tuple[str, float]] = extract.keyterms.textrank(
+                doc, normalize="lemma", topn=self.topn
+            )
         elif self.method == "sgrank":
             results: List[Tuple[str, float]] = extract.keyterms.sgrank(
                 doc, normalize="lower", ngrams=(1, 2, 3), topn=self.topn
@@ -42,12 +44,22 @@ class ZTestTopwords(BaseModel):
     """Calculates top distinguishing words using Z-test for significance."""
 
     target_texts: List[str] = Field(..., description="List of target documents.")
-    background_texts: List[str] = Field(..., description="List of background documents.")
+    background_texts: List[str] = Field(
+        ..., description="List of background documents."
+    )
     topn: int = Field(10, gt=0, description="Number of top words to return.")
-    case_sensitive: Optional[bool] = Field(True, description="Whether analysis is case sensitive.")
-    remove_stopwords: Optional[bool] = Field(True, description="Whether to remove stopwords.")
-    remove_punct: Optional[bool] = Field(True, description="Whether to remove punctuation.")
-    remove_digits: Optional[bool] = Field(False, description="Whether to remove digits.")
+    case_sensitive: Optional[bool] = Field(
+        True, description="Whether analysis is case sensitive."
+    )
+    remove_stopwords: Optional[bool] = Field(
+        True, description="Whether to remove stopwords."
+    )
+    remove_punct: Optional[bool] = Field(
+        True, description="Whether to remove punctuation."
+    )
+    remove_digits: Optional[bool] = Field(
+        False, description="Whether to remove digits."
+    )
 
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
 
@@ -55,13 +67,17 @@ class ZTestTopwords(BaseModel):
 
     def __call__(self) -> Dict[str, List[Dict[str, Any]]]:
         target_docs: List[Any] = list(self.tokenizer.make_docs(self.target_texts))
-        background_docs: List[Any] = list(self.tokenizer.make_docs(self.background_texts))
+        background_docs: List[Any] = list(
+            self.tokenizer.make_docs(self.background_texts)
+        )
 
         def get_tokens(docs: List[Any]) -> List[str]:
             tokens = []
             for doc in docs:
                 for token in doc:
-                    token_lower = token.text.lower() # Get lowercased text for stopword check
+                    token_lower = (
+                        token.text.lower()
+                    )  # Get lowercased text for stopword check
                     # Conditions for SKIPPING a token
                     if token.is_space:
                         continue
@@ -98,11 +114,13 @@ class ZTestTopwords(BaseModel):
         for term in all_terms:
             p1: float = target_counts[term] / target_total
             p2: float = background_counts[term] / background_total
-            p: float = (target_counts[term] + background_counts[term]) / (target_total + background_total)
+            p: float = (target_counts[term] + background_counts[term]) / (
+                target_total + background_total
+            )
             n1, n2 = target_total, background_total
 
             if p > 0 and p < 1:
-                denominator = np.sqrt(p * (1 - p) * (1/n1 + 1/n2))
+                denominator = np.sqrt(p * (1 - p) * (1 / n1 + 1 / n2))
                 z: float = (p1 - p2) / denominator if denominator != 0 else 0.0
             else:
                 z = 0.0
@@ -112,6 +130,9 @@ class ZTestTopwords(BaseModel):
         sorted_results = sorted(results, key=lambda item: abs(item[1]), reverse=True)
         non_zero_results = [item for item in sorted_results if item[1] != 0.0]
 
-        top_words_list = [{"term": term, "z_score": z_score} for term, z_score in non_zero_results[:self.topn]]
+        top_words_list = [
+            {"term": term, "z_score": z_score}
+            for term, z_score in non_zero_results[: self.topn]
+        ]
 
         return {"topwords": top_words_list}
