@@ -16,7 +16,7 @@ nav:
         - Replace: user_guide/scrubber/replace.md
         - Tags: user_guide/scrubber/tags.md
         - Internal Components: user_guide/scrubber/internal_components.md
-  #     - Tokenizing Texts: tutorial/tokenizing_texts.md
+      - Tokenizing Texts: tutorial/tokenizing_texts.md
   #     - Cutting Documents: tutorial/cutting_docs.md
   #     - The Document-Term Matrix: tutorial/the_document_term_matrix.md
   #     - Visualization: tutorial/visualization.md
