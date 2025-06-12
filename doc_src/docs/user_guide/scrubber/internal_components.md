@@ -2,6 +2,9 @@
 
 Using Scrubber components is made easier by an understanding of the underlying architecture and resources used by the individual functions. This page provides some additional for information to help you understand Scrubber's inner workings.
 
+!!! note
+    Many of the functions and resources in Scrubber are built on top of the preprocessing functions in the Python <a href="https://github.com/chartbeat-labs/textacy/" target="_blank">Textacy</a> library.
+
 ## The Registry
 
  Lexos ships with a **registry** of default functions which can be imported and referenced by name for easy access. Custom functions can be added to the registry by registering them as in the following example:

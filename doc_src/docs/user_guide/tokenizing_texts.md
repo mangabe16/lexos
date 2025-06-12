@@ -1,20 +1,16 @@
 # Tokenizing Texts
 
-## Language Models
+!!! warning
+    This document is a work in progress. It currently contains obsolete material from the alpha release.
 
-The `tokenizer` module is a big change for Lexos, as it formally separates tokenization from preprocessing. In the Lexos app, users employ Scrubber to massage the text into shape using their implicit knowledge about the text's language. Tokenization then takes place by splitting the text according to a regular expression pattern (normally whitespace). By contrast, the Lexos API uses a language model that formalizes the implicit rules and thus automates the tokenization process. Language models can implement both rule-based and probabilistic strategies for separating document strings into tokens. Because they have built-in procedures appropriate to specific languages, language models can often do a better job of tokenization than the approach used in the Lexos app.
+Many computational methods of studying texts require the text to be split into smaller, countable units called tokens. These tokens can be words, phrases, or even characters, depending on the method being used. The process of splitting a text into tokens is called **tokenization**.
 
-!!! important
-    There are some trade-offs to using language models. Because the algorithm does more than split strings, processing times can be greater. In addition, tokenization is no longer (explicitly) language agnostic. A language model is "opinionated" and it may overfit the data. At the same time, if no language model exists for the language being tokenized, the results may not be satisfactory. The Lexos strategy for handling this situation is described below.
-
-## Tokenized Documents
-
-A tokenized document can be defined as a text split into tokens in which each token is stored with any number of annotations assigned by the model. These annotations are token "attributes". The structure of a tokenized document can then be conceived in theory as a list of dicts like the following, where each keyword is an attribute.
+A tokenized document can be defined as a text split into tokens. This can be represented by a simple list of token strings. However, each token may also be represented as dictionary in which the token string is stored along with additional annotations. Below, we will refer to these annotations as token **attributes**. Here is an example of a list of token dictionaries conntaining attributes to indicate the token's part of speech and whether or not it is a stop word.
 
 ```python
 tokenized_doc = [
-    {"text": "The", "part_of_speech": "noun", "is_stopword": "True"},
-    {"text": "end", "part_of_speech": "noun", "is_stopword": "False"}
+    {"token_text": "The", "part_of_speech": "noun", "is_stopword": True},
+    {"token_text": "end", "part_of_speech": "noun", "is_stopword": False}
 ]
 ```
 
@@ -29,51 +25,82 @@ non_stopwords = [
 
 Many filtering procedures are easy to implement in this way.
 
-For languages such as Modern English, language models exist that can automatically annotate tokens with information like parts of speech, lemmas, stop words, and other information. However, token attributes can also be set after the text has been tokenized.
+!!! note
+    A list of dictionaries is not the only way to represent a tokenized document; it is used here purely to introduce the concept. The strategy employed by Lexos API will be discussed further below.
+
+## Language Models
+
+The easiest method for splitting a text into tokens is to use a simple rule-based approach, such as splitting the text on whitespace. However, this method is not always sufficient, especially for languages with complex morphology or syntax or where whitespace is not used to separate words (typical of Chinese, Japanese, and Korean). In these cases, it is often necessary to use a more sophisticated approach that takes into account the language's grammar and structure.
+
+In the Lexos API, we use **language models** to automate the tokenization process. A language model is a statistical model that has been trained on a large corpus of text in a specific language. It can be used to predict the likelihood of a sequence of words, which can help in identifying the boundaries between tokens. Language models can implement both rule-based and probabilistic strategies for separating document strings into tokens. The Lexos `tokenizer` module enables you to choose a language model appropriate to your data in order to split your texts into tokens.
+
+!!! note
+    The `tokenizer` module is a big change for Lexos, as it formally separates tokenization from preprocessing. In the Lexos web app, users employ Scrubber to massage the text into shape using their implicit knowledge about the text's language. Tokenization then takes place by splitting the text according to a regular expression pattern (normally whitespace). By contrast, the Lexos `tokenizer` module uses a language model that formalizes the implicit rules and probabilities needed to tokenize the text. Because they have built-in procedures appropriate to specific languages, language models can often do a better job of tokenization than the approach used in the Lexos web app.
+
+For languages such as Modern English, language models exist that can both split texts into tokens and automatically annotate tokens with attributes like parts of speech, lemmas, stop words, and other information. This procedure is often referred to as **Natural Language Processing (NLP)**.
 
 If no language model exists for the text's language, it will only be possible to tokenize using general rules, and it will not be possible to add other annotations (at the tokenization stage). But new language models, including models for historical languages, are being produced all the time, and this is a growing area of interest in the Digital Humanities.
 
-## spaCy Docs
+There are some trade-offs to using language models. Because the algorithm does more than split strings, processing times can be greater. In addition, the tokenization procedure is not (explicitly) language agnostic. A language model is "opinionated" and it may overfit the data. At the same time, if no language model exists for the language being tokenized, the results may not be satisfactory. The Lexos strategy for handling this situation is described below.
 
-The Lexos API wraps the <a href="https://spacy.io/" target="_blank">spaCy</a> Natural Language Processing (NLP) library for loading language models and tokenizing texts. Because spaCy has excellent documentation and fairly wide acceptance in the Digital Humanities community, it is a good tool to use under the bonnet. spaCy has a growing number of language models in a number of languages, as well as wrappers for loading models from other common NLP libraries such as Stanford Stanza.
+## SpaCy Docs
+
+Lexos uses the <a href="https://spacy.io/" target="_blank">spaCy</a> Natural Language Processing (NLP) library for loading language models and tokenizing texts. Because spaCy has excellent documentation and fairly wide acceptance in the Digital Humanities community, it is a good tool to use under the bonnet. SpaCy has a growing number of language models in a number of languages, as well as wrappers for loading models from other common NLP libraries such as Stanford Stanza.
+
+In spaCy, texts are parsed into spaCy `Doc` objects consisting of sequences of annotated tokens.
 
 !!! note
-    The architecture of the Scrubber module is partially built on top of the preprocessing functions in <a href="https://github.com/chartbeat-labs/textacy/" target="_blank">Textacy</a>, which also accesses and extends spaCy.
+    In order to formalize the difference between a text string that has been scrubbed and one that has been tokenized, we refer wherever possible to the string as a "text" and to the tokenized `Doc` object as a "document" (or just "doc"). We continue to refer to the individual items as "documents" if we are not concerned with their data type.
 
-In spaCy, texts are parsed into `spacy.Doc` objects consisting of sequences of annotated tokens.
+Each token is spaCy `Token` object which stores all the token's attributes.
+
+### Creating a SpaCy Doc
+
+The Lexos API wraps this procedure in the `Tokenizer.make_doc()` method:
+
+```python
+from lexos.tokenizer import Tokenizer
+
+tokenizer = Tokenizer()
+doc = tokenizer.make_doc("This is a test.")
+```
+
+This returns a `Doc` object.
 
 !!! note
-    In order to formalize the difference between a text string that has been scrubbed and one that has been tokenized, we refer wherever possible to the string as a "text" and to the tokenized `spacy.Doc` object as a "document" (or just "doc"). We continue to refer to the individual items as "documents" if we are not concerned with their data type.
+    The `tokenizer` module is a wrapper for the spaCy library, so you can also use spaCy directly to create a `Doc` object. Lexos s designed to make it easier to work with spaCy's functionality, but it is not necessary to use the Lexos API to work with spaCy.
 
-Each token is `spacy.Token` object which stores all the token's attributes.
+By default the tokenizer uses spaCy's "<a href="">xx_sent_ud_sm</a>(https://spacy.io/models/xx#xx_sent_ud_sm)" language model, which has been trained for tokenization and sentence segmentation on multiple languages. This model performs statistical sentence segmentation and possesses general rules for token segmentation that work well for a variety of languages. The default model has been chosen to be as language-agnostic as possible, so it can be used for many languages without requiring a specific model. However, it is not guaranteed to work well for all languages.
 
-The Lexos API wraps this procedure in the `tokenizer.make_doc()` function:
-
-```python
-from lexos import tokenizer
-
-doc = tokenizer.make_doc(text)
-```
-
-This returns a `spacy.Doc` object.
-
-By default the tokenizer uses spaCy's ["xx_sent_ud_sm"](https://github.com/explosion/spacy-models/releases/tag/xx_sent_ud_sm-3.2.0) language model, which has been trained for tokenization and sentence segmentation on multiple languages. This model performs statistical sentence segmentation and possesses general rules for token segmentation that work well for a variety of languages.
-
-If you were making a document from a text in a language which rquired a more language-specific model, you would specify the model to be used. For instance, to use spaCy's small English model trained on web texts, you would call
+If you were making a document from a text in a language which rquired a more language-specific model, you would specify the model to be used. For instance, to use spaCy's small English model trained on web texts, instantiate the `Tokenizer` class and use the `model` keyword argument to specify the model (it must be installed in your Python environment):
 
 ```python
-doc = tokenizer.make_doc(text, model="en_core_web_sm")
+tokenizer = Tokenizer(model="en_core_web_sm")
+doc = tokenizer.make_doc("This is a test.")
 ```
 
-`tokenizer` also has a `make_docs()` function to parse a list of texts into spaCy docs.
+!!! note
+    Be sure that the model you specify is installed in your Python environment. You can install spaCy models using the command line, for example:
+
+    ```bash
+    python -m spacy download fr_core_news_sm # Install the small French model
+    ```
+
+The `Tokenizer` class also has a `make_docs()` method to parse a list of texts into a list of spaCy docs.
 
 !!! important
-    Tokenization using spaCy uses a lot of memory. For a small English-language model, the parser and named entity recognizer (NER) can require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the memory limit with the `max_length` parameter. The limit is in number of characters (the default is set to 2,000,000 for Lexos), so you can check whether your inputs are too long by checking `len(text)`. If you are not using RAM-hungry pipeline components, you can disable or exclude them to avoid errors an increase efficiency (see the discussion on the spaCy pipeline below). In some cases, it may also be possible to cut the texts into segments before tokenization.
+    Tokenization using spaCy uses a lot of memory. For a small English-language model, the parser and named entity recognizer (NER) can require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the memory limit with the `max_length` parameter in `make_doc()` or `makes_docs()`. The limit is in number of characters (the default is set to 2,000,000 for Lexos), so you can check whether your inputs are too long by checking `len(text)`. If you are not using RAM-hungry pipeline components, you can disable or exclude them to avoid errors an increase efficiency (see the discussion on the spaCy pipeline below). In some cases, it may also be possible to cut the texts into segments before tokenization. See [Cutting Texts](../user_guide/cutting_texts.md) for more information.
+
+### Working with SpaCy Docs
 
 A list of individual tokens can be obtained by iterating over the spaCy doc:
 
 ```python
-# Get a list of tokens
+# Use a for loop to iterate over the tokens
+for token in doc:
+    print(token.text, token.pos_, token.is_stop)
+
+# Get a list of tokens with a list comprehension
 tokens = [token.text for token in doc]
 ```
 
@@ -99,9 +126,31 @@ The example above leverages the built-in `is_punct` attribute to indicate whethe
 
     The sample extension can be found in [lexos.tokenizer.extensions][extensions].
 
-### The spaCy Pipeline
+### Handling Stop Words
 
-Once spaCy tokenizes a text, it normally passes the resulting document to a pipeline of functions to parse it for other features. Typically, these functions will perform actions such as part-of-speech tagging, labelling syntactic dependencies, and identifying named entities. Processing times can be increased by disabling pipeline components if they are unavailable in the language model or not needed for the application's purposes. `make_doc()` and `make_docs()` will automatically run all pipeline components in the model unless they are disabled or excluded with the `disable` or `exclude` parameter. Check the model's documentation for the names of the components it includes.
+**Stop words** are tokens that are often filtered out in text processing because they do not carry significant meaning for the intended task. Examples include grammatical function words like "the", "is", "in", and "and". In many cases, it is useful to remove stop words from the text before performing further analysis, such as frequency counts or topic modeling. Many language models come with a predefined list of stop words that are commonly used in the language. These stop words are used to set the `is_stop` attribute for each stop word token to `True` when a document is tokenized. It is also possible to add stop words to or remove stop words from tokenizer using the `add_stopwords()` and `remove_stopwords()` method:
+
+```python
+tokenizer = Tokenizer(model="en_core_web_sm")
+tokenizer.add_stopwords(["yes", "no", "maybe"])
+tokenizer.remove_stopwords(["and", "or", "for"])
+doc = tokenizer.make_doc(text)
+```
+
+A search of the web can often yield a list of stop words for the language you are working in, and you will often have to add stop words to obtain satisfactory results. If you are using a language model that does not have a predefined stop word list, you can use the `add_stopwords()` method to add your own stop words.
+
+!!! important
+    `add_stopwords()` and `remove_stopwords()` do not add or remove tokens from the doc; instead, they modify the stop word list used to set the `is_stop` attribute of individual tokens to `True` or `False`. To get a list of tokens without stop words, you must **filter** them with something like `[token for token in doc if not token.is_stop]`. If you are producing a corpus of documents in which the documents will be processed by different models, it is most efficient to process the documents in batches, one batch for each model.
+
+### Modifying the SpaCy Pipeline
+
+Once spaCy tokenizes a text, it normally passes the resulting document to a pipeline of functions to parse it for other features. Typically, these functions will perform actions such as part-of-speech tagging, labelling syntactic dependencies, and identifying named entities (named entity recognition, or NER). Processing times can be increased by disabling pipeline components if they are unavailable in the language model or not needed for the application's purposes. `make_doc()` and `make_docs()` will automatically run all pipeline components in the model unless they are disabled with the `disable` parameter.
+
+```python
+doc = tokenizer.make_doc(text, disable=["parser", "ner"])
+```
+
+Check the model's documentation for the names of the components it includes by default.
 
 It is also possible to include custom pipeline components, which can be inserted at any point in the pipeline order. Custom components are supplied with the `pipeline_components` parameter, which takes a dictionary containing the keyword "custom". The value is a list of dictionaries where each dictionary contains information about the component as described in <a href="https://spacy.io/api/language/#add_pipe" target="_blank">spaCy's documentation</a>.
 
@@ -110,35 +159,29 @@ It is also possible to include custom pipeline components, which can be inserted
 
 The ability to add custom pipeline components is valuable for certain language- or application-specific scenarios. However, it also opens Lexos up to the wealth of third-part pipeline components available through the <a href="https://spacy.io/universe/category/pipeline" target="_blank">spaCy Universe</a>.
 
-### Handling Stop Words
+## Custom Tokenizers
 
-Every token in a spaCy doc has an `is_stop` attribute. Most language models will have a list of default stop words, and this list is used to set the `is_stop` attribute `True` for every token when the document is parsed. It is possible to add stop words to the default list by passing a list to `make_doc()` and `make_docs()` with the `add_stopwords` argument:
+Sometimes using a language model to perform tokenization is not appropriate or overkill for the desired output. Lexos has two tokenizer classes that operate on strings and return lists of strings. The mostly illustrate how you can produce your own tokenizer class if required.
 
-```python
-doc = tokenizer.make_doc(
-    text,
-    model="en_core_web_sm",
-    add_stopwords=["yes", "no", "maybe"]
-)
-```
-
-The `remove_stopwords` argument removes stop words from the default list. If `remove_stopwords=True`, all stop words are removed.
-
-!!! important
-    `add_stopwords` and `remove_stopwords` do not remove stop word tokens from the doc; rather, they modify the stop word list used to set the `is_stop` attribute of individual tokens. To get a list of tokens without stop words, you must do something like `[token for token in doc if not token.is_stop]`. If you a are producing a corpus of documents in which the documents will be processed by different models, it is most efficient to process the documents in batches, one batch for each model.
-
-## LexosDocs
-
-The Lexos API also has a `LexosDoc` class, which provides a wrapper for spaCy docs. Its use is illustrated below.
+`SliceTokenizer` slices the text into tokens of `n` characters. The constructor takes two arguments: `n`, which is the number of characters that each token will be, and `drop_ws`, a modifier that controls whether to drop whitespace or keep it.
 
 ```python
-from lexos.tokenizer.lexosdoc import LexosDoc
-
-lexos_doc = LexosDoc(doc)
-tokens = lexos_doc.get_tokens()
+from lexos.tokenizer import SliceTokenizer
+test_text = "Cut me up into tiny pieces!"
+slicer = SliceTokenizer(n=4, drop_ws=True)
+slices = slicer(test_text)
+print(slices)
 ```
 
-This example just returns `[token.text for token in doc]`, so it is not strictly necessary. But using the `LexosDoc` wrapper can be useful for producing clean code. In other cases, it might be useful to manipulate spaCy docs with methods that do not access their built-in or extended attributes or method. For instance, `LexosDoc.get_token_attrs()` shows what attributes are available for tokens in the doc and `LexosDoc.to_dataframe()` exports the tokens and their attributes to a pandas dataframe.
+`WhitespaceTokenizer` simply slices a text into tokens on whitespace, similarly to Python's built-in `split()` method.
+
+```python
+from lexos.tokenizer import WhitespaceTokenizer
+test_text = "Split me up by whitespace!"
+neatSlicer = WhitespaceTokenizer()
+slices = neatSlicer(test_text)
+print(slices)
+```
 
 ## Ngrams
 
@@ -146,38 +189,48 @@ Both texts and documents can be parsed into sequences of two or more tokens call
 
 ### Generating Word Ngrams
 
-The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call Textacy's `textacy.extract.basics.ngrams` method:
+The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call the `ngrams_from_doc()` method:
 
 ```python
 import spacy
-import textacy.extract.basics.ngrams as ng
+from lexos.tokenizer.ngrams import Ngrams as ng
 
 nlp = spacy.load("xx_sent_ud_sm")
-
 text = "The end is nigh."
-
 doc = nlp(text)
 
-ngrams = list(ng(doc, 2, min_freq=1))
+ng = Ngrams()
+
+ngrams = ng.from_doc(doc, size=2)
+for ngram in ngrams:
+    print(ngram.text)
+# The end
+# end is
+# is nigh
+# nigh .
 ```
 
-This will produce `[The end, end is, is nigh]`. The output is a list of spaCy tokens. (An additional `[token.text for token in ngrams]` is required to ensure that you have quoted strings: `["The end", "end is", "is nigh"]`).
+The `from_doc()` function yields a generator, so, if you wish to view it as a list, you need to call `list(ngrams)` on the output shown above. The size of the ngrams is specified by the `size` parameter, which defaults to 2. Setting it to 3, for instance, will result in the ngrams "The end is", "end is nigh", "is nigh ."
 
-Textacy has a lot of additional options, which are documented in the Textacy API reference under <code><a href="https://textacy.readthedocs.io/en/latest/api_reference/extract.html#textacy.extract.basics.ngrams" target="_blank">textacy.extract.basics.ngrams</a></code>. However, if you do not need these options, you can use `Tokenizer`'s helper function `ngrams_from_doc()`:
+!!! note
+    The `from_doc()` function is a wrapper for the `textacy.extract.basics.ngrams` method, which is part of the <a href="https://textacy.readthedocs.io/en/latest/" target="_blank">Textacy</a> library. You can call Textacy directly as shown below:
+
+    ```python
+    import textacy.extract.basics.ngrams as ng
+    ngrams = ng(doc, 2, min_freq=2)
+    ```
+
+    The `min_freq` parameter removes ngrams that do not occur at least two times. This can cut down on the size of the generated ngrams. Textacy has a lot of additional options, which are documented in the Textacy API reference under <code><a href="https://textacy.readthedocs.io/en/latest/api_reference/extract.html#textacy.extract.basics.ngrams" target="_blank">textacy.extract.basics.ngrams</a></code>. The Lexos `Ngrams.from_doc()` method accepts the same parameters as Textacy's method with a few additional options (see the [API documentation](../api/tokenizer/ngrams/)).
+
+There is also a `Ngrams.from_docs()` method that accepts a list of `Doc` objects and returns a list of ngram generators.
+
+!!! warning
+    The section below is wrong. The Ngrams class does not seem to have a way to generate character ngrams. The simple tokenizer is automatically called to process text. I need to investigate this further. Probably the slicer is the way to go for character ngrams.
+
+If you do not want to use a language model, the `Ngrams` class also accepts input data in the form of text strings with `Ngrams.from_text()` and `Ngrams.from_texts()`, as well as lists of string tokens with `Ngrams.from_tokens()`. Note that generating ngrams from text strings will produce **character ngrams**. For instance, the text "Hello world" will produce the bigrams "He, el, lo, o , w, wo, or, rl, ld". If you wish to generate ngrams of words, use `Ngrams.from_tokens()` with a list like `["Hello", "world", "how", "are", "you"]`.
 
 ```python
-import spacy
-
-nlp = spacy.load("xx_sent_ud_sm")
-
-text = "The end is nigh."
-
-doc = nlp(text)
-
-ngrams = ngrams_from_doc(doc, size=2)
-```
-
-Notice that in both cases, the output will be a list of overlapping ngrams generated by a rolling window across the pre-tokenized document. If you want your document to contain ngrams _as_ tokens, you will need to create a new document using `Tokenizer`'s `doc_from_ngrams()` function:
+In some cases, you may wish to generate a document where the ngrams are treated as tokens. This can be done by calling the `doc_from_ngrams()` function, which takes a list of ngrams and returns a new spaCy doc:
 
 ```python
 doc = doc_from_ngrams(ngrams, strict=True)
@@ -210,4 +263,3 @@ Once you have produced a list of ngrams, you can create a doc from them using `n
 Use `generate_character_ngrams()` (a) when you simply want a list of non-overlapping ngrams, or (b) when you want to produce docs with non-overlapping ngrams as tokens.
 
 Note that your language model may not be able apply labels effectively to ngram tokens, so working with character ngrams is primarily useful if you are planning to work with the token forms only, or if the ngram size you use maps closely to character lengths of words in the language you are working in.
-
