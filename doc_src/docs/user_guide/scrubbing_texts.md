@@ -1,6 +1,6 @@
 # Scrubbing Texts
 
-## Overview
+## The Scrubber Module
 
 Scrubber can be defined as a _destructive_ preprocessor. In other words, it changes the text as loaded in ways that potentially make mapping the results onto the original text impossible. It is therefore best used before other procedures so that the scrubbed text is essentially treated as the "original" text. This differs from the [Tokenizer](user_guide/tokenizing_texts.md), which divides the text into "tokens" (often words) without destroying the original text.
 
@@ -20,10 +20,10 @@ Scrubbing works by applying a single function or a pipeline of functions to the 
 
 Scrubber components are divided into three categories:
 
-1. [Normalize](https://scottkleinman.github.io/lexos/api/scrubber/normalize/) components are used to manipulate text into a standardized form.
-2. [Remove](https://scottkleinman.github.io/lexos/api/scrubber/remove/) components are used to remove strings and patterns from text.
-3. [Replace](https://scottkleinman.github.io/lexos/api/scrubber/replace/) components are used to replace strings and patterns in text.
-4. [Tags](https://scottkleinman.github.io/lexos/api/scrubber/tags/) components are used to remove and replace tags, elements, attributes, and their values in texts marked up in HTML or XML.
+1. [Normalize](scrubber/normalize.md) components are used to manipulate text into a standardized form.
+2. [Remove](scrubber/remove.md) components are used to remove strings and patterns from text.
+3. [Replace](scrubber/replace.md) components are used to replace strings and patterns in text.
+4. [Tags](scrubber/tags.md) components are used to remove and replace tags, elements, attributes, and their values in texts marked up in HTML or XML.
 
 Follow these links to read about the functions in each of Scrubber's components.
 

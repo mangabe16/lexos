@@ -9,8 +9,8 @@ nav:
       - Overview: user_guide/index.md
       - Getting Started: user_guide/getting_started.md
       - Loading Texts: user_guide/loading_texts.md
-      - Scrubber:
-        - Scrubbing Texts: user_guide/scrubbing_texts.md
+      - Scrubbing Texts:
+        - Scrubber Overview: user_guide/scrubbing_texts.md
         - Normalize: user_guide/scrubber/normalize.md
         - Remove: user_guide/scrubber/remove.md
         - Replace: user_guide/scrubber/replace.md
