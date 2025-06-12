@@ -1,7 +1,7 @@
 """test_kwic.py.
 
-Last Updated: February 18, 2025
-Last Tested: February 18, 2025.
+Last Updated: 6/12/25
+Last Tested: 6/12/25
 """
 
 from src.lexos.kwic import Kwic

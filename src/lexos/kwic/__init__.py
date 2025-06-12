@@ -1,4 +1,8 @@
-"""__init__.py."""
+"""__init__.py.
+
+Last Updated: 6/12/25
+Last Tested: 6/12/25
+"""
 
 from textacy.extract import kwic
 from spacy.tokens import Doc
