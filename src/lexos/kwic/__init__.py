@@ -3,7 +3,7 @@
 from textacy.extract import kwic
 from spacy.tokens import Doc
 from typing import Iterable, Pattern
-from pydantic import validate_call
+from pydantic import validate_call, ConfigDict
 
 from lexos.exceptions import LexosException
 
@@ -11,7 +11,9 @@ from lexos.exceptions import LexosException
 class Kwic:
     """A class for generating keyword-in-context (KWIC) results using textacy."""
 
-    #@validate_call
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @validate_call(config=model_config)
     def find(
         doc: Doc | str,
         keyword: str | Pattern,
