@@ -16,13 +16,13 @@ nav:
         - Replace: user_guide/scrubber/replace.md
         - Tags: user_guide/scrubber/tags.md
         - Internal Components: user_guide/scrubber/internal_components.md
-      - Tokenizing Texts: tutorial/tokenizing_texts.md
-  #     - Cutting Documents: tutorial/cutting_docs.md
-  #     - The Document-Term Matrix: tutorial/the_document_term_matrix.md
-  #     - Visualization: tutorial/visualization.md
-  #     - Managing a Corpus: tutorial/managing_a_corpus.md
-  #     - Training a Language Model: tutorial/training_a_language_model.md
-  #     - Topic Modelling with MALLET: tutorial/mallet_topic_models.md
+      - Tokenizing Texts: user_guide/tokenizing_texts.md
+  #     - Cutting Documents: user_guide/cutting_docs.md
+  #     - The Document-Term Matrix: user_guide/the_document_term_matrix.md
+  #     - Visualization: user_guide/visualization.md
+  #     - Managing a Corpus: user_guide/managing_a_corpus.md
+  #     - Training a Language Model: user_guide/training_a_language_model.md
+  #     - Topic Modelling with MALLET: user_guide/mallet_topic_models.md
   # - Development:
   #     - Index: development/index.md
   - API:
