@@ -180,11 +180,9 @@ slices = neatSlicer(test_text)
 print(slices)
 ```
 
-## Ngrams
+## Generating Ngrams
 
 Both texts and documents can be parsed into sequences of two or more tokens called ngrams. Many spaCy models can identify syntactic units such as noun chunks. These capabilities are not covered here since they are language specific. Instead, the section below describe how to obtain more general ngram sequences.
-
-### Generating Token Ngrams
 
 The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call the `ngrams_from_doc()` method:
 
