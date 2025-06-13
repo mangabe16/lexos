@@ -8,9 +8,14 @@ Last Update: 2025-06-12.
 
 import uuid
 import tempfile
+import zipfile
 import shutil
+import srsly
 from pathlib import Path
+from pydantic import PrivateAttr
 from collections import Counter
+from lexos.corpus.corpus import Corpus
+
 
 import pytest
 import pandas as pd
@@ -419,6 +424,714 @@ class TestCorpusClass:
         if record_ids:
             record = corpus.get(id=record_ids[0])
             assert record is not None
+
+    def test_corpus_repr(tmp_path):
+        """Test __repr__ method of Corpus."""
+        from lexos.corpus.corpus import Corpus
+
+        corpus = Corpus(corpus_dir=str(tmp_path), name="TestCorpus")
+        rep = repr(corpus)
+        assert rep.startswith("Corpus(")
+        assert "name=TestCorpus" in rep
+        assert "corpus_dir=" in rep
+    
+    def test_active_terms_property(self, nlp, temp_corpus_dir):
+        """Test Corpus.active_terms property."""
+
+        # Create a corpus
+        corpus = Corpus(corpus_dir=temp_corpus_dir)
+
+        # Create a parsed, active record with terms
+        doc = nlp("apple banana apple")
+        record = Record(
+            id=uuid.uuid4(),
+            name="test_doc",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        # Manually set terms for coverage
+        record.terms = {"apple": 2, "banana": 1}
+        record.is_parsed = True
+
+        # Add record to corpus
+        corpus.records[str(record.id)] = record
+
+        # The property should return the set of terms
+        active_terms = corpus.active_terms
+        assert isinstance(active_terms, set)
+        assert active_terms == {"apple", "banana"}
+
+    def test_corpus_meta_df(tmp_path):
+        """Test Corpus.meta_df property."""
+
+        # Create a corpus with some metadata
+        corpus = Corpus(corpus_dir=str(tmp_path), name="MetaDFTest")
+        corpus.meta = {"foo": "bar", "baz": 123}
+
+        # Should return a DataFrame with the metadata
+        df = corpus.meta_df
+        assert isinstance(df, pd.DataFrame)
+        assert "foo" in df.columns
+        assert "baz" in df.columns
+        assert df.iloc[0]["foo"] == "bar"
+        assert df.iloc[0]["baz"] == 123
+
+        # Should raise LexosException if meta is empty
+        corpus.meta = {}
+        with pytest.raises(LexosException):
+            _ = corpus.meta_df
+
+    def test_num_active_tokens_property(self, tmp_path, nlp):
+        """Test Corpus.num_active_tokens property."""
+        # Create a corpus
+        corpus = Corpus(corpus_dir=str(tmp_path), name="TokenTest")
+
+        # Case 1: No records, should return 0
+        assert corpus.num_active_tokens == 0
+
+        # Case 2: Add an inactive record, should still return 0
+        doc_inactive = nlp("foo bar baz")
+        record_inactive = Record(
+            id="1",
+            name="inactive_doc",
+            content= doc_inactive,
+            model="en_core_web_sm",
+            is_active=False
+        )
+        record_inactive.is_parsed = True
+        record_inactive.tokens = ["foo", "bar", "baz"]
+        corpus._add_to_corpus(record_inactive)
+        assert corpus.num_active_tokens == 0
+
+        # Case 3: Add an active, parsed record
+        doc_active = nlp("foo bar baz")
+        record_active = Record(
+            id="2",
+            name="active_doc",
+            content=doc_active,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record_active.is_parsed = True
+        record_active.tokens = ["foo", "bar", "baz"]
+        corpus._add_to_corpus(record_active)
+        assert corpus.num_active_tokens == 3
+
+        # Case 4: Add another active, parsed record
+        doc_active2 = nlp("hello world")
+        record_active2 = Record(
+            id="3",
+            name="active_doc2",
+            content=doc_active2,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record_active2.is_parsed = True
+        record_active2.tokens = ["hello", "world"]
+        corpus._add_to_corpus(record_active2)
+        assert corpus.num_active_tokens == 5
+
+    def test_num_active_terms_property(tmp_path, nlp):
+        """Test Corpus.num_active_terms property (lines 119-123 coverage)."""
+
+        corpus = Corpus(corpus_dir=str(tmp_path), name="ActiveTermsTest")
+
+        # Case 1: No records, should return 0
+        assert corpus.num_active_terms == 0
+
+        # Case 2: Add an inactive record, should still return 0
+        doc_inactive = nlp("foo bar baz")
+        record_inactive = Record(
+            id="1",
+            name="inactive_doc",
+            content=doc_inactive,
+            model="en_core_web_sm",
+            is_active=False
+        )
+        record_inactive.is_parsed = True
+        record_inactive.terms = {"foo": 1, "bar": 1, "baz": 1}
+        corpus._add_to_corpus(record_inactive)
+        assert corpus.num_active_terms == 0
+
+        # Case 3: Add an active, parsed record
+        doc_active = nlp("apple banana apple")
+        record_active = Record(
+            id="2",
+            name="active_doc",
+            content=doc_active,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record_active.is_parsed = True
+        record_active.terms = {"apple": 2, "banana": 1}
+        corpus._add_to_corpus(record_active)
+        assert corpus.num_active_terms == 2  # "apple" and "banana"
+    
+    def test_ensure_unique_name(self):
+
+        corpus = Corpus()
+        # Case 1: No name provided
+        name1 = corpus._ensure_unique_name()
+        assert name1.startswith("untitled_")
+
+        # Case 2: Unique name provided
+        unique = "mydoc"
+        corpus.names = []
+        name2 = corpus._ensure_unique_name(unique)
+        assert name2 == unique
+
+        # Case 3: Duplicate name provided
+        corpus.names = [unique]
+        name3 = corpus._ensure_unique_name(unique)
+        assert name3.startswith(f"{unique}_")
+        assert name3 != unique
+
+    def test_generate_unique_id(self):
+
+        corpus = Corpus()
+
+        # Test integer ID generation
+        corpus.records = {0: None, 1: None, 2: None}
+        int_id = corpus._generate_unique_id(type="integer")
+        assert int_id == 3
+
+        # Test uuid4 ID generation
+        corpus.records = {}
+        uuid_id = corpus._generate_unique_id(type="uuid4")
+        import uuid as uuid_mod
+        # Should be a valid UUID string
+        assert isinstance(uuid_mod.UUID(uuid_id), uuid_mod.UUID)
+
+        # Test uuid4 collision avoidance
+        fake_uuid = "12345678-1234-5678-1234-567812345678"
+        corpus.records = {fake_uuid: None}
+        # Patch uuid.uuid4 to return the fake_uuid first, then a real one
+        import uuid as uuid_mod
+        orig_uuid4 = uuid_mod.uuid4
+        calls = [fake_uuid, str(orig_uuid4())]
+        def fake_uuid4():
+            return calls.pop(0)
+        uuid_mod.uuid4 = fake_uuid4
+        try:
+            new_uuid = corpus._generate_unique_id(type="uuid4")
+            assert new_uuid != fake_uuid
+        finally:
+            uuid_mod.uuid4 = orig_uuid4
+
+        # Test invalid type raises LexosException
+    
+        with pytest.raises(Exception):
+            corpus._generate_unique_id(type="not_a_type")
+
+    def test_get_by_name(self):
+
+        corpus = Corpus()
+        # Simulate names as a dict mapping name to id
+        corpus.names = {"doc1": "id1", "doc2": "id2"}
+
+        # Case 1: Name exists
+        assert corpus._get_by_name("doc1") == "id1"
+        assert corpus._get_by_name("doc2") == "id2"
+
+        # Case 2: Name does not exist, should raise LexosException
+        with pytest.raises(LexosException):
+            corpus._get_by_name("not_in_corpus")
+
+    def test_corpus_add_method_full_coverage(tmp_path, nlp):
+
+        corpus = Corpus(corpus_dir=str(tmp_path), name="AddTest")
+
+        # 1. Add a single string
+        corpus.add("hello world", name="doc1")
+        assert any("doc1" in d for d in corpus.names)
+
+        # 2. Add a single spaCy Doc
+        doc = nlp("foo bar baz")
+        corpus.add(doc, name="doc2")
+        assert any("doc2" in d for d in corpus.names)
+
+        # 3. Add a single Record (with no ID)
+        record_no_id = Record(
+            name="doc3",
+            content=nlp("record no id"),
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record_no_id.is_parsed = True
+        record_no_id.tokens = ["record", "no", "id"]
+        record_no_id.terms = {"record": 1, "no": 1, "id": 1}
+        corpus.add(record_no_id)
+        assert any("doc3" in d for d in corpus.names)
+
+        # 4. Add a single Record (with unique ID)
+        record_with_id = Record(
+            id=str(uuid.uuid4()),
+            name="doc4",
+            content=nlp("record with id"),
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record_with_id.is_parsed = True
+        record_with_id.tokens = ["record", "with", "id"]
+        record_with_id.terms = {"record": 1, "with": 1, "id": 1}
+        corpus.add(record_with_id)
+        assert any("doc4" in d for d in corpus.names)
+
+        # 5. Add a list of mixed types (str, Doc, Record)
+        record_list = Record(
+            id=str(uuid.uuid4()),
+            name="doc5",
+            content=nlp("another record in list"),
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record_list.is_parsed = True
+        record_list.tokens = ["another", "record", "in", "list"]
+        record_list.terms = {"another": 1, "record": 1, "in": 1, "list": 1}
+        corpus.add([
+            "string in list",
+            nlp("doc in list"),
+            record_list
+        ], name="doc6")
+        # Should add three new records
+        assert any("doc6" in d for d in corpus.names)
+        assert any("doc5" in d for d in corpus.names)
+
+        # 6. Add with metadata and extensions
+        corpus.add(
+            "with meta and ext",
+            name="doc7",
+            metadata={"foo": "bar"},
+            extensions=["ext1", "ext2"]
+        )
+        assert any("doc7" in d for d in corpus.names)
+
+        # 7. Duplicate Record ID should raise LexosException
+        duplicate_record = Record(
+            id=record_with_id.id,
+            name="duplicate_doc",
+            content=nlp("duplicate"),
+            model="en_core_web_sm",
+            is_active=True
+        )
+        duplicate_record.is_parsed = True
+        duplicate_record.tokens = ["duplicate"]
+        duplicate_record.terms = {"duplicate": 1}
+        with pytest.raises(LexosException):
+            corpus.add(duplicate_record)
+        
+    def test_corpus_get_method_branches(tmp_path, nlp):
+
+        corpus = Corpus(corpus_dir=str(tmp_path), name="GetTest")
+
+        # Add two records
+        doc1 = nlp("foo bar")
+        doc2 = nlp("baz qux")
+        record1 = Record(
+            id=str(uuid.uuid4()),
+            name="doc1",
+            content=doc1,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record1.is_parsed = True
+        record1.tokens = ["foo", "bar"]
+        record1.terms = {"foo": 1, "bar": 1}
+        corpus._add_to_corpus(record1)
+
+        record2 = Record(
+            id=str(uuid.uuid4()),
+            name="doc2",
+            content=doc2,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record2.is_parsed = True
+        record2.tokens = ["baz", "qux"]
+        record2.terms = {"baz": 1, "qux": 1}
+        corpus._add_to_corpus(record2)
+
+        # 1. Raises if neither id nor name is provided
+        with pytest.raises(LexosException):
+            corpus.get()
+
+        # 2. Get by single id
+        result = corpus.get(id=str(record1.id))
+        assert result.name == "doc1"
+
+        # 3. Get by list of ids
+        result = corpus.get(id=[str(record1.id), str(record2.id)])
+        assert isinstance(result, list)
+        assert {r.name for r in result} == {"doc1", "doc2"}
+
+        # 4. Get by single name
+        result = corpus.get(name="doc2")
+        assert result.name == "doc2"
+
+        # 5. Get by list of names
+        result = corpus.get(name=["doc1", "doc2"])
+        assert isinstance(result, list)
+        assert {r.name for r in result} == {"doc1", "doc2"}
+    
+    def test_get_loads_record_from_disk(self,tmp_path, nlp, monkeypatch):
+
+        corpus = Corpus(corpus_dir=str(tmp_path), name="GetTestDisk")
+
+        # Add a record normally
+        doc = nlp("foo bar")
+        disk_id = str(uuid.uuid4())
+        record = Record(
+            id=disk_id,
+            name="disk_doc",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record.is_parsed = True
+        record.tokens = ["foo", "bar"]
+        record.terms = {"foo": 1, "bar": 1}
+        record.meta["filepath"] = str(tmp_path / "fakefile.bin")
+        record.meta["filename"] = "fakefile.bin"
+        corpus._add_to_corpus(record)
+
+        # Replace the record in self.records with a stub that has _from_disk
+        class StubRecord:
+            def __init__(self, meta, model):
+                self.meta = meta
+                self.model = model
+                self.loaded = False
+            def _from_disk(self, filepath, model, model_cache):
+                self.loaded = True
+                # Return a dummy Record for assertion
+                return record
+
+        stub = StubRecord(record.meta, record.model)
+        corpus.records[disk_id] = stub
+
+
+        class FakeRecordsDict(dict):
+            def keys(self):
+                # Return all keys except disk_id
+                return [k for k in super().keys() if k != disk_id]
+
+        # Save the original records
+        orig_records = corpus.records
+        # Replace with our fake dict
+        corpus.records = FakeRecordsDict(corpus.records)
+        # Now, get should trigger the else branch and call _from_disk
+        result = corpus.get(id=disk_id)
+        assert result == record
+        assert stub.loaded
+
+        # Restore the original records
+        corpus.records = orig_records
+    
+    def test_corpus_get_stats(self, tmp_path, nlp):
+
+        corpus = Corpus(corpus_dir=str(tmp_path), name="StatsTest")
+
+        # Add two active, parsed records
+        doc1 = nlp("apple banana apple")
+        record1 = Record(
+            id=str(uuid.uuid4()),
+            name="doc1",
+            content=doc1,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record1.is_parsed = True
+        record1.tokens = ["apple", "banana", "apple"]
+        record1.terms = {"apple": 2, "banana": 1}
+        corpus._add_to_corpus(record1)
+
+        doc2 = nlp("banana orange banana")
+        record2 = Record(
+            id=str(uuid.uuid4()),
+            name="doc2",
+            content=doc2,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record2.is_parsed = True
+        record2.tokens = ["banana", "orange", "banana"]
+        record2.terms = {"banana": 2, "orange": 1}
+        corpus._add_to_corpus(record2)
+
+        # Default: active_only=True, type="tokens"
+        stats = corpus.get_stats()
+        assert isinstance(stats, CorpusStats)
+        assert hasattr(stats, "docs")
+        assert any("apple" in t for _, _, t in stats.docs)
+
+        # Custom: active_only=False, type="characters"
+        stats_chars = corpus.get_stats(active_only=False, type="characters")
+        assert isinstance(stats_chars, CorpusStats)
+        assert hasattr(stats_chars, "docs")
+
+        # Custom: min_df, max_df, max_n_terms
+        stats_filtered = corpus.get_stats(min_df=1, max_df=2, max_n_terms=2)
+        assert isinstance(stats_filtered, CorpusStats)
+
+    def test_get_stats_unparsed_record(tmp_path, nlp):
+
+        corpus = Corpus(corpus_dir=str(tmp_path), name="StatsTestUnparsed")
+
+        # Add a record that is NOT parsed
+        text = "foo bar baz"
+        record = Record(
+            id=str(uuid.uuid4()),
+            name="unparsed_doc",
+            content=text,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record.is_parsed = False  # Key: triggers the else branch
+        corpus._add_to_corpus(record)
+
+        stats = corpus.get_stats()
+        assert isinstance(stats, CorpusStats)
+        # The tokens should be split by whitespace
+        assert any("foo" in t for _, _, t in stats.docs)
+        assert any("bar" in t for _, _, t in stats.docs)
+        assert any("baz" in t for _, _, t in stats.docs)
+
+    def test_corpus_load_branches(self, tmp_path, nlp):
+
+        # Setup: create a corpus and save metadata
+        corpus_dir = tmp_path / "corpus"
+        data_dir = corpus_dir / "data"
+        data_dir.mkdir(parents=True)
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="LoadTest")
+        doc = nlp("foo bar")
+        testid = str(uuid.uuid4())
+        record = Record(
+            id=testid,
+            name="testdoc",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record.is_parsed = True
+        record.tokens = ["foo", "bar"]
+        record.terms = {"foo": 1, "bar": 1}
+        corpus._add_to_corpus(record)
+        # Save metadata
+        def convert_sets_to_lists(obj):
+            if isinstance(obj, dict):
+                return {k: convert_sets_to_lists(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_sets_to_lists(i) for i in obj]
+            elif isinstance(obj, set):
+                return list(obj)
+            else:
+                return obj
+        serializable = corpus.model_dump()
+        serializable = convert_sets_to_lists(serializable)
+        if "records" in serializable:
+            def strip_nonserializable_fields(rec):
+                if hasattr(rec, "model_dump"):
+                    return rec.model_dump(exclude={"content", "tokens", "terms"})
+                elif isinstance(rec, dict):
+                    rec = rec.copy()
+                    rec.pop("content", None)
+                    rec.pop("tokens", None)
+                    rec.pop("terms", None)
+                    return rec
+                return rec
+
+            serializable["records"] = {
+                k: strip_nonserializable_fields(v)
+                for k, v in serializable["records"].items()
+            }
+        srsly.write_json(corpus_dir / corpus.corpus_metadata_file, serializable)
+
+        # 1. Load from directory (no path, corpus_dir provided)
+        c = Corpus(corpus_dir=str(corpus_dir), name="LoadTest")
+        c.load(path=corpus_dir, corpus_dir=corpus_dir)
+        assert c.name == "LoadTest"
+
+        # 2. Load from directory (no corpus_dir provided, uses self.corpus_dir)
+        c2 = Corpus(corpus_dir=str(corpus_dir), name="LoadTest")
+        c2.load(path=corpus_dir)
+        assert c2.name == "LoadTest"
+
+        # 3. Load from a valid zip archive
+        zip_path = tmp_path / "corpus.zip"
+        shutil.make_archive(str(zip_path).replace(".zip", ""), "zip", corpus_dir)
+        c3 = Corpus(corpus_dir=str(corpus_dir), name="LoadTest")
+        c3.load(path=zip_path, corpus_dir=tmp_path / "unzipped")
+        assert (tmp_path / "unzipped" / corpus.corpus_metadata_file).exists()
+
+        # 4. Load from an invalid zip archive (should raise LexosException)
+        bad_zip = tmp_path / "bad.zip"
+        bad_zip.write_bytes(b"not a zip file")
+        c4 = Corpus(corpus_dir=str(corpus_dir), name="LoadTest")
+        with pytest.raises(LexosException):
+            c4.load(path=bad_zip, corpus_dir=tmp_path / "bad_unzip")
+
+        # 5. Load with cache=True (should call from_disk on each record)
+        # Patch a record to test the from_disk branch
+        c5 = Corpus(corpus_dir=str(corpus_dir), name="LoadTest")
+        c5._add_to_corpus(record)
+        # Replace a record with a dummy Record that has from_disk
+        class DummyRecord(Record):
+            _loaded: bool = PrivateAttr(default=False)
+            def from_disk(self, *args, **kwargs):
+                self._loaded = True
+                return self
+        id1 = str(uuid.uuid4())
+        dummy = DummyRecord(
+            id=id1,
+            name="testdoc2",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        c5._add_to_corpus(dummy)
+        c5.records[id1] = dummy
+        c5.load(path=corpus_dir, cache=True)
+        assert hasattr(c5.records[id1], "_loaded") and c5.records[id1]._loaded
+
+        # 6. Load with a non-Record in records (should raise LexosException)
+        c6 = Corpus(corpus_dir=str(corpus_dir), name="LoadTest")
+        c6.records["bad"] = "not_a_record"
+        serializable_c6 = convert_sets_to_lists(c6.model_dump())
+        srsly.write_json(corpus_dir / c6.corpus_metadata_file, serializable_c6)
+        with pytest.raises(LexosException):
+            c6.load(path=corpus_dir, cache=True)
+
+    def test_corpus_save(self, tmp_path, nlp):
+
+        # Setup: create a corpus and add a record
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="SaveTest")
+        doc = nlp("foo bar")
+        record = Record(
+            id=str(uuid.uuid4()),
+            name="testdoc",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record.is_parsed = True
+        record.tokens = ["foo", "bar"]
+        record.terms = {"foo": 1, "bar": 1}
+        corpus._add_to_corpus(record)
+
+        # Save the corpus as a zip archive
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        corpus.save(path=out_dir)
+
+        # The zip file should exist
+        zip_path = out_dir / f"{corpus.name}.zip"
+        assert zip_path.exists()
+
+        # The zip file should contain the corpus directory structure
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            namelist = zf.namelist()
+            assert any("corpus_metadata.json" in name for name in namelist)
+            assert any("data/" in name or "data\\" in name for name in namelist)
+
+    def test_corpus_remove(self, tmp_path, nlp):
+
+        # Setup: create a corpus and add two records
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="RemoveTest")
+        doc = nlp("foo bar")
+        id1 = str(uuid.uuid4())
+        record1 = Record(
+            id=id1,
+            name="doc1",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record1.is_parsed = True
+        record1.tokens = ["foo", "bar"]
+        record1.terms = {"foo": 1, "bar": 1}
+        corpus._add_to_corpus(record1)
+
+        id2 = str(uuid.uuid4())
+        record2 = Record(
+            id=id2,
+            name="doc2",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record2.is_parsed = True
+        record2.tokens = ["foo", "bar"]
+        record2.terms = {"foo": 1, "bar": 1}
+        corpus._add_to_corpus(record2)
+
+        # Remove by ID
+        corpus.remove(id=id1)
+        assert id1 not in corpus.records
+
+        # Remove by name
+        corpus.remove(name="doc2")
+        assert id2 not in corpus.records
+
+        # Error: remove with neither id nor name
+        with pytest.raises(LexosException):
+            corpus.remove()
+
+        # Error: remove non-existent ID
+        with pytest.raises(LexosException):
+            corpus.remove(id="not_in_corpus")
+
+        # Error: remove non-existent name
+        with pytest.raises(LexosException):
+            corpus.remove(name="not_in_corpus")
+        
+        # Add a record
+        corpus._add_to_corpus(record1)
+        # Remove the name from the names dict
+        corpus.names.pop(record1.name)
+        # Now remove by ID, which will try to pop the name and fail
+        with pytest.raises(LexosException):
+            corpus.remove(id=str(record1.id))
+
+    def test_corpus_set(self, tmp_path, nlp):
+
+        # Setup: create a corpus and add a record
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="SetTest")
+        doc = nlp("foo bar")
+        testid =str(uuid.uuid4())
+        record = Record(
+            id=testid,
+            name="testdoc",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record.is_parsed = True
+        record.tokens = ["foo", "bar"]
+        record.terms = {"foo": 1, "bar": 1}
+        corpus._add_to_corpus(record)
+
+        # Set a property (e.g., is_active)
+        corpus.set(id=testid, is_active=False)
+        assert corpus.records[testid].is_active is False
+
+        # Set a metadata property
+        corpus.set(id=testid, meta={"foo": "bar"})
+        assert corpus.records[testid].meta["foo"] == "bar"
+
+        # Simulate changing the filepath and ensure the old file is deleted
+        old_filepath = corpus.records[testid].meta["filepath"]
+        new_filepath = str(tmp_path / "corpus" / "data" / "testid_changed.bin")
+        corpus.set(id=testid, meta={"filepath": new_filepath})
+        # The old file should be deleted (if it existed)
+        assert not Path(old_filepath).exists()
+        # The new file should be set
+        assert corpus.records[testid].meta["filepath"] == new_filepath
 
 
 class TestCorpusIntegrationWhenAvailable:

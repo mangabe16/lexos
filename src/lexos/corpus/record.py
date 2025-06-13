@@ -30,6 +30,7 @@ from pydantic import (
     computed_field,
     field_serializer,
     validate_call,
+    Field,
 )
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Token
@@ -46,9 +47,9 @@ class Record(BaseModel):
     is_active: Optional[bool] = True
     content: Optional[Doc | str] = None
     model: Optional[str] = None
-    extensions: Optional[list[str]] = []
+    extensions: list[str] = Field(default_factory=list)
     data_source: Optional[str] = None
-    meta: Optional[dict[str, Any]] = {}
+    meta: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -72,6 +73,10 @@ class Record(BaseModel):
                 content.user_data["extensions"][ext] = [token._.get(ext) for token in content]
             return content.to_bytes()
         return content
+
+    @field_serializer("id")
+    def serialize_id(self, id, _info):
+        return str(id)
 
     def __repr__(self):
         """Return a string representation of the record."""
@@ -297,7 +302,7 @@ class Record(BaseModel):
     def num_tokens(self) -> int:
         """Return the number of tokens."""
         if self.is_parsed:
-            return len(self.content)
+            return len(self.tokens)
         else:
             raise LexosException("Record is not parsed.")
 

@@ -44,7 +44,7 @@ class CorpusStats(BaseModel):
     max_df: int | None = None
     max_n_terms: int | None = None
     dtm: DTM = Field(
-        default_factory=DTM(), description="Document-Term Matrix (DTM) for the Corpus."
+        default_factory=DTM, description="Document-Term Matrix (DTM) for the Corpus."
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -53,8 +53,8 @@ class CorpusStats(BaseModel):
         """Initialize the CorpusStats and create the DTM."""
         super().__init__(**data)
         # Separate the ids and labels from the docs
-        self.ids = [doc[0] for doc in self.docs]
-        self.labels = [doc[0] for doc in self.docs]
+        object.__setattr__(self, "ids", [doc[0] for doc in self.docs])
+        object.__setattr__(self, "labels", [doc[1] for doc in self.docs])
 
         # Configure the DTM vectorizer with the provided settings
         self.dtm.vectorizer.min_df = (self.min_df,)

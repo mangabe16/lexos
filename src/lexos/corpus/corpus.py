@@ -18,6 +18,7 @@ from collections import Counter
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional
+from collections.abc import Iterable
 
 import pandas as pd
 import srsly
@@ -48,14 +49,15 @@ class Corpus(BaseModel):
     )
     name: str = Field(None, description="The name of the corpus.")
     records: RecordsDict = Field({}, description="Dictionary of records in the corpus.")
-    names: list[str] = []
-    meta: dict[str | Any] = Field(
+    names: dict[str, str] = Field(default_factory=dict)
+    meta: dict[str, Any] = Field(
         {},
         description="Metadata dictionary for arbitrary metadata relating to the corpus.",
     )
     model_cache: LexosModelCache = Field(
         LexosModelCache(),
         description="A cache for spaCy models used in the Corpus.",
+        exclude=True,
     )
     num_active_docs: int = Field(
         0, description="Number of active documents in the corpus."
@@ -72,7 +74,9 @@ class Corpus(BaseModel):
         super().__init__(**data)
         corpus_dir = Path(self.corpus_dir)
         Path(corpus_dir / "data").mkdir(parents=True, exist_ok=True)
-        srsly.write_json(corpus_dir / self.corpus_metadata_file, self.model_dump_json())
+        data = self.model_dump()
+        data["terms"] = list(data["terms"])
+        srsly.write_json(corpus_dir / self.corpus_metadata_file, data)
         print("Corpus created.")
 
     def __repr__(self):
@@ -86,7 +90,7 @@ class Corpus(BaseModel):
     def active_terms(self) -> set:
         """Return the set of active terms in the Corpus."""
         active_terms = set()
-        for record in self.records:
+        for record in self.records.values():
             if record.is_parsed and record.is_active:
                 active_terms.update(record.terms.keys())
         return active_terms
@@ -100,7 +104,7 @@ class Corpus(BaseModel):
         df.fillna("", inplace=True)
         return df
 
-    @cached_property
+    @property
     def num_active_tokens(self) -> int:
         """Return the number of active tokens in the Corpus."""
         if len(self.active_terms) == 0:
@@ -111,7 +115,6 @@ class Corpus(BaseModel):
             if record.is_active and record.is_parsed
         )
 
-    @cached_property
     @property
     def num_active_terms(self) -> int:
         """Return the number of active terms in the Corpus."""
@@ -131,24 +134,21 @@ class Corpus(BaseModel):
         num_terms = record.num_terms() if record.is_parsed else 0
         meta["num_tokens"] = num_tokens
         meta["num_terms"] = num_terms
-        self.meta.append(meta)
+        self.meta[record.id] = meta
 
         # Save the record to disk -- currently, this is always done
         corpus_dir = Path(self.corpus_dir)
         filename = f"{record.id}.bin"
         filepath = corpus_dir / "data" / filename
-        record.meta["filename"] = filename
-        record.meta["filepath"] = filepath
-        record.to_disk(record, record.filename)
+        record.meta["filename"] = str(filename)
+        record.meta["filepath"] = str(filepath)
+        record.to_disk(record.meta["filepath"])
 
         # Update the Corpus records dictionary
-        if cache:
-            self.records[record.id] = record
-        else:
-            self.records[record.id] = None
+        self.records[str(record.id)] = record
 
         # Update the Corpus names
-        self.names.append({record.name: record.id})
+        self.names[record.name] = str(record.id)
 
         # Update the Corpus statistics
         self._update_corpus_state()
@@ -216,12 +216,12 @@ class Corpus(BaseModel):
             terms, tokens, and unique terms in the entire Corpus.
         """
         self.num_docs = len(self.records)
-        self.num_active_docs = sum(1 for r in self.records if r.is_active)
-        self.num_terms = sum(r.num_terms() for r in self.records if r.is_parsed)
-        self.num_tokens = sum(r.num_tokens() for r in self.records if r.is_parsed)
+        self.num_active_docs = sum(1 for r in self.records.values() if r and r.is_active)
+        self.num_terms = sum(r.num_terms() for r in self.records.values() if r and r.is_parsed)
+        self.num_tokens = sum(r.num_tokens() for r in self.records.values() if r and r.is_parsed)
         srsly.write_json(
-            self.corpus_dir / self.corpus_metadata_file,
-            self.model_dump_json(exclude=["content", "terms", "text", "tokens"]),
+            Path(self.corpus_dir) / self.corpus_metadata_file,
+            self.model_dump(exclude=["content", "terms", "text", "tokens", "records"]),
         )
 
     @validate_call(config=model_config)
@@ -232,7 +232,7 @@ class Corpus(BaseModel):
         is_active: Optional[bool] = True,
         model: Optional[str] = None,
         extensions: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None, 
         id_type: Optional[str] = "uuid4",
         cache: Optional[bool] = False,
     ):
@@ -248,41 +248,44 @@ class Corpus(BaseModel):
             id_type (str): The type of ID to generate. Can be "integer" or "uuid4". Defaults to "uuid4".
             cache (bool): Whether or not to cache the record.
         """
-        # Ensure that content is a list of Records, Docs, or strings
-        if not isinstance(content, (Doc, Record, str, list)):
-            content = [content]
+        # If content is not a list, treat it as a single item
+        if isinstance(content, (Doc, Record, str)):
+            items = [content]
+        else:
+            items = list(content)
 
-        for item in content:
+        for item in items:
             # Generate a unique ID for the record
             new_id = self._generate_unique_id(type=id_type)
 
             # Keep generating new UUIDs until one is not in the records dic
-            while new_id in self.records:
-                new_id = str(uuid.uuid4())
+            #while new_id in self.records:
+            #    new_id = str(uuid.uuid4())
 
             if isinstance(item, Record):
                 record = item
-                if record.id and record.id in self.records:
+                if record.id and str(record.id) in self.records:
                     raise LexosException(
                         f"Record with ID {record.id} already exists in the Corpus."
                     )
-                elif not record.id:
-                    record.id = new_id
             else:
-                record = Record(
+                record_kwargs = dict(
                     id=new_id,
                     name=self._ensure_unique_name(name),
                     is_active=is_active,
                     content=item,
                     model=model,
-                    extensions=extensions,
                     data_source=None,
-                    meta=metadata,
                 )
+                if extensions is not None:
+                    record_kwargs["extensions"] = extensions
+                if metadata is not None:
+                    record_kwargs["meta"] = metadata
+                record = Record(**record_kwargs)
 
             # Add arbitrary metadata properties
             if metadata:
-                record.metadata.update(metadata)
+                record.meta.update(metadata)
 
             # Add the record to the Corpus
             self._add_to_corpus(record, cache=cache)
@@ -313,6 +316,8 @@ class Corpus(BaseModel):
         # Ensure id is a list
         if isinstance(id, str):
             ids = [id]
+        elif isinstance(id, list):
+            ids = id
 
         # If name is provided, get the ID from the name
         if name and not id:
@@ -380,22 +385,22 @@ class Corpus(BaseModel):
         if not token_list:
             # Filter the records to only include active ones
             if active_only:
-                records = [record for record in self.records if record.is_active]
+                records = [record for record in self.records.values() if record.is_active]
             # Otherwise, include all records
             else:
-                records = records
+                records = list(self.records.values())
 
             # Get the token list from the records
             if type == "tokens":
                 token_list = [
-                    (record.id, record.name, get_token_strings(record))
+                    (str(record.id), record.name, get_token_strings(record))
                     for record in records
                 ]
             elif type == "characters":
                 token_list = [
-                    (record.id, record.name, record.content.text)
+                    (str(record.id), record.name, list(record.content.text))
                     if record.is_parsed
-                    else (record.id, record.name, record.content)
+                    else (str(record.id), record.name, list(record.content))
                     for record in records
                 ]
 
@@ -432,10 +437,10 @@ class Corpus(BaseModel):
                 )
 
         # Open the metadata file and load the metadata
-        with open(corpus_dir / self.corpus_metadata_file, "r") as f:
-            metadata = srsly.read_json(f)
-            for key, value in metadata.items():
-                setattr(self, key, value)
+        metadata_path = corpus_dir / self.corpus_metadata_file
+        metadata = srsly.read_json(metadata_path)
+        for key, value in metadata.items():
+            setattr(self, key, value)
 
         # If cache is set, load the records into the model cache
         if cache:
@@ -487,7 +492,7 @@ class Corpus(BaseModel):
         if name and not id:
             if isinstance(name, str):
                 name = [name]
-            ids = self._get_by_name(name)
+            ids = [self._get_by_name(n) for n in name]
 
         for id in ids:
             # Remove the entry from the records dictionary and names list
@@ -498,10 +503,10 @@ class Corpus(BaseModel):
                     f"Record with ID {id} does not exist in the Corpus."
                 )
             try:
-                self.names.pop(entry["name"])
+                self.names.pop(entry.name)
             except KeyError:
                 raise LexosException(
-                    f"Record with name {entry['name']} does not exist in the Corpus."
+                    f"Record with name {entry.name} does not exist in the Corpus."
                 )
 
         # Update the Corpus state after removing the record
@@ -520,16 +525,16 @@ class Corpus(BaseModel):
 
         # Save the record's filepath, thenupdate the specified properties
         old_filepath = record.meta.get("filepath", None)
-        for k, v in props.items():
-            record.set(k, v)
+        record.set(**props)
 
         # If the filepath has changed, delete the old file
         if record.meta.get("filepath", None) != old_filepath:
             Path(old_filepath).unlink(missing_ok=True)
 
         # If the record has a filepath, ensure the file is in the data directory
-        if record.filepath and record.filepath not in Path(self.corpus_dir / "data"):
-            record.to_disk(record.filepath, extensions=record.extensions)
+        filepath = record.meta.get("filepath")
+        if filepath and filepath not in str(Path(self.corpus_dir) / "data"):
+            record.to_disk(filepath, extensions=record.extensions)
 
         # Update the record in the Corpus and update the corpus state
         self.records[id] = record
