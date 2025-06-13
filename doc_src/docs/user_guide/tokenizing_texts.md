@@ -1,8 +1,5 @@
 # Tokenizing Texts
 
-!!! warning
-    This document is a work in progress. It currently contains obsolete material from the alpha release.
-
 Many computational methods of studying texts require the text to be split into smaller, countable units called tokens. These tokens can be words, phrases, or even characters, depending on the method being used. The process of splitting a text into tokens is called **tokenization**.
 
 A tokenized document can be defined as a text split into tokens. This can be represented by a simple list of token strings. However, each token may also be represented as dictionary in which the token string is stored along with additional annotations. Below, we will refer to these annotations as token **attributes**. Here is an example of a list of token dictionaries conntaining attributes to indicate the token's part of speech and whether or not it is a stop word.
@@ -70,7 +67,7 @@ This returns a `Doc` object.
 !!! note
     The `tokenizer` module is a wrapper for the spaCy library, so you can also use spaCy directly to create a `Doc` object. Lexos s designed to make it easier to work with spaCy's functionality, but it is not necessary to use the Lexos API to work with spaCy.
 
-By default the tokenizer uses spaCy's "<a href="">xx_sent_ud_sm</a>(https://spacy.io/models/xx#xx_sent_ud_sm)" language model, which has been trained for tokenization and sentence segmentation on multiple languages. This model performs statistical sentence segmentation and possesses general rules for token segmentation that work well for a variety of languages. The default model has been chosen to be as language-agnostic as possible, so it can be used for many languages without requiring a specific model. However, it is not guaranteed to work well for all languages.
+By default the tokenizer uses spaCy's "<a href="https://spacy.io/models/xx#xx_sent_ud_sm">xx_sent_ud_sm</a>" language model, which has been trained for tokenization and sentence segmentation on multiple languages. This model performs statistical sentence segmentation and possesses general rules for token segmentation that work well for a variety of languages. The default model has been chosen to be as language-agnostic as possible, so it can be used for many languages without requiring a specific model. However, it is not guaranteed to work well for all languages.
 
 If you were making a document from a text in a language which rquired a more language-specific model, you would specify the model to be used. For instance, to use spaCy's small English model trained on web texts, instantiate the `Tokenizer` class and use the `model` keyword argument to specify the model (it must be installed in your Python environment):
 
@@ -79,12 +76,14 @@ tokenizer = Tokenizer(model="en_core_web_sm")
 doc = tokenizer.make_doc("This is a test.")
 ```
 
+```markdown
 !!! note
     Be sure that the model you specify is installed in your Python environment. You can install spaCy models using the command line, for example:
 
     ```bash
     python -m spacy download fr_core_news_sm # Install the small French model
     ```
+```
 
 The `Tokenizer` class also has a `make_docs()` method to parse a list of texts into a list of spaCy docs.
 
@@ -115,6 +114,7 @@ non_punct_tokens = [token.text for token in doc if not token.is_punct]
 
 The example above leverages the built-in `is_punct` attribute to indicate whether the token is defined as (or predicted to be) a punctuation mark in the language model. SpaCy docs have a number of built-in attributes, which are described in the <a href="https://spacy.io/api/doc#attributes" target="_blank">spaCy API reference</a>.
 
+```markdown
 !!! note
     It is possible to extend spaCy's Doc object with its extension attribute. Lexos has a sample `is_fruit` extension (borrowed from the spaCy docs), which is illustrated below. Note that extensions are accessed via the underscore prefix, as shown.
 
@@ -125,6 +125,7 @@ The example above leverages the built-in `is_punct` attribute to indicate whethe
     ```
 
     The sample extension can be found in [lexos.tokenizer.extensions][extensions].
+```
 
 ### Handling Stop Words
 
@@ -187,7 +188,7 @@ print(slices)
 
 Both texts and documents can be parsed into sequences of two or more tokens called ngrams. Many spaCy models can identify syntactic units such as noun chunks. These capabilities are not covered here since they are language specific. Instead, the section below describe how to obtain more general ngram sequences.
 
-### Generating Word Ngrams
+### Generating Token Ngrams
 
 The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call the `ngrams_from_doc()` method:
 
@@ -212,6 +213,7 @@ for ngram in ngrams:
 
 The `from_doc()` function yields a generator, so, if you wish to view it as a list, you need to call `list(ngrams)` on the output shown above. The size of the ngrams is specified by the `size` parameter, which defaults to 2. Setting it to 3, for instance, will result in the ngrams "The end is", "end is nigh", "is nigh ."
 
+```markdown
 !!! note
     The `from_doc()` function is a wrapper for the `textacy.extract.basics.ngrams` method, which is part of the <a href="https://textacy.readthedocs.io/en/latest/" target="_blank">Textacy</a> library. You can call Textacy directly as shown below:
 
@@ -221,45 +223,18 @@ The `from_doc()` function yields a generator, so, if you wish to view it as a li
     ```
 
     The `min_freq` parameter removes ngrams that do not occur at least two times. This can cut down on the size of the generated ngrams. Textacy has a lot of additional options, which are documented in the Textacy API reference under <code><a href="https://textacy.readthedocs.io/en/latest/api_reference/extract.html#textacy.extract.basics.ngrams" target="_blank">textacy.extract.basics.ngrams</a></code>. The Lexos `Ngrams.from_doc()` method accepts the same parameters as Textacy's method with a few additional options (see the [API documentation](../api/tokenizer/ngrams/)).
+```
 
 There is also a `Ngrams.from_docs()` method that accepts a list of `Doc` objects and returns a list of ngram generators.
 
-!!! warning
-    The section below is wrong. The Ngrams class does not seem to have a way to generate character ngrams. The simple tokenizer is automatically called to process text. I need to investigate this further. Probably the slicer is the way to go for character ngrams.
+If you do not want to use a language model, the `Ngrams` class also accepts input data in the form of text strings with `Ngrams.from_text()` and `Ngrams.from_texts()`. By default, your text(s) will be processed using the `WhitespaceTokenizer` before the ngrams are generated, although you can swap it for another tokenizer. If you use the `SliceTokenizer`, you will produce **character ngrams**. For instance, the text "Hello world" will produce the bigrams "He, el, lo, o , w, wo, or, rl, ld". (You can also generate character ngrams by calling `SliceTokenizer` directly: `ngrams = SliceTokenizer(text, n=2)`. Note that your language model may not be able apply labels effectively to ngram tokens, so working with character ngrams is primarily useful if you are planning to work with the token forms only, or if the ngram size you use maps closely to character lengths of words in the language you are working in.
 
-If you do not want to use a language model, the `Ngrams` class also accepts input data in the form of text strings with `Ngrams.from_text()` and `Ngrams.from_texts()`, as well as lists of string tokens with `Ngrams.from_tokens()`. Note that generating ngrams from text strings will produce **character ngrams**. For instance, the text "Hello world" will produce the bigrams "He, el, lo, o , w, wo, or, rl, ld". If you wish to generate ngrams of words, use `Ngrams.from_tokens()` with a list like `["Hello", "world", "how", "are", "you"]`.
-
-```python
-In some cases, you may wish to generate a document where the ngrams are treated as tokens. This can be done by calling the `doc_from_ngrams()` function, which takes a list of ngrams and returns a new spaCy doc:
+If you have a list of pre-tokenized strings, you can use the `Ngrams.from_tokens()` method. For instance, `ngrams = ng.from_tokens(["Hello", "world", "how", "are", "you"], n=3)` will generate "Hello world how, world how are, how are you".
 
 ```python
-doc = doc_from_ngrams(ngrams, strict=True)
+In some cases, you may wish to generate a document with ngrams as tokens. This can be done by calling spaCy's `Doc.from_docs()` method, which takes an iterable of ngrams and returns a new spaCy doc:
+
+```python
+from spacy.tokens import Doc
+new_doc = Doc.from_docs(ngrams)
 ```
-
-!!! note
-    Setting `strict=False` will preserve all the whitespace in the ngrams; otherwise, your language model may modify the output by doing things like splitting punctuation into separate tokens.
-
-There is also a `doc_from_ngrams()` function to which you can feed multiple lists of ngrams.
-
-A possible workflow might call Textacy directly to take advantage of some its filters, when generating ngrams and then calling `doc_from_ngrams()` to pipe the extracted tokens back into a doc. <code><a href="https://textacy.readthedocs.io/en/latest/api_reference/extract.html#textacy.extract.basics.ngrams" target="_blank">textacy.extract.basics.ngrams</a></code> has sister functions that do things like extract noun chunks (if available in the language model), making this a very powerful approach generating ngrams with semantic information.
-
-### Generating Character Ngrams
-
-Character ngrams at their most basic level split the _untokenized_ string every N characters. So "The end is nigh." would produce something like `["Th", "e ", "nd", " i", "s ", "ni", "gh", "."]` (if we wanted to preserve the whitespace). `Tokenizer` does this with the `generate_ngrams]()` function:
-
-```python
-text = "The end is nigh."
-
-ngrams = generate_character_ngrams(text, 2, drop_whitespace=False)
-```
-
-This will produce the output shown above. If we wanted to output `["Th", "en", "di", "sn", "ig", "h."]`, we would use `drop_whitespace=True` (which is the default).
-
-!!! note
-    `generate_character_ngrams()` is a wrapper for Python's `textwrap.wrap` method, which can also be called directly.
-
-Once you have produced a list of ngrams, you can create a doc from them using `ngrams_from_doc()`, as shown above.
-
-Use `generate_character_ngrams()` (a) when you simply want a list of non-overlapping ngrams, or (b) when you want to produce docs with non-overlapping ngrams as tokens.
-
-Note that your language model may not be able apply labels effectively to ngram tokens, so working with character ngrams is primarily useful if you are planning to work with the token forms only, or if the ngram size you use maps closely to character lengths of words in the language you are working in.
