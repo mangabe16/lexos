@@ -134,48 +134,56 @@ class CorpusStats(BaseModel):
 
         return file_stats
 
-    def get_iqr_outliers(self) -> list[tuple[str, str, int]]:
+    def get_iqr_outliers(self) -> list[tuple[str, str]]:
         """Get the interquartile range (IQR) outliers in the Corpus.
 
         Returns:
-            list[tuple[str, str, int]]: A list of tuples containing the document ID,
-            document name, and document length for each outlier.
+            list[tuple[str, str]]: A list of tuples containing the document ID
+            and document name for each outlier.
         """
         # Get doc lengths from the doc_stats_df
-        doc_lengths = np.array(self.doc_stats_df["total_tokens"].values.tolist())
+        doc_lengths = self.doc_stats_df["total_tokens"].values
 
-        # Convert to DataFrame for easier calculations
-        df = pd.DataFrame([self.ids, self.labels, doc_lengths]).fillna(0.0)
-        q1 = df[2].quantile(0.25)
-        q3 = df[2].quantile(0.75)
+        # Convert to proper DataFrame with explicit column structure
+        df = pd.DataFrame({
+            'ids': self.ids,
+            'labels': self.labels,
+            'lengths': doc_lengths
+        })
+        
+        # Calculate IQR on the lengths column specifically
+        q1 = df['lengths'].quantile(0.25)
+        q3 = df['lengths'].quantile(0.75)
         iqr = q3 - q1
         lower_bound = q1 - 1.5 * iqr
         upper_bound = q3 + 1.5 * iqr
-        self.iqr = iqr  # Store the IQR for later access
+        
+        # Don't try to assign to self.iqr (Pydantic won't allow it)
+        # Return outliers
         return [
-            (self.ids[i], self.labels[i])
+            (str(self.ids[i]), str(self.labels[i]))
             for i, length in enumerate(doc_lengths)
             if length < lower_bound or length > upper_bound
         ]
 
-    def get_std_outliers(self) -> list[tuple[str, str, int]]:
+    def get_std_outliers(self) -> list[tuple[str, str]]:
         """Get the standard deviation outliers in the Corpus.
 
         Returns:
-            list[tuple[str, str, int]]: A list of tuples containing the document ID,
-            document name, and document length for each outlier.
+            list[tuple[str, str]]: A list of tuples containing the document ID
+            and document name for each outlier.
         """
         # Get doc lengths from the doc_stats_df
-        doc_lengths = np.array(self.doc_stats_df["total_tokens"].values.tolist())
+        doc_lengths = self.doc_stats_df["total_tokens"].values
 
-        # Convert to DataFrame for easier calculations
-        df = pd.DataFrame([self.ids, self.labels, doc_lengths]).fillna(0.0)
-        mean = df[2].mean()
-        std_dev = df[2].std()
+        # Calculate mean and std
+        mean = doc_lengths.mean()
+        std_dev = doc_lengths.std()
+        
         return [
-            (self.ids[i], self.labels[i])
+            (str(self.ids[i]), str(self.labels[i]))
             for i, length in enumerate(doc_lengths)
-            if length < mean - 2 * std_dev or length > mean + 2 * std_dev
+            if abs(length - mean) > 2 * std_dev
         ]
 
     @validate_call(config=model_config)

@@ -15,10 +15,10 @@ To reproduce the web app's Statistics module, call `stats = Corpus.get_token_sta
 import shutil
 import uuid
 from collections import Counter
+from collections.abc import Iterable
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional
-from collections.abc import Iterable
 
 import pandas as pd
 import srsly
@@ -130,6 +130,9 @@ class Corpus(BaseModel):
         """
         # Update corpus records table
         meta = record.model_dump(exclude=["content", "terms", "text", "tokens"])
+        # Ensure ID is always string for JSON serialization
+        if "id" in meta:
+            meta["id"] = str(meta["id"])
         num_tokens = record.num_tokens() if record.is_parsed else 0
         num_terms = record.num_terms() if record.is_parsed else 0
         meta["num_tokens"] = num_tokens
@@ -145,10 +148,11 @@ class Corpus(BaseModel):
         record.to_disk(record.meta["filepath"])
 
         # Update the Corpus records dictionary
-        self.records[str(record.id)] = record
+        record_id_str = str(record.id)
+        self.records[record_id_str] = record
 
         # Update the Corpus names
-        self.names[record.name] = str(record.id)
+        self.names[record.name] = str(record.id)  # Explicitly convert to string
 
         # Update the Corpus statistics
         self._update_corpus_state()
@@ -219,9 +223,15 @@ class Corpus(BaseModel):
         self.num_active_docs = sum(1 for r in self.records.values() if r and r.is_active)
         self.num_terms = sum(r.num_terms() for r in self.records.values() if r and r.is_parsed)
         self.num_tokens = sum(r.num_tokens() for r in self.records.values() if r and r.is_parsed)
+        corpus_data = self.model_dump(exclude=["content", "terms", "text", "tokens", "records"])
+        # Convert any remaining UUIDs to strings
+        for key, value in corpus_data.items():
+            if hasattr(value, 'hex'):  # UUID objects have .hex attribute
+                corpus_data[key] = str(value)
+
         srsly.write_json(
             Path(self.corpus_dir) / self.corpus_metadata_file,
-            self.model_dump(exclude=["content", "terms", "text", "tokens", "records"]),
+            corpus_data,
         )
 
     @validate_call(config=model_config)
@@ -582,10 +592,13 @@ class Corpus(BaseModel):
             pd.DataFrame: A dataframe representing the records in the Corpus.
         """
         rows = []
-        for record in record in self.records.values():
+        for record in self.records.values():  # <- Fix the duplicate
+            if record is None:  # Skip None records
+                continue
+        
             # Get model categories
             row = record.model_dump(exclude=exclude)
-
+            
             # Add metadata categories
             metadata = row.pop("meta", {})
             for key, value in metadata.items():
@@ -597,6 +610,10 @@ class Corpus(BaseModel):
             rows.append(row)
 
         # Create a DataFrame from the rows
-        df = pd.DataFrame(rows, columns=list(rows[0].keys()))
-        df.fillna("", inplace=True)
-        return df
+        if rows:  # Only create DataFrame if we have data
+            df = pd.DataFrame(rows)
+            df.fillna("", inplace=True)
+            return df
+        else:
+            # Return empty DataFrame with basic columns if no records
+            return pd.DataFrame(columns=["id", "name", "is_active"])

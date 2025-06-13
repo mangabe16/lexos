@@ -27,10 +27,10 @@ from pydantic import (
     UUID4,
     BaseModel,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     validate_call,
-    Field,
 )
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Token
@@ -76,6 +76,7 @@ class Record(BaseModel):
 
     @field_serializer("id")
     def serialize_id(self, id, _info):
+        """Always serialize ID as string for JSON compatibility."""
         return str(id)
 
     def __repr__(self):
