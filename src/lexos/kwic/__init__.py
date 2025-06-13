@@ -8,6 +8,7 @@ from textacy.extract import kwic
 from spacy.tokens import Doc
 from typing import Iterable, Pattern
 from pydantic import validate_call, ConfigDict
+import pandas as pd
 
 from lexos.exceptions import LexosException
 
@@ -32,4 +33,13 @@ class Kwic:
             ignore_case=ignore_case,
             window_width=window_size,
             pad_context=pad_context,
+        )
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert the KWIC results to a pandas DataFrame."""
+        if not self.results:
+            raise LexosException("No results to convert. Please run find() first.")
+
+        return pd.DataFrame(
+            self.results, columns=["Left Context", "Keyword", "Right Context"]
         )
