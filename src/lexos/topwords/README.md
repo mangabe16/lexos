@@ -8,9 +8,9 @@ The lexos.topwords module provides tools for extracting significant keywords fro
 
 * This class extracts representative keywords from a single text document using algorithms from the textacy library. It is useful for quickly summarizing the key terms of a document.
 * Backend: textacy.extract.keyterms.
-* Methods: Supports standard keyword extraction algorithms via the method parameter, including "textrank" and "sgrank".
-* Customization: The topn parameter allows you to specify the number of top keywords to return.
-* Output: Returns a dictionary containing a list of keywords, where each keyword is a dictionary with a term and a score. Example: {'keywords': [{'term': str, 'score': float}]}.
+* Methods: Supports standard keyword extraction algorithms via the method parameter, including `textrank` and `sgrank`.
+* Customization: The `topn` parameter allows you to specify the number of top keywords to return.
+* Output: Returns a dictionary containing a list of keywords, where each keyword is a dictionary with a term and a score. Example: `{'keywords': [{'term': str, 'score': float}]}`.
 
 ### ZTestTopwords (__init__.py)
 
@@ -18,9 +18,9 @@ This class identifies statistically distinguishing words in a target corpus when
 
 * Backend: numpy for statistical calculations and spaCy (via the Lexos Tokenizer) for text processing.
 * Method: A Z-test is used to compare the proportions of word frequencies between the target and background corpora.
-* Preprocessing: Includes boolean options for case_sensitive analysis and for removing stopwords, punct (punctuation), and digits.
-* Customization: The topn parameter controls how many of the most significant words are returned.
-* Output: Returns a dictionary containing a list of the top words, where each word is a dictionary with a term and its z_score. Example: {'topwords': [{'term': str, 'z_score': float}]}.
+* Preprocessing: Includes boolean options for `case_sensitive` analysis and for removing `stopwords`, `punct` (punctuation), and `digits`.
+* Customization: The `topn` parameter controls how many of the most significant words are returned.
+* Output: Returns a dictionary containing a list of the top words, where each word is a dictionary with a term and its z_score. Example: `{'topwords': [{'term': str, 'z_score': float}]}`.
 
 ## Prerequisites and Installation
 
@@ -37,10 +37,6 @@ pip install pydantic numpy spacy textacy
 
 ```bash
 python -m spacy download en_core_web_sm
-```
-If you are developing the lexos package, it's recommended to install it in editable mode from the project root:
-```bash
-pip install -e .
 ```
 
 ## Usage
