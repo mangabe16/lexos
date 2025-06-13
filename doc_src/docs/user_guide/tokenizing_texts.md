@@ -76,14 +76,12 @@ tokenizer = Tokenizer(model="en_core_web_sm")
 doc = tokenizer.make_doc("This is a test.")
 ```
 
-```markdown
 !!! note
     Be sure that the model you specify is installed in your Python environment. You can install spaCy models using the command line, for example:
 
     ```bash
     python -m spacy download fr_core_news_sm # Install the small French model
     ```
-```
 
 The `Tokenizer` class also has a `make_docs()` method to parse a list of texts into a list of spaCy docs.
 
@@ -114,7 +112,6 @@ non_punct_tokens = [token.text for token in doc if not token.is_punct]
 
 The example above leverages the built-in `is_punct` attribute to indicate whether the token is defined as (or predicted to be) a punctuation mark in the language model. SpaCy docs have a number of built-in attributes, which are described in the <a href="https://spacy.io/api/doc#attributes" target="_blank">spaCy API reference</a>.
 
-```markdown
 !!! note
     It is possible to extend spaCy's Doc object with its extension attribute. Lexos has a sample `is_fruit` extension (borrowed from the spaCy docs), which is illustrated below. Note that extensions are accessed via the underscore prefix, as shown.
 
@@ -125,7 +122,6 @@ The example above leverages the built-in `is_punct` attribute to indicate whethe
     ```
 
     The sample extension can be found in [lexos.tokenizer.extensions][extensions].
-```
 
 ### Handling Stop Words
 
@@ -213,7 +209,6 @@ for ngram in ngrams:
 
 The `from_doc()` function yields a generator, so, if you wish to view it as a list, you need to call `list(ngrams)` on the output shown above. The size of the ngrams is specified by the `size` parameter, which defaults to 2. Setting it to 3, for instance, will result in the ngrams "The end is", "end is nigh", "is nigh ."
 
-```markdown
 !!! note
     The `from_doc()` function is a wrapper for the `textacy.extract.basics.ngrams` method, which is part of the <a href="https://textacy.readthedocs.io/en/latest/" target="_blank">Textacy</a> library. You can call Textacy directly as shown below:
 
@@ -223,7 +218,6 @@ The `from_doc()` function yields a generator, so, if you wish to view it as a li
     ```
 
     The `min_freq` parameter removes ngrams that do not occur at least two times. This can cut down on the size of the generated ngrams. Textacy has a lot of additional options, which are documented in the Textacy API reference under <code><a href="https://textacy.readthedocs.io/en/latest/api_reference/extract.html#textacy.extract.basics.ngrams" target="_blank">textacy.extract.basics.ngrams</a></code>. The Lexos `Ngrams.from_doc()` method accepts the same parameters as Textacy's method with a few additional options (see the [API documentation](../api/tokenizer/ngrams/)).
-```
 
 There is also a `Ngrams.from_docs()` method that accepts a list of `Doc` objects and returns a list of ngram generators.
 
