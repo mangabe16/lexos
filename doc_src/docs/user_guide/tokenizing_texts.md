@@ -225,7 +225,6 @@ If you do not want to use a language model, the `Ngrams` class also accepts inpu
 
 If you have a list of pre-tokenized strings, you can use the `Ngrams.from_tokens()` method. For instance, `ngrams = ng.from_tokens(["Hello", "world", "how", "are", "you"], n=3)` will generate "Hello world how, world how are, how are you".
 
-```python
 In some cases, you may wish to generate a document with ngrams as tokens. This can be done by calling spaCy's `Doc.from_docs()` method, which takes an iterable of ngrams and returns a new spaCy doc:
 
 ```python
