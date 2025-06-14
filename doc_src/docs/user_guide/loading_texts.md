@@ -14,7 +14,7 @@ Lexos has multiple components for loading different types of data. The simplest 
 The `DataLoader` class is designed for structured data files such as CSVs, JSON, or Excel files.
 
 !!! note
-    Both of these loaders inherit from an abstract `BaseLoader` abstract class, which defines the common features and methods that all loaders should implement. This allows for a consistent interface if you decide to build a custom loader for a data format not currently handled by the existing loaders.
+    Both of these loaders inherit from a `BaseLoader` abstract class, which defines the common features and methods that all loaders should implement. This allows for a consistent interface if you decide to build a custom loader for a data format not currently handled by the existing loaders.
 
 For practice using the Lexos `io` module, see the <a href="https://scottkleinman.github.io/lexos/tutorials/loading_texts.ipynb" target="_blank">Loading Texts tutorial</a>.
 
@@ -28,7 +28,7 @@ from lexos.io.smart import Loader
 
 # Create the loader and load the data
 loader = Loader()
-loader.load("myfile.txt)
+loader.load("myfile.txt")
 
 # Print the first text in the Loader
 text = loader.texts[0]
@@ -98,12 +98,12 @@ The `DataLoader` class can also access to the `records`, `data`, and `df` proper
 
 ### Merging Datasets
 
-Data can be merged from one `DataLoader` instnce into another using the `load_dataset()` method. The following example shows the data from the previously used data_loader_csv being merged into a new blank DataLoader.
+Data can be merged from one `DataLoader` instance into another using the `load_dataset()` method. The following example shows the data from the previously used data_loader_csv being merged into a new blank DataLoader.
 
 ```python
 # Create a new DataLoader instance and load a CSV file
 data_loader1 = DataLoader()
-data_loader.load_csv("myfile1.csv", name_col="title", text_col="content")
+data_loader1.load_csv("myfile1.csv", name_col="title", text_col="content")
 
 # Create a new DataLoader instance and load a CSV file
 data_loader2 = DataLoader()
@@ -148,7 +148,7 @@ for item in dataset.data:
 ```
 
 !!! warning
-    Notice that iterating through the `DatasetLoader` requires that you reference keywords of a dict (`item["text"]`, where as the `smart` loader yields an object, allowing you to reference `item.text`. We hope to make this behaviour more consistent in the future.
+    Notice that iterating through the `DatasetLoader` requires that you reference keywords of a dict `item["text"]`, where as the `smart` loader yields an object, allowing you to reference `item.text`. We hope to make this behaviour more consistent in the future.
 
 ## The `Dataset` Class
 
@@ -197,4 +197,4 @@ for item in [dataset_loader, dataset]:
 
 ## What Next?
 
-Once you have all your data in a `Loader`, you can manipulate the text. Almost inevitably, some of the text you have loaded will be "dirty" &mdash; meaning that it is not quite in the shape you want it in for further analysis. This may be a moment to do some preprocessing with the [Scrubber module](user_guide/scrubbing_texts.md).
+Once you have all your data in a `Loader`, you can manipulate the text. Almost inevitably, some of the text you have loaded will be "dirty" &mdash; meaning that it is not quite in the shape you want it in for further analysis. This may be a moment to do some preprocessing with the [Scrubber module](scrubbing_texts.md).
