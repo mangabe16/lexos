@@ -29,7 +29,7 @@ Many filtering procedures are easy to implement in this way.
 
 The easiest method for splitting a text into tokens is to use a simple rule-based approach, such as splitting the text on whitespace. However, this method is not always sufficient, especially for languages with complex morphology or syntax or where whitespace is not used to separate words (typical of Chinese, Japanese, and Korean). In these cases, it is often necessary to use a more sophisticated approach that takes into account the language's grammar and structure.
 
-In the Lexos API, we use **language models** to automate the tokenization process. A language model is a statistical model that has been trained on a large corpus of text in a specific language. It can be used to predict the likelihood of a sequence of words, which can help in identifying the boundaries between tokens. Language models can implement both rule-based and probabilistic strategies for separating document strings into tokens. The Lexos `tokenizer` module enables you to choose a language model appropriate to your data in order to split your texts into tokens.
+In the Lexos API, we use **language models** to automate the tokenization process. A language model is a statistical model that has been trained on a large corpus of text in a specific language. It can be used to predict the likelihood of a sequence of words, which can help in identifying the boundaries between tokens. Language models can implement both rule-based and probabilistic strategies for separating document strings into tokens. The Lexos [`tokenizer`](../../api/tokenizer/) module enables you to choose a language model appropriate to your data in order to split your texts into tokens.
 
 !!! note
     The `tokenizer` module is a big change for Lexos, as it formally separates tokenization from preprocessing. In the Lexos web app, users employ Scrubber to massage the text into shape using their implicit knowledge about the text's language. Tokenization then takes place by splitting the text according to a regular expression pattern (normally whitespace). By contrast, the Lexos `tokenizer` module uses a language model that formalizes the implicit rules and probabilities needed to tokenize the text. Because they have built-in procedures appropriate to specific languages, language models can often do a better job of tokenization than the approach used in the Lexos web app.
@@ -184,7 +184,7 @@ print(slices)
 
 Both texts and documents can be parsed into sequences of two or more tokens called ngrams. Many spaCy models can identify syntactic units such as noun chunks. These capabilities are not covered here since they are language specific. Instead, the section below describe how to obtain more general ngram sequences.
 
-The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call the `ngrams_from_doc()` method:
+The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call the [`ngrams_from_doc()`](../../api/tokenizer/ngrams/#lexos.tokenizer.ngrams.Ngrams.from_doc) method:
 
 ```python
 import spacy

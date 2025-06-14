@@ -69,7 +69,7 @@ nav:
   #         - Topic_Model: api/topic_model/index.md
       - tokenizer:
           - Overview: api/tokenizer/index.md
-  #         - Extensions: api/tokenizer/extensions.md
+          - ngrams: api/tokenizer/ngrams.md
   #         - LexosDoc: api/tokenizer/lexosdoc.md
   #     - Visualization:
   #         - Overview: api/visualization/index.md

@@ -1,8 +1,8 @@
-# Tokenizer
+# Ngrams
 
 TBD.
 
-### ::: lexos.tokenizer
+### ::: lexos.tokenizer.ngrams
 
     rendering:
       show_root_heading: true
