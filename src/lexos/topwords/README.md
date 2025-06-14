@@ -1,83 +1,91 @@
-# Lexos Topwords Module: Keyword and Top-Word Extraction
+# Lexos Topwords Module
 
 The lexos.topwords module provides tools for extracting significant keywords from documents and identifying statistically over-represented words in a corpus when compared to a background set of texts. It enables developers to perform comparative text analysis and keyword discovery using both algorithmic and statistical methods.
 
-## Core Classes
+## Plugin Architecture
 
-### TextacyKeywords (__init__.py)
+All topwords-related classes inherit from a common base class, `TopwordsPlugin`, which provides a consistent API (such as `to_dict()`, `to_df()`, and `to_list()`) for serialization and output. This makes it easy to add new analysis methods as plugins.
 
-* This class extracts representative keywords from a single text document using algorithms from the textacy library. It is useful for quickly summarizing the key terms of a document.
-* Backend: textacy.extract.keyterms.
-* Methods: Supports standard keyword extraction algorithms via the method parameter, including `textrank` and `sgrank`.
-* Customization: The `topn` parameter allows you to specify the number of top keywords to return.
-* Output: Returns a dictionary containing a list of keywords, where each keyword is a dictionary with a term and a score. Example: `{'keywords': [{'term': str, 'score': float}]}`.
+## spaCy Doc Extensions
 
-### ZTestTopwords (__init__.py)
+Custom attributes are registered on spaCy `Doc` objects to store analysis results:
 
-This class identifies statistically distinguishing words in a target corpus when compared against a background corpus. It uses a Z-test to score words based on how significantly more frequent they are in the target texts.
+- `topwords`: Stores the top distinguishing words for a document.
+- `keywords`: Stores extracted keywords for a document.
 
-* Backend: numpy for statistical calculations and spaCy (via the Lexos Tokenizer) for text processing.
-* Method: A Z-test is used to compare the proportions of word frequencies between the target and background corpora.
-* Preprocessing: Includes boolean options for `case_sensitive` analysis and for removing `stopwords`, `punct` (punctuation), and `digits`.
-* Customization: The `topn` parameter controls how many of the most significant words are returned.
-* Output: Returns a dictionary containing a list of the top words, where each word is a dictionary with a term and its z_score. Example: `{'topwords': [{'term': str, 'z_score': float}]}`.
+These attributes are set automatically by the analysis classes if you provide spaCy `Doc` objects.
 
-## Prerequisites and Installation
+## Classes
 
-To effectively use and contribute to this module, ensure you have the following installed:
+### `TextacyKeywords`
 
-* Python 3.8+
+- Extracts representative keywords from a single text document using algorithms from the textacy library.
+- Backend: textacy.extract.keyterms.
+- Methods: Supports standard keyword extraction algorithms via the method parameter, including `textrank` and `sgrank`.
+- Customization: The `topn` parameter allows you to specify the number of top keywords to return.
+- Output: After calling the instance, use `.to_dict()`, `.to_df()`, or `.to_list()` to get the results in your preferred format.
 
-* Core Libraries:
+__Parameters:__
 
-```bash
-pip install pydantic numpy spacy textacy
-```
-* spaCy Language Model:
+- `text`: The raw text to analyze.
+- `method`: `"textrank"` or `"sgrank"` (default: `"textrank"`).
+- `topn`: Number of top keywords to return (default: 10).
+- `tokenizer`: (optional) A `Tokenizer` instance.
 
-```bash
-python -m spacy download en_core_web_sm
-```
+__Usage:__
 
-## Usage
-
-All classes operate on raw text strings or lists of strings.
-
-Here's a minimal example for TextacyKeywords:
 ```python
 from lexos.topwords import TextacyKeywords
 
-# Example text
-doc = "Lexos is a powerful tool for text analysis. This analysis helps scholars find keywords."
-
-# Extract top 3 keywords using the 'textrank' method
-keyword_extractor = TextacyKeywords(text=doc, method="textrank", topn=3)
-results = keyword_extractor()
-
-print(results)
-# Expected output: {'keywords': [{'term': 'text analysis', 'score': 0.45}, ...]}
+kw = TextacyKeywords(text="Your text here", method="textrank", topn=5)
+kw()  # Run the analysis
+print(kw.to_dict())  # List of dicts
+print(kw.to_df())    # DataFrame
+print(kw.to_list())  # List of tuples
+# The keywords are also set on the spaCy Doc as kw.doc._.keywords
 ```
-Here's a minimal example for ZTestTopwords:
+
+### `ZTestTopwords`
+
+- Identifies the most distinguishing words in a set of target documents compared to a background corpus using a Z-test for statistical significance.
+- Backend: numpy for statistical calculations and spaCy (via the Lexos Tokenizer) for text processing.
+- Method: A Z-test is used to compare the proportions of word frequencies between the target and background corpora.
+- Preprocessing: Includes boolean options for `case_sensitive` analysis and for removing `stopwords`, `punct` (punctuation), and `digits`.
+- Customization: The `topn` parameter controls how many of the most significant words are returned.
+- Output: After calling the instance, use `.to_dict()`, `.to_df()`, or `.to_list()` to get the results in your preferred format.
+
+__Parameters:__
+
+- `target_texts`: List of target documents (strings).
+- `background_texts`: List of background documents (strings).
+- `topn`: Number of top words to return (default: 10).
+- `case_sensitive`, `remove_stopwords`, `remove_punct`, `remove_digits`: Preprocessing options.
+- `tokenizer`: (optional) A `Tokenizer` instance.
+- `docs`: (optional) List of spaCy `Doc` objects to set results on.
+
+__Usage:__
+
 ```python
 from lexos.topwords import ZTestTopwords
+import spacy
 
-# Example target and background documents
-target_docs = ["We study machine learning in Python.", "Python is used for machine learning."]
-background_docs = ["This is a general text about programming.", "Some developers prefer other languages."]
+nlp = spacy.blank("en")
+target_texts = ["This is a test.", "Another test document."]
+background_texts = ["Background text here.", "More background docs."]
+docs = [nlp(text) for text in target_texts]
 
-# Find the top 3 distinguishing words in the target docs
-ztest_extractor = ZTestTopwords(target_texts=target_docs, background_texts=background_docs, topn=3)
-results = ztest_extractor()
-
-print(results)
-# Expected output: {'topwords': [{'term': 'machine learning', 'z_score': 1.98}, ...]}
+ztest = ZTestTopwords(
+    target_texts=target_texts,
+    background_texts=background_texts,
+    docs=docs
+)
+ztest()  # Run the analysis
+print(ztest.to_dict())  # List of dicts
+print(ztest.to_df())    # DataFrame
+print(ztest.to_list())  # List of tuples
+# Each doc in docs now has doc._.topwords set to the top words
 ```
 
-## Development and Testing
+## Extending
 
-This module includes a test suite to ensure functionality and stability.
-
-To run the test suite and generate a detailed coverage report (this requires uv for dependency management in the project root):
-```bash
-uv run pytest --cov=src/lexos/topwords --cov-report=html tests/topwords
-```
+To add a new analysis method, inherit from `TopwordsPlugin` and implement your logic. You can also register new custom spaCy Doc extensions as needed.
