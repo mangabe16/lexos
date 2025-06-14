@@ -17,7 +17,8 @@ nav:
         - Tags: user_guide/scrubber/tags.md
         - Internal Components: user_guide/scrubber/internal_components.md
       - Tokenizing Texts: user_guide/tokenizing_texts.md
-  #     - Cutting Documents: user_guide/cutting_docs.md
+      - Cutting Documents: user_guide/cutting_docs.md
+      - Cutting Bracken: user_guide/cutting_bracken.md
   #     - The Document-Term Matrix: user_guide/the_document_term_matrix.md
   #     - Visualization: user_guide/visualization.md
   #     - Managing a Corpus: user_guide/managing_a_corpus.md
@@ -26,20 +27,25 @@ nav:
   # - Development:
   #     - Index: development/index.md
   - API:
-      - Milestones: api/milestones/index.md
-  #     - Overview: api/index.md
+      - Overview: api/index.md
+      - cutter:
+          - Cutter: api/cutter/index.md
+          # - Filesplit: api/cutter/filesplit.md
+          # - Ginsu: api/cutter/ginsu.md
+          # - Machete: api/cutter/machete.md
+          # - Merge: api/cutter/merge.md
+          # - Milestones: api/cutter/milestones.md
+          # - Registry: api/cutter/registry.md
+      - io:
+          - Overview: api/io/index.md
+          - base_loader: api/io/base_loader.md
+          - loader: api/io/loader.md
+          - data_loader: api/io/dataloader.md
+      - milestones: api/milestones/index.md
   #     - Cluster:
   #         - Cluster: api/cluster/index.md
   #     - Corpus:
   #         - Corpus: api/corpus/index.md
-  #     - Cutter:
-  #         - Cutter: api/cutter/index.md
-  #         - Filesplit: api/cutter/filesplit.md
-  #         - Ginsu: api/cutter/ginsu.md
-  #         - Machete: api/cutter/machete.md
-  #         - Merge: api/cutter/merge.md
-  #         - Milestones: api/cutter/milestones.md
-  #         - Registry: api/cutter/registry.md
   #     - DTM:
   #         - DTM: api/dtm/index.md
   #     - IO:
@@ -48,21 +54,22 @@ nav:
   #         - Dataset: api/io/dataset.md
   #     - Language_Model:
   #         - Language_Model: api/language_model/index.md
-  #     - Scrubber:
-  #         - Scrubber: api/scrubber/index.md
-  #         - Normalize: api/scrubber/normalize.md
-  #         - Pipeline: api/scrubber/pipeline.md
-  #         - Registry: api/scrubber/registry.md
-  #         - Remove: api/scrubber/remove.md
-  #         - Replace: api/scrubber/replace.md
-  #         - Resources: api/scrubber/resources.md
-  #         - Scrubber: api/scrubber/scrubber.md
-  #         - Utils: api/scrubber/utils.md
+      - scrubber:
+          - Overview: api/scrubber/index.md
+          - normalize: api/scrubber/normalize.md
+          - pipeline: api/scrubber/pipeline.md
+          - registry: api/scrubber/registry.md
+          - remove: api/scrubber/remove.md
+          - replace: api/scrubber/replace.md
+          - resources: api/scrubber/resources.md
+          - scrubber: api/scrubber/scrubber.md
+          - tags: api/scrubber/tags.md
+          - utils: api/scrubber/utils.md
   #     - Topic_Model:
   #         - Topic_Model: api/topic_model/index.md
-  #     - Tokenizer:
-  #         - Tokenizer: api/tokenizer/index.md
-  #         - Extensions: api/tokenizer/extensions.md
+      - tokenizer:
+          - Overview: api/tokenizer/index.md
+          - ngrams: api/tokenizer/ngrams.md
   #         - LexosDoc: api/tokenizer/lexosdoc.md
   #     - Visualization:
   #         - Overview: api/visualization/index.md

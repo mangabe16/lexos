@@ -2,19 +2,17 @@
 
 ## Overview
 
-A typical workflow would create a `Loader` object and call `loader.load()` to load the data from disk or download it from the internet. You can access all loaded texts by calling `Loader.texts`.
+The Lexos `io` module provides tools for loading texts and datasets into memory for analysis. It includes classes for loading individual text files, structured data files, and datasets containing multiple texts. The main classes are [`Loader`](../../api/io/loader) and [`DataLoader`](../../api/io/data_loader) for structured datasets. The `Loader` class is designed to handle various file formats, including plain text files, PDFs, and Word documents (as well as directories and zip archives containing these formats). `Loader` is able to detect file types  automatically using their <a href="https://en.wikipedia.org/wiki/Media_type" target="_blank">MIME types</a>. The `DataLoader` class is tailored for structured data files like CSV, JSON, and Excel files.
+
+A typical workflow would create a `Loader` object and call `Loader.load()` to load the data from disk or download it from the internet. You can access all loaded texts by calling `Loader.texts`.
 
 !!! note
     It is more efficient simply to use Python's `open()` to load texts into a list _if_ you know the file's encoding. The advantage of the `Loader` class is that it automatically coerces the data to <a href="https://en.wikipedia.org/wiki/UTF-8" target="_blank">UTF-8 encoding</a>, and it allows you to use the same method regardless of the file's format or whether it is on your local machine or downloaded from the internet.
 
 When you use a `Loader`, all your data is stored in memory for use in a Lexos workflow. You can save it to disk, but it is largely up to you to keep track of your data folder(s) and file locations. If you wish to have a more sophisticated system for managing your data, look at [Managing a Corpus](managing_a_corpus.md).
 
-Lexos has multiple components for loading different types of data. The simplest to use is the `Loader` class, which is designed for handling individual text, PDF, or Word files (`.txt`, `.pdf`, and `.docx`), as well as directories and zip archives containing these file types. `Loader` is able to detect file types  automatically using their <a href="https://en.wikipedia.org/wiki/Media_type" target="_blank">MIME types</a>.
-
-The `DataLoader` class is designed for structured data files such as CSVs, JSON, or Excel files.
-
-!!! note
-    Both of these loaders inherit from a `BaseLoader` abstract class, which defines the common features and methods that all loaders should implement. This allows for a consistent interface if you decide to build a custom loader for a data format not currently handled by the existing loaders.
+!!! note "Note for Developers"
+    Both of `Loader` and `DataLoader` inherit from an abstract [`BaseLoader`](../../api/io/base_loader) abstract class, which defines the common features and methods that all loaders should implement. This allows for a consistent interface if you decide to build a custom loader for a data format not currently handled by the existing loaders.
 
 For practice using the Lexos `io` module, see the <a href="https://scottkleinman.github.io/lexos/tutorials/loading_texts.ipynb" target="_blank">Loading Texts tutorial</a>.
 
