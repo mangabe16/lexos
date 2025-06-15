@@ -10,7 +10,8 @@ from spacy.lang.en.stop_words import STOP_WORDS
 from spacy.tokens import Doc
 import textacy
 from textacy import extract
-
+from spacy.lang.en.stop_words import STOP_WORDS
+from spacy.tokens import Doc
 from lexos.tokenizer import Tokenizer
 
 # register a custom extension for topwords if not already set
@@ -27,9 +28,10 @@ class TopwordsPlugin(BaseModel):
         return self.model_dump()
 
 class TextacyKeywords(TopwordsPlugin):
-    """Extracts keywords from text using textacy algorithms."""
+    """Extracts keywords from text or a spaCy Doc using textacy algorithms."""
 
-    text: str = Field(..., description="The raw text to analyze.")
+    text: Optional[str] = Field(None, description="The raw text to analyze.")
+    doc: Optional[Any] = Field(None, description="A spaCy Doc to analyze.")
     method: Literal["textrank", "sgrank"] = Field(
         "textrank", description="The keyword extraction method." # Defaults to "textrank"
     )
@@ -38,14 +40,20 @@ class TextacyKeywords(TopwordsPlugin):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __call__(self) -> Dict[str, List[Dict[str, Any]]]:
+    def __call__(self) -> None:
         """
         Extract keywords from the input text using the specified method.
 
         Returns:
             Dict[str, List[Dict[str, Any]]]: Extracted keywords and their scores.
         """
-        doc = self.tokenizer.make_doc(self.text) # process the raw input text into a spaCy Doc object.
+        if self.doc is not None:
+            doc = self.doc
+        elif self.text is not None:
+            doc = self.tokenizer.make_doc(self.text)
+            self.doc = doc
+        else:
+            raise ValueError("Either 'text' or 'doc' must be provided.")
 
         if self.method == "textrank":
             results: List[Tuple[str, float]] = extract.keyterms.textrank(doc, normalize="lemma", topn=self.topn)
@@ -56,9 +64,8 @@ class TextacyKeywords(TopwordsPlugin):
         else:
             raise ValueError("Invalid keyword extraction method.")
 
-        keywords_list = [{"term": term, "score": score} for term, score in results] # Format results for consistent output
-        doc._.keywords = keywords_list
-        self.doc = doc # storing the spaCy doc so it can be accessed later
+        self.keywords = [{"term": term, "score": score} for term, score in results] # Format results for consistent output
+        doc._.keywords = self.keywords
 
     def to_dict(self):
         """Return the extracted keywords as a dictionary."""
@@ -75,27 +82,43 @@ class TextacyKeywords(TopwordsPlugin):
 class ZTestTopwords(TopwordsPlugin):
     """Calculates top distinguishing words using Z-test for significance."""
 
-    target_texts: List[str] = Field(..., description="List of target documents.")
-    background_texts: List[str] = Field(..., description="List of background documents.")
+    target_texts: Optional[List[str]] = Field(None, description="List of target documents.")
+    background_texts: Optional[List[str]] = Field(None, description="List of background documents.")
+    target_docs: Optional[List[Any]] = Field(None, description="List of spaCy Doc objects for target documents.")
+    background_docs: Optional[List[Any]] = Field(None, description="List of spaCy Doc objects for background documents.")
     topn: int = Field(10, gt=0, description="Number of top words to return.")
     case_sensitive: Optional[bool] = Field(True, description="Whether analysis is case sensitive.")
     remove_stopwords: Optional[bool] = Field(True, description="Whether to remove stopwords.")
     remove_punct: Optional[bool] = Field(True, description="Whether to remove punctuation.")
     remove_digits: Optional[bool] = Field(False, description="Whether to remove digits.")
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
-    docs: Optional[List[Any]] = Field(None, description="Optional list of spaCy Doc objects.")
+    docs: Optional[List[Any]] = Field(None, description="Optional list of spaCy Doc objects to set results on.")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __call__(self) -> Dict[str, Any]:
+    def __call__(self) -> None:
         """
         Calculate top distinguishing words using Z-test for significance.
 
         Returns:
             Dict[str, Any]: Top words and their Z-scores.
         """
-        target_docs: List[Any] = list(self.tokenizer.make_docs(self.target_texts))
-        background_docs: List[Any] = list(self.tokenizer.make_docs(self.background_texts))
+        # Use provided docs or create them from text
+        if self.target_docs is not None:
+            target_docs = self.target_docs
+        elif self.target_texts is not None:
+            target_docs = list(self.tokenizer.make_docs(self.target_texts))
+            self.target_docs = target_docs
+        else:
+            raise ValueError("Either 'target_texts' or 'target_docs' must be provided.")
+
+        if self.background_docs is not None:
+            background_docs = self.background_docs
+        elif self.background_texts is not None:
+            background_docs = list(self.tokenizer.make_docs(self.background_texts))
+            self.background_docs = background_docs
+        else:
+            raise ValueError("Either 'background_texts' or 'background_docs' must be provided.")
 
         def get_tokens(docs: List[Any]) -> List[str]:
             """
@@ -154,13 +177,13 @@ class ZTestTopwords(TopwordsPlugin):
             results.append((term, z))
 
         sorted_results = sorted(results, key=lambda item: abs(item[1]), reverse=True)
-        topwords = sorted_results[:self.topn]
+        self.topwords = sorted_results[:self.topn]
 
         # if docs are provided, set the topwords attribute on each
         if self.docs is not None:
             for doc in self.docs:
-                doc._.topwords = topwords
-    
+                doc._.topwords = self.topwords
+
     def to_dict(self):
         """Return the topwords as a dictionary with terms and Z-scores."""
         return {"topwords": [{"term": term, "z_score": z_score} for term, z_score in getattr(self, "topwords", [])]}
