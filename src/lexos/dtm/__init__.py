@@ -1,10 +1,9 @@
 """__init__.py.
 
-Last Update: March 1, 2025
+Last Update: June 15, 2025
 Last Tested: February 18, 2025
 
-# WARNING: The sorted_terms_list and sorted_term_counts properties only
-# work if the DTM has been built with a vectorizer that has compatible `terms_list` and `vocabulary_terms` attributes.
+# WARNING: The sorted_terms_list and sorted_term_counts properties only work if the DTM has been built with a vectorizer that has compatible `terms_list` and `vocabulary_terms` attributes.
 """
 
 from typing import Callable, Iterable, Literal, Optional
@@ -73,17 +72,24 @@ class DTM(BaseModel):
     """Class for a document-term matrix."""
 
     docs: Optional[list[list[str] | Doc]] = Field(
-        default=None, json_schema_extra={"description": "A list of spaCy docs or a list of token lists."}
+        default=None,
+        json_schema_extra={
+            "description": "A list of spaCy docs or a list of token lists."
+        },
     )
     labels: Optional[list[str]] = Field(
-        default=None, json_schema_extra={"description": "A list of labels for the documents."}
+        default=None,
+        json_schema_extra={"description": "A list of labels for the documents."},
     )
     vectorizer: Optional[Callable] = Field(
         default=TextacyVectorizer,
-        json_schema_extra={"description": "A callable Vectorizer. Must have a fit_transform() method."}
+        json_schema_extra={
+            "description": "A callable Vectorizer. Must have a fit_transform() method."
+        },
     )
     alg: Optional[ns] = Field(
-        default=ns.LOCALE, json_schema_extra={"description": "The sorting algorithm to use."}
+        default=ns.LOCALE,
+        json_schema_extra={"description": "The sorting algorithm to use."},
     )
     doc_term_matrix: Optional[sp.spmatrix] = Field(
         default=None, json_schema_extra={"description": "The document-term matrix."}
@@ -99,55 +105,8 @@ class DTM(BaseModel):
             tuple[int, int]: The shape of the DTM.
         """
         if self.doc_term_matrix is None:
-            raise LexosException("DTM must be built before accesing its shape")
+            raise LexosException("DTM must be built before accessing its shape")
         return self.doc_term_matrix.shape
-
-    def __call__(
-        self, docs: Optional[list[list[str] | Doc]], labels: Optional[Iterable[str]]
-    ) -> None:
-        """Call method for DTM class.
-
-        Args:
-            docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
-            labels (list[str]): A list of labels for the documents.
-
-        Note:
-            - If you want to filter the docs by token attributes, you can do so beforehand
-            and pass the filtered docs to this method.
-            - If you want to sort the dataframe, use pandas sort_values(), but make sure to
-              pass `SORTING_ALGORITHM` or `self.alg` to the `key` parameter for natsorting.
-        """
-        if docs is None or len(docs) == 0:
-            raise LexosException(
-                "You must provide a list of docs or a list of lists of token strings."
-            )
-
-        # Make sure the sorting algorithm is valid
-        self._validate_sorting_algorithm()
-
-        # Coerce the docs to a list of token lists
-        if docs:
-            self.docs = docs
-        self.docs = [
-            [token.text for token in doc] if isinstance(doc, Doc) else doc
-            for doc in self.docs
-        ]
-        # Set the instance labels
-        if labels:
-            self.labels = labels
-        elif self.labels is None:
-            self.labels = [f"Doc{i + 1}" for i in range(len(self.docs))]
-
-        # Make sure the number of docs matches the number of labels
-        if len(self.docs) != len(self.labels):
-            raise LexosException("The number of docs must match the number of labels.")
-
-        # Call the vectorizer to build the DTM
-        try:
-            self.vectorizer = self.vectorizer()
-            self.doc_term_matrix = self.vectorizer.fit_transform(self.docs)
-        except Exception as e:
-            raise LexosException(f"Error building DTM: {e}")
 
     @property
     def sorted_terms_list(self) -> list[str]:
@@ -156,7 +115,7 @@ class DTM(BaseModel):
         Returns:
             list[str]: A natsorted list of terms in the DTM.
         """
-        if self.vectorizer is None or not hasattr(self.vectorizer, 'terms_list'):
+        if self.vectorizer is None or not hasattr(self.vectorizer, "terms_list"):
             # This handles cases where vectorizer might be None or not properly set up
             # before attempting to access terms_list.
             raise LexosException(
@@ -173,10 +132,10 @@ class DTM(BaseModel):
         """
         # 1. Handle edge cases: DTM not built or empty
         if self.doc_term_matrix is None or self.doc_term_matrix.shape[1] == 0:
-            return {} # Return an empty dictionary if no DTM or no terms
+            return {}  # Return an empty dictionary if no DTM or no terms
 
         # 2. Get the terms (column names) from the vectorizer
-        if not hasattr(self.vectorizer, 'terms_list') or not self.vectorizer.terms_list:
+        if not hasattr(self.vectorizer, "terms_list") or not self.vectorizer.terms_list:
             # Fallback for unexpected mock scenarios or custom vectorizers
             # A well-formed DTM should always have terms_list if it has a non-empty matrix
             raise LexosException(
@@ -199,9 +158,91 @@ class DTM(BaseModel):
 
         # 5. Natsort the items (term-count pairs) by term name, then convert back to a dictionary
         # This uses the natsort library based on the instance's 'alg'
-        sorted_items = natsorted(term_counts_dict.items(), key=lambda item: item[0], alg=self.alg)
+        sorted_items = natsorted(
+            term_counts_dict.items(), key=lambda item: item[0], alg=self.alg
+        )
         return dict(sorted_items)
-      
+
+    def __init__(
+        self, **data: dict[str, list | str | Callable | ns | sp.spmatrix]
+    ) -> None:
+        """Initialize the DTM class.
+
+        Args:
+            data (dict): A dictionary of data to initialize the DTM.
+                - docs: A list of spaCy docs or a list of token lists.
+                - labels: A list of labels for the documents.
+                - vectorizer: A callable Vectorizer. Must have a fit_transform() method.
+                - alg: The sorting algorithm to use (default is ns.LOCALE).
+                - doc_term_matrix: The document-term matrix (optional).
+                - **kwargs: Additional keyword arguments to pass to the vectorizer.
+        """
+        super().__init__(**data)
+        # Make sure that a vectorizer instance is called
+        self.vectorizer = self.vectorizer()
+
+        # Update the vectorizer with any additional keyword arguments
+        self._update_vectorizer(**data)
+
+    def __call__(
+        self,
+        docs: Optional[list[list[str] | Doc]],
+        labels: Optional[Iterable[str]],
+        **kwargs: dict[str, str | int | float | bool],
+    ) -> None:
+        """Call method for DTM class.
+
+        Args:
+            docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
+            labels (list[str]): A list of labels for the documents.
+            **kwargs (dict): Additional keyword arguments to pass to the vectorizer.
+
+        Note:
+            - If you want to filter the docs by token attributes, you can do so beforehand
+            and pass the filtered docs to this method.
+            - If you want to sort the dataframe, use pandas sort_values(), but make sure to
+              pass `SORTING_ALGORITHM` or `self.alg` to the `key` parameter for natsorting.
+        """
+        if docs is None or len(docs) == 0:
+            raise LexosException(
+                "You must provide a list of docs or a list of lists of token strings."
+            )
+
+        # Ensure that the vectorizer is not None
+        if self.vectorizer is None:
+            self.vectorizer = TextacyVectorizer()
+
+        # Make sure the sorting algorithm is valid
+        self._validate_sorting_algorithm()
+
+        # Coerce the docs to a list of token lists
+        if docs:
+            self.docs = docs
+        self.docs = [
+            [token.text for token in doc] if isinstance(doc, Doc) else doc
+            for doc in self.docs
+        ]
+        # Set the instance labels
+        if labels:
+            self.labels = labels
+        elif self.labels is None:
+            self.labels = [f"Doc{i + 1}" for i in range(len(self.docs))]
+
+        # Make sure the number of docs matches the number of labels
+        if len(self.docs) != len(self.labels):
+            raise LexosException("The number of docs must match the number of labels.")
+
+        # Call the vectorizer to build the DTM
+        # try:
+        # Update the vectorizer with any additional keyword arguments
+        self._update_vectorizer(**kwargs)
+
+        # Fit the vectorizer to the docs and build the document-term matrix
+        self.doc_term_matrix = self.vectorizer.fit_transform(self.docs)
+
+        # except Exception as e:
+        #     raise LexosException(f"Error building DTM: {e}")
+
     def _get_term_percentages(
         self,
         df: pd.DataFrame,
@@ -242,6 +283,15 @@ class DTM(BaseModel):
         if as_str == "string":
             df = df.map(lambda x: f"{x}%")
         return df
+
+    def _update_vectorizer(self, **kwargs: dict[str, str | int | float | bool]) -> None:
+        """Update the vectorizer with additional keyword arguments.
+
+        Args:
+            kwargs (dict): Additional keyword arguments to update the vectorizer.
+        """
+        for key, value in kwargs.items():
+            setattr(self.vectorizer, key, value)
 
     def _validate_sorting_algorithm(self) -> bool:
         """Ensure that the specified sorting algorithm is a valid natsort locale.
@@ -292,11 +342,15 @@ class DTM(BaseModel):
             by = self.labels[0]
         try:
             df = pd.DataFrame.sparse.from_spmatrix(
-                self.doc_term_matrix, columns=self.vectorizer.terms_list, index=self.labels
+                self.doc_term_matrix,
+                columns=self.vectorizer.terms_list,
+                index=self.labels,
             ).T
         except AttributeError:
             df = pd.DataFrame(
-                self.doc_term_matrix, columns=self.vectorizer.terms_list, index=self.labels
+                self.doc_term_matrix,
+                columns=self.vectorizer.terms_list,
+                index=self.labels,
             ).T
         except Exception as e:
             raise LexosException(f"Error converting DTM to DataFrame: {e}")
