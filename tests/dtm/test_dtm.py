@@ -1,6 +1,6 @@
 """test_dtm.py.
 
-Last Update: Jan 28, 2025
+Last Update: June 15, 2025
 
 Unit tests for the DTM (Document-Term Matrix) and related functionality in the lexos package.
 Covers construction, sorting, statistics, conversion to DataFrame, and error handling.

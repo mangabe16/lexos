@@ -1,7 +1,7 @@
 """__init__.py.
 
 Last Update: June 15, 2025
-Last Tested: February 18, 2025
+Last Tested: June 15, 2025
 
 # WARNING: The sorted_terms_list and sorted_term_counts properties only work if the DTM has been built with a vectorizer that has compatible `terms_list` and `vocabulary_terms` attributes.
 """
