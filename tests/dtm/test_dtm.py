@@ -1,10 +1,13 @@
 """test_dtm.py.
 
-Last Update: Jan 28, 2025
+Last Update: June 15, 2025
 
 Unit tests for the DTM (Document-Term Matrix) and related functionality in the lexos package.
 Covers construction, sorting, statistics, conversion to DataFrame, and error handling.
 """
+
+from typing import Any, Dict, Generator, List, Optional
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -14,12 +17,8 @@ from natsort import ns
 from scipy.sparse import csr_matrix
 from textacy.representations.vectorizers import Vectorizer as TextacyVectorizer
 
-from lexos.dtm import DTM
+from lexos.dtm import DTM, Vectorizer
 from lexos.exceptions import LexosException
-
-from lexos.dtm import Vectorizer
-from unittest.mock import patch
-from typing import Any, List, Dict, Optional, Generator
 
 # Fixtures
 
@@ -62,7 +61,7 @@ def mock_dtm() -> DTM:
     class MockVectorizer:
         # These are the terms in the order we expect them from TextacyVectorizer
         terms_list = ["10term", "2term", "Term3", "term1", "term2"]
-    
+
     dtm_instance.vectorizer = MockVectorizer()
 
     # Create a csr_matrix that, when summed along axis=0,
@@ -70,9 +69,10 @@ def mock_dtm() -> DTM:
     # example sums: {"10term": 2, "2term": 4, "Term3": 7, "term1": 3, "term2": 5}
     # The matrix below has 1 row (doc) and 5 coumns (terms), where each value is the total count
     dtm_instance.doc_term_matrix = csr_matrix(np.array([[2, 4, 7, 3, 5]]))
-    dtm_instance.labels = ["doc1"] # a dummy label as it's a mock
+    dtm_instance.labels = ["doc1"]  # a dummy label as it's a mock
 
     return dtm_instance
+
 
 @pytest.fixture
 def mock_df_dtm() -> DTM:
@@ -103,12 +103,30 @@ def mock_df() -> pd.DataFrame:
     )
 
 
+# @pytest.fixture
+# def sample_df() -> pd.DataFrame:
+#     """Fixture for a sample DataFrame with term counts."""
+#     return pd.DataFrame(
+#         {"doc1": [10, 20, 30], "doc2": [5, 15, 25]}, index=["term1", "term2", "term3"]
+#     )
+
+
 @pytest.fixture
-def sample_df() -> pd.DataFrame:
-    """Fixture for a sample DataFrame with term counts."""
-    return pd.DataFrame(
-        {"doc1": [10, 20, 30], "doc2": [5, 15, 25]}, index=["term1", "term2", "term3"]
-    )
+def sample_corpus(nlp):
+    """Fixture that provides a sample document corpus.
+
+    Returns:
+        pandas.DataFrame: A DataFrame with sample documents.
+    """
+    texts = [
+        "This is a sample text for testing.",
+        "Another example of a text to analyze.",
+        "This text is different from the others.",
+        "Yet another sample text for comparison.",
+        "This text is similar to the first one.",
+        "A completely different text for analysis.",
+    ]
+    return [nlp(text) for text in texts]
 
 
 # Tests
@@ -162,11 +180,11 @@ def test_invalid_sorting_algorithm(dtm: DTM, sample_docs: List[Any]) -> None:
         dtm(docs=sample_docs, labels=None)
 
 
-def test_vectorizer_error(dtm: DTM) -> None:
-    """Test error when vectorizer is not set."""
+def test_vectorizer_none(dtm: DTM) -> None:
+    """Test whether the default vectorizer is used if it is set to None."""
     dtm.vectorizer = None
-    with pytest.raises(LexosException, match="Error building DTM"):
-        dtm(docs=[["test"]], labels=["doc1"])
+    # This should not raise an error
+    dtm(docs=[["test"]], labels=["doc1"])
 
 
 def test_sorted_terms_list_basic(dtm_with_terms: DTM) -> None:
@@ -197,7 +215,10 @@ def test_sorted_terms_list_with_different_alg(nlp: spacy.language.Language) -> N
 def test_sorted_terms_list_no_vectorizer(dtm_with_terms: DTM) -> None:
     """Test behavior when vectorizer is not initialized."""
     dtm_with_terms.vectorizer = None
-    with pytest.raises(LexosException, match="Vectorizer or its 'terms_list' attribute is not available to get sorted terms."):
+    with pytest.raises(
+        LexosException,
+        match="Vectorizer or its 'terms_list' attribute is not available to get sorted terms.",
+    ):
         _ = dtm_with_terms.sorted_terms_list
 
 
@@ -216,10 +237,14 @@ def test_sorted_term_counts_empty() -> None:
 
     # Test DTM with an empty doc_term_matrix
     dtm_empty_matrix = DTM()
+
     class EmptyMockVectorizer:
         terms_list = []
+
     dtm_empty_matrix.vectorizer = EmptyMockVectorizer()
-    dtm_empty_matrix.doc_term_matrix = csr_matrix((0, 0)) # Explicitely an empty sparse matrix
+    dtm_empty_matrix.doc_term_matrix = csr_matrix(
+        (0, 0)
+    )  # Explicitly an empty sparse matrix
     assert dtm_empty_matrix.sorted_term_counts == {}
 
 
@@ -303,6 +328,13 @@ def test_dtm_shape_property(mock_df_dtm: DTM) -> None:
     """Test that the DTM.shape property returns the correct dimensions, matching the underlying doc_term_matrix shape."""
     expected_shape = (3, 2)
     assert mock_df_dtm.shape == expected_shape
+
+    with pytest.raises(
+        LexosException, match="DTM must be built before accessing its shape"
+    ):
+        dtm = DTM()
+        _ = dtm.shape
+
 
 
 def test_sorting(mock_df_dtm: DTM) -> None:
@@ -445,3 +477,133 @@ def test_error_message_formatting(dtm: DTM) -> None:
         dtm._validate_sorting_algorithm()
     for locale in ns:
         assert f"ns.{locale.name}" in str(excinfo.value)
+
+
+##### Additional Tests for Vectorizer Parameters and Properties #####
+
+
+def test_vectorizer_args_are_passed_on_init(sample_corpus):
+    """Test that vectorizer receives and uses custom parameters.
+
+    Args:
+        sample_corpus: Pytest fixture with sample documents.
+    """
+    # Create DTM with specific Vectorizer parameters
+    labels = [f"doc{i}" for i in range(len(sample_corpus))]
+    dtm1 = DTM(docs=sample_corpus, labels=labels)
+    dtm2 = DTM(docs=sample_corpus, labels=labels, min_df=2, max_df=0.9)
+
+    # Verify that the vectorizer has our custom parameters
+    assert dtm2.vectorizer.min_df == 2
+    assert dtm2.vectorizer.max_df == 0.9
+
+    # Validate that the parameters actually affect the result
+    dtm1(docs=sample_corpus, labels=labels)
+    dtm2(docs=sample_corpus, labels=labels)
+    assert dtm2.doc_term_matrix.shape != dtm1.doc_term_matrix.shape
+
+
+def test_vectorizer_args_are_passed_after_init(sample_corpus):
+    """Test that vectorizer receives and uses custom parameters.
+
+    Args:
+        sample_corpus: Pytest fixture with sample documents.
+    """
+    # Create DTM with specific Vectorizer parameters
+    labels = [f"doc{i}" for i in range(len(sample_corpus))]
+    dtm1 = DTM(docs=sample_corpus, labels=labels)
+    dtm2 = DTM(docs=sample_corpus, labels=labels)
+    dtm2.vectorizer.min_df = 2
+    dtm2.vectorizer.max_df = 0.9
+
+    # Verify that the vectorizer has our custom parameters
+    assert dtm2.vectorizer.min_df == 2
+    assert dtm2.vectorizer.max_df == 0.9
+
+    # Validate that the parameters actually affect the result
+    dtm1(docs=sample_corpus, labels=labels)
+    dtm2(docs=sample_corpus, labels=labels)
+    assert dtm2.doc_term_matrix.shape != dtm1.doc_term_matrix.shape
+
+
+def test_vectorizer_args_are_passed_on_call(sample_corpus):
+    """Test that vectorizer receives and uses custom parameters.
+
+    Args:
+        sample_corpus: Pytest fixture with sample documents.
+    """
+    # Create DTM with specific Vectorizer parameters
+    labels = [f"doc{i}" for i in range(len(sample_corpus))]
+    dtm1 = DTM()
+    dtm1(docs=sample_corpus, labels=labels)
+    dtm2 = DTM()
+    dtm2(docs=sample_corpus, labels=labels, min_df=2)
+
+    # Verify that the vectorizer has our custom parameters
+    assert dtm2.vectorizer.min_df == 2
+
+    # Validate that the parameters actually affect the result
+    assert dtm2.doc_term_matrix.shape != dtm1.doc_term_matrix.shape
+
+
+def test_custom_vectorizer_args(sample_corpus):
+    """Test that custom vectorizer instances receive and use provided parameters.
+
+    Args:
+        sample_corpus: Pytest fixture with sample documents.
+    """
+
+    class CustomVectorizer:
+        """Custom vectorizer for testing."""
+
+        def __init__(self, min_df: Optional[int] = 1, ngram: Optional[int] = 1):
+            """Initialize the custom vectorizer with specific parameters."""
+            self.min_df = min_df
+            self.ngram = ngram
+
+    # Pass the custom vectorizer to DTM
+    dtm1 = DTM(docs=sample_corpus, vectorizer=CustomVectorizer)
+    dtm2 = DTM(docs=sample_corpus, vectorizer=CustomVectorizer)
+    dtm2.vectorizer.min_df = 2
+    dtm2.vectorizer.ngram = 2
+
+    # Verify that DTM uses the custom vectorizer with its parameters
+    assert dtm1.vectorizer.min_df == 1
+    assert dtm1.vectorizer.ngram == 1
+    assert dtm2.vectorizer.min_df == 2
+    assert dtm2.vectorizer.ngram == 2
+
+
+def test_sorted_term_counts_property_no_terms_list():
+    """Test that the DTM.sorted_term_counts property raises a no terms_list error."""
+
+    class CustomVectorizer:
+        """Custom vectorizer for testing."""
+
+        def __init__(self):
+            self.no_terms_list = []
+
+    with pytest.raises(
+        LexosException,
+        match="Vectorizer must have 'terms_list' attribute to get sorted term counts.",
+    ):
+        dtm = DTM()
+        # Assign a dummy doc_term_matrix to bypass the first check
+        dtm.doc_term_matrix = csr_matrix(np.array([[1, 2], [3, 4]]))
+        # Assign the custom vectorizer that does not have a terms_list
+        dtm.vectorizer = CustomVectorizer()
+        # Attempt to access sorted_term_counts should raise an error
+        _ = dtm.sorted_term_counts
+
+
+def test_sorted_term_counts_property_mismatch(sample_corpus):
+    """Test that the DTM.sorted_term_counts property raises a mismatch error."""
+    dtm1 = DTM()
+    dtm2 = DTM()
+    docs1 = sample_corpus[0:2]
+    docs2 = sample_corpus[0:3]
+    dtm1(docs=docs1, labels=["doc1", "doc2"])
+    dtm2(docs=docs2, labels=["doc1", "doc2", "doc3"])
+    dtm1.doc_term_matrix = dtm2.doc_term_matrix
+    with pytest.raises(LexosException, match="Mismatch between"):
+        _ = dtm1.sorted_term_counts
