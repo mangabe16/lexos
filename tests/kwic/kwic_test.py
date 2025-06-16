@@ -1,7 +1,7 @@
 """test_kwic.py.
 
-Last Updated: February 18, 2025
-Last Tested: February 18, 2025.
+Last Updated: 6/12/25
+Last Tested: 6/12/25
 """
 
 from src.lexos.kwic import Kwic
@@ -24,3 +24,13 @@ def test_kwic_find_with_doc(tokenizer) -> None:
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
     assert results_list == [(" a ", "test", " st"), ("to ", "test", " th")]
+
+
+def test_kwic_word_not_found(tokenizer) -> None:
+    """Test KWIC find method with a word not found in the text."""
+    text = "This is a test string to test the Kwic module for finding correct words in context."
+    doc = tokenizer(text)
+    kwic_results = Kwic.find(doc=doc, keyword="nonexistent", window_size=3, pad_context=True)
+    results_list = list(kwic_results)
+    assert isinstance(kwic_results, Iterable)
+    assert results_list == []  # No results expected for a word not found
