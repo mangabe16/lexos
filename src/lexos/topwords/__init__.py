@@ -39,11 +39,11 @@ class TextacyKeywords(TopwordsPlugin):
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    keywords: Optional[List[Dict[str, Any]]] = Field(default=None, description="Extracted keywords.")
 
     def __call__(self) -> None:
         """
         Extract keywords from the input text using the specified method.
-
         Returns:
             Dict[str, List[Dict[str, Any]]]: Extracted keywords and their scores.
         """
@@ -93,7 +93,7 @@ class ZTestTopwords(TopwordsPlugin):
     remove_digits: Optional[bool] = Field(False, description="Whether to remove digits.")
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
     docs: Optional[List[Any]] = Field(None, description="Optional list of spaCy Doc objects to set results on.")
-
+    topwords: Optional[List[Tuple[str, float]]] = Field(default=None, description="Top distinguished words.")
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __call__(self) -> None:
