@@ -6,39 +6,52 @@ import spacy
 
 # ---------------- Fixtures ----------------
 
+
 @pytest.fixture
 def simple_text():
     return "Lexos is a tool for text analysis. Lexos helps find keywords in documents."
+
 
 @pytest.fixture
 def repeated_text():
     return "Lexos Lexos Lexos Lexos Lexos."
 
+
 @pytest.fixture
 def stopwords_text():
     return "the and if but or so yet for nor"
+
 
 @pytest.fixture
 def punctuation_text():
     return "!!! ??? ... ,,, ;;; :::"
 
+
 @pytest.fixture
 def target_texts():
     return ["Lexos is a tool for text analysis.", "Lexos helps find keywords."]
 
+
 @pytest.fixture
 def background_texts():
-    return ["This document is about general topics.", "It does not mention special tools."]
+    return [
+        "This document is about general topics.",
+        "It does not mention special tools.",
+    ]
+
 
 @pytest.fixture
 def identical_texts():
     return ["Lexos is great.", "Lexos is great."]
 
+
 @pytest.fixture
 def nlp():
     return spacy.blank("en")
 
+
 # ---------------- TextacyKeywords Tests ----------------
+
 
 def test_textacy_keywords_textrank(simple_text, nlp):
     extractor = TextacyKeywords(text=simple_text, method="textrank", topn=5)
@@ -120,8 +133,11 @@ def test_textacy_keywords_invalid_topn(simple_text):
 
 # ---------------- ZTestTopwords Tests ----------------
 
+
 def test_ztest_topwords_basic(target_texts, background_texts, nlp):
-    extractor = ZTestTopwords(target_texts=target_texts, background_texts=background_texts, topn=5)
+    extractor = ZTestTopwords(
+        target_texts=target_texts, background_texts=background_texts, topn=5
+    )
     extractor()
     result = extractor.to_dict()
     assert "topwords" in result
@@ -136,7 +152,9 @@ def test_ztest_topwords_basic(target_texts, background_texts, nlp):
     assert isinstance(tuples, list)
     # Test doc attribute
     docs = [nlp(text) for text in target_texts]
-    extractor2 = ZTestTopwords(target_docs=docs, background_texts=background_texts, topn=5, docs=docs)
+    extractor2 = ZTestTopwords(
+        target_docs=docs, background_texts=background_texts, topn=5, docs=docs
+    )
     extractor2()
     assert hasattr(extractor2, "target_docs")
     assert hasattr(docs[0]._, "topwords")
@@ -150,19 +168,25 @@ def test_ztest_topwords_empty_input():
 
 
 def test_ztest_topwords_large_topn(target_texts, background_texts):
-    extractor = ZTestTopwords(target_texts=target_texts, background_texts=background_texts, topn=100)
+    extractor = ZTestTopwords(
+        target_texts=target_texts, background_texts=background_texts, topn=100
+    )
     extractor()
     assert len(extractor.to_dict()["topwords"]) <= 100
 
 
 def test_ztest_topwords_only_stopwords(stopwords_text):
-    extractor = ZTestTopwords(target_texts=[stopwords_text], background_texts=["some other text"], topn=5)
+    extractor = ZTestTopwords(
+        target_texts=[stopwords_text], background_texts=["some other text"], topn=5
+    )
     extractor()
     assert extractor.to_dict()["topwords"] == []
 
 
 def test_ztest_topwords_repeated_words(repeated_text):
-    extractor = ZTestTopwords(target_texts=[repeated_text], background_texts=["other words"], topn=3)
+    extractor = ZTestTopwords(
+        target_texts=[repeated_text], background_texts=["other words"], topn=3
+    )
     extractor()
     tws = extractor.to_dict()["topwords"]
     assert len(tws) <= 3
@@ -171,13 +195,99 @@ def test_ztest_topwords_repeated_words(repeated_text):
 
 
 def test_ztest_topwords_identical_target_background(identical_texts):
-    extractor = ZTestTopwords(target_texts=identical_texts, background_texts=identical_texts, topn=5)
+    extractor = ZTestTopwords(
+        target_texts=identical_texts, background_texts=identical_texts, topn=5
+    )
     extractor()
     assert extractor.to_dict()["topwords"] == []
 
 
 def test_ztest_topwords_invalid_topn(target_texts, background_texts):
     with pytest.raises(ValidationError):
-        ZTestTopwords(target_texts=target_texts, background_texts=background_texts, topn=0)
+        ZTestTopwords(
+            target_texts=target_texts, background_texts=background_texts, topn=0
+        )
     with pytest.raises(ValidationError):
-        ZTestTopwords(target_texts=target_texts, background_texts=background_texts, topn=-1)
+        ZTestTopwords(
+            target_texts=target_texts, background_texts=background_texts, topn=-1
+        )
+
+
+def test_ztest_topwords_background_docs_direct_input(
+    nlp, target_texts, background_texts
+):
+    """Test providing `background_docs` directly."""
+    target_docs = [nlp(text) for text in target_texts]
+    background_docs = [nlp(text) for text in background_texts]
+    extractor = ZTestTopwords(
+        target_docs=target_docs, background_docs=background_docs, topn=5
+    )
+    extractor()
+    result = extractor.to_dict()
+    assert "topwords" in result
+    assert isinstance(result["topwords"], list)
+    assert len(result["topwords"]) <= 5
+    for tw in result["topwords"]:
+        assert "term" in tw and "z_score" in tw
+
+
+def test_ztest_topwords_missing_background_input():
+    """Tests the ValueError when neither background_texts nor background_docs are provided."""
+    with pytest.raises(
+        ValueError,
+        match="Either 'background_texts' or 'background_docs' must be provided.",
+    ):
+        ZTestTopwords(target_texts=["some text"], topn=5)()
+
+
+def test_ztest_topwords_case_sensitivity_and_line_137(nlp):
+    """
+    Covers line 137: `token_text = token.lower_`
+    Tests both case_sensitive=True and case_sensitive=False scenarios.
+    """
+    # Adjusted data to make 'apple' a more distinguishing term when case_sensitive=False
+    target_texts_case_ci = [
+        "Many Apple trees are here.",
+        "I like apple pie.",
+        "Sweet apple.",
+    ]
+    background_texts_case_ci = ["A tree is tall.", "I like fruit.", "Orange sweet."]
+
+    # Test case_sensitive=True: "Apple" and "apple" should be distinct
+    # For this test, let's make sure 'Apple' is unique to target and 'apple' (lowercase) is not present
+    # in the expected top words from background for case sensitive comparison.
+    target_cs = ["Apple is a fruit.", "Apple computers."]
+    background_cs = ["Eating an apple.", "red apple."]
+    extractor_cs = ZTestTopwords(
+        target_texts=target_cs,
+        background_texts=background_cs,
+        topn=5,
+        case_sensitive=True,
+        remove_stopwords=False,
+    )
+    extractor_cs()
+    cs_topwords = extractor_cs.to_list()
+    # "Apple" (capitalized) should be distinguishing for the target.
+    # "apple" (lowercase) from the background should have a negative Z-score or not appear in top positive.
+    # Assert that 'Apple' (capitalized) is found with a positive Z-score.
+    assert any(term == "Apple" for term, score in cs_topwords if score > 0)
+    # Assert that 'apple' (lowercase) is NOT found with a positive Z-score.
+    # It might have a negative score if it's more common in background, or just not in topN if not significant.
+    assert not any(term == "apple" for term, score in cs_topwords if score > 0)
+
+    # Test case_sensitive=False: "Apple" and "apple" should be treated as the same "apple"
+    extractor_ci = ZTestTopwords(
+        target_texts=target_texts_case_ci,
+        background_texts=background_texts_case_ci,
+        topn=5,
+        case_sensitive=False,  # This is the key line to cover line 137
+        remove_stopwords=False,
+    )
+    extractor_ci()
+    ci_topwords = extractor_ci.to_list()
+    # When case_sensitive=False, only "apple" (lowercase) should appear in the results
+    # and it should be a distinguishing term for the target.
+    assert any(term == "apple" for term, score in ci_topwords if score > 0)
+    assert not any(
+        term == "Apple" for term, _ in ci_topwords
+    )  # Ensure no capitalized version
