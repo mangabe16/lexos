@@ -291,3 +291,87 @@ def test_ztest_topwords_case_sensitivity_and_line_137(nlp):
     assert not any(
         term == "Apple" for term, _ in ci_topwords
     )  # Ensure no capitalized version
+
+
+def test_ztest_topwords_missing_target_input():
+    """
+    Covers line 110: `raise ValueError("Either 'target_texts' or 'target_docs' must be provided.")`
+    Tests the ValueError when neither target_texts nor target_docs are provided.
+    """
+    with pytest.raises(
+        ValueError, match="Either 'target_texts' or 'target_docs' must be provided."
+    ):
+        extractor = ZTestTopwords(background_texts=["some text"], topn=5)
+        extractor()  # Calling it triggers the internal checks
+
+
+def test_ztest_topwords_remove_digits_line_180(nlp):
+    """
+    Covers line 180: `if self.remove_digits and token.is_digit: continue`
+    Tests that digits are correctly removed when `remove_digits` is True.
+    """
+    target = ["Document with 123 numbers."]
+    background = ["Another document with no digits."]
+    extractor = ZTestTopwords(
+        target_texts=target,
+        background_texts=background,
+        topn=5,
+        remove_digits=True,  # This will activate the check
+        remove_stopwords=False,  # Don't remove other things to keep words for comparison
+        remove_punct=False,
+    )
+    extractor()
+    result = extractor.to_dict()["topwords"]
+    # Assert that no terms contain digits (e.g., "123")
+    assert not any(any(char.isdigit() for char in kw["term"]) for kw in result)
+
+    # Verify that if remove_digits is False, numbers *can* be included (optional additional check)
+    extractor_keep_digits = ZTestTopwords(
+        target_texts=["Document with 123 numbers."],
+        background_texts=["Another document with 456 numbers."],
+        topn=5,
+        remove_digits=False,  # Don't remove digits
+        remove_stopwords=False,
+        remove_punct=False,
+    )
+    extractor_keep_digits()
+    result_keep_digits = extractor_keep_digits.to_dict()["topwords"]
+    # We can't guarantee '123' will be a top word, but we can check if it's potentially present
+    assert any(any(char.isdigit() for char in kw["term"]) for kw in result_keep_digits)
+
+
+def test_ztest_topwords_denominator_is_zero_line_214_216(nlp):
+    """
+    Covers line 214 (denominator calculation) and line 216 (`z = 0.0` when denominator is 0).
+    This case happens when p is exactly 0 or 1.
+    We create a scenario where a term is present in 100% of the tokens in both corpora,
+    forcing p to be 1, which makes (1-p) be 0, and thus denominator becomes 0.
+    """
+    # Create a scenario where 'testword' is the ONLY word in both corpora.
+    # This makes p1=1, p2=1, p=1, leading to denominator = 0.
+    target_all_same = ["testword", "testword", "testword"]
+    background_all_same = ["testword", "testword", "testword"]
+
+    extractor = ZTestTopwords(
+        target_texts=target_all_same,
+        background_texts=background_all_same,
+        topn=1,
+        remove_stopwords=False,
+        remove_punct=False,
+        remove_digits=False,
+        case_sensitive=True,
+    )
+    extractor()
+    # Because p=1, z should be 0.0 (line 216 is hit).
+    # Since we filter out 0.0 Z-scores, the list should be empty.
+    assert extractor.to_dict()["topwords"] == []
+
+
+def test_textacy_keywords_missing_text_or_doc_input():
+    """
+    Covers `raise ValueError("Either 'text' or 'doc' must be provided.")` in TextacyKeywords.__call__.
+    """
+    # Instantiate without 'text' or 'doc'
+    extractor = TextacyKeywords(method="textrank", topn=5)
+    with pytest.raises(ValueError, match="Either 'text' or 'doc' must be provided."):
+        extractor()  # Calling it triggers the validation

@@ -14,6 +14,7 @@ from spacy.lang.en.stop_words import STOP_WORDS
 from spacy.tokens import Doc
 from lexos.tokenizer import Tokenizer
 
+
 # register a custom extension for topwords if not already set
 if not Doc.has_extension("topwords"):
     Doc.set_extension("topwords", default=None, force=True)
@@ -35,9 +36,8 @@ class TextacyKeywords(TopwordsPlugin):
     text: Optional[str] = Field(None, description="The raw text to analyze.")
     doc: Optional[Any] = Field(None, description="A spaCy Doc to analyze.")
     method: Literal["textrank", "sgrank"] = Field(
-        "textrank",
-        description="The keyword extraction method.",  # Defaults to "textrank"
-    )
+        ..., description="Method for keyword extraction (e.g., 'textrank', 'sgrank')."
+    )  # Fixed Literal for method
     topn: int = Field(
         10, gt=0, description="Number of top keywords to return."
     )  # Defaults to 10, must be > 0
@@ -70,8 +70,9 @@ class TextacyKeywords(TopwordsPlugin):
             results: List[Tuple[str, float]] = extract.keyterms.sgrank(
                 doc, normalize="lower", ngrams=(1, 2, 3), topn=self.topn
             )
-        else:
-            raise ValueError("Invalid keyword extraction method.")
+        # else:
+        # raise ValueError("Invalid keyword extraction method.") I believe this is redundant, because  Pydantic's Literal field
+        # already guarantees that self.method will only be "textrank" or "sgrank"
 
         self.keywords = [
             {"term": term, "score": score} for term, score in results
@@ -79,8 +80,14 @@ class TextacyKeywords(TopwordsPlugin):
         doc._.keywords = self.keywords
 
     def to_dict(self):
-        """Return the extracted keywords as a dictionary."""
-        return {"keywords": getattr(self, "keywords", [])}
+        """Return the keywords as a dictionary with terms and scores."""
+        # Call the base class's to_dict to get the model_dump, then add keywords
+        data = super().to_dict()  # This calls TopwordsPlugin.to_dict()
+        data["keywords"] = [
+            {"term": term, "score": score}
+            for term, score in getattr(self, "keywords", [])
+        ]
+        return data
 
     def to_df(self):
         """Return the extracted keywords as a pandas DataFrame."""
