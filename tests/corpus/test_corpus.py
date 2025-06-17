@@ -1132,6 +1132,154 @@ class TestCorpusClass:
         assert not Path(old_filepath).exists()
         # The new file should be set
         assert corpus.records[testid].meta["filepath"] == new_filepath
+    
+    def test_corpus_term_counts(self, tmp_path, nlp):
+
+        # Setup: create a corpus and add records with terms
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="TermTest")
+        id1 = str(uuid.uuid4())
+        doc = nlp("foo bar foo")
+        record1 = Record(
+            id=id1,
+            name="doc1",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record1.is_parsed = True
+        record1.tokens = ["foo", "bar", "foo"]
+        record1.terms = {"foo": 2, "bar": 1}
+        corpus._add_to_corpus(record1)
+        id2 = str(uuid.uuid4())
+        doc2 = nlp("baz foo")
+        record2 = Record(
+            id=id2,
+            name="doc2",
+            content=doc2,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record2.is_parsed = True
+        record2.tokens = ["baz", "foo"]
+        record2.terms = {"baz": 1, "foo": 1}
+        corpus._add_to_corpus(record2)
+
+        # Branch 1: most_common=True, n=2
+        result = corpus.term_counts(n=2, most_common=True)
+        assert isinstance(result, list)
+        assert result[0][0] == "foo"  # "foo" is most common
+
+        # Branch 2: most_common=True, n=None (should return Counter)
+        result = corpus.term_counts(n=None, most_common=True)
+        assert isinstance(result, Counter)
+        assert result["foo"] == 3
+
+        # Branch 3: most_common=False, n=2 (least common)
+        result = corpus.term_counts(n=2, most_common=False)
+        assert isinstance(result, list)
+        # Should contain the least common terms
+
+        # Branch 4: most_common=False, n=None (all, least common order)
+        result = corpus.term_counts(n=None, most_common=False)
+        assert isinstance(result, list)
+        # Should be all terms, least common first
+
+        # Branch 5: else (should return Counter)
+        result = corpus.term_counts(n=None, most_common=None)
+        assert isinstance(result, Counter)
+        assert result["foo"] == 3
+
+    def test_corpus_to_df(self, tmp_path, nlp):
+
+        # Setup: create a corpus and add records
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="DFTest")
+        id1 = str(uuid.uuid4())
+        doc = nlp("foo bar foo")
+        record1 = Record(
+            id=id1,
+            name="doc1",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record1.is_parsed = True
+        record1.tokens = ["foo", "bar", "foo"]
+        record1.terms = {"foo": 2, "bar": 1}
+        record1.meta["custom"] = "meta1"
+        corpus._add_to_corpus(record1)
+
+        id2 = str(uuid.uuid4())
+        doc2 = nlp("baz foo")
+        record2 = Record(
+            id=id2,
+            name="doc2",
+            content=doc2,
+            model="en_core_web_sm",
+            is_active=False
+        )
+        record2.is_parsed = True
+        record2.tokens = ["baz", "foo"]
+        record2.terms = {"baz": 1, "foo": 1}
+        record2.meta["custom"] = "meta2"
+        corpus._add_to_corpus(record2)
+
+        # Test DataFrame output
+        df = corpus.to_df()
+        assert isinstance(df, pd.DataFrame)
+        assert set(df["id"]) == {id1, id2}
+        assert set(df["name"]) == {"doc1", "doc2"}
+        assert "custom" in df.columns or "metadata_custom" in df.columns
+
+        # Test with exclude that removes custom metadata
+        df2 = corpus.to_df(exclude=["custom"])
+        assert isinstance(df2, pd.DataFrame)
+
+        # Test empty corpus
+        empty_corpus = Corpus(corpus_dir=str(tmp_path / "empty"), name="EmptyDF")
+        df_empty = empty_corpus.to_df()
+        assert isinstance(df_empty, pd.DataFrame)
+        assert df_empty.empty
+
+        # Manually insert a None record
+        corpus.records["none_id"] = None
+
+        # to_df should skip the None record and not raise
+        df = corpus.to_df()
+        assert isinstance(df, pd.DataFrame)
+        assert id1 in set(df["id"])
+        assert "none_id" not in set(df["id"])
+
+    def test_to_df_metadata_key_collision(self, tmp_path, nlp):
+
+        # Setup: create a corpus and add a record with a metadata key that collides with a top-level field
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="DFMetaCollision")
+        id1 = str(uuid.uuid4())
+        doc = nlp("foo bar")
+        record1 = Record(
+            id=id1,
+            name="doc1",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True,
+            meta={"name": "meta_name_value"}  # This will collide with the top-level "name"
+        )
+        record1.is_parsed = True
+        record1.tokens = ["foo", "bar"]
+        record1.terms = {"foo": 1, "bar": 1}
+        corpus._add_to_corpus(record1)
+
+        # to_df should put the metadata value under "metadata_name"
+        df = corpus.to_df()
+        assert "metadata_name" in df.columns
+        assert df.loc[df["id"] == id1, "metadata_name"].iloc[0] == "meta_name_value"
+        # The top-level "name" should still be present and correct
+        assert df.loc[df["id"] == id1, "name"].iloc[0] == "doc1"
 
 
 class TestCorpusIntegrationWhenAvailable:

@@ -564,7 +564,7 @@ class Corpus(BaseModel):
             A collections.Counter object containing the n most common term counts for all records in the Corpus.
         """
         # Count the terms in all records
-        counter = Counter(n)
+        counter = Counter()
         for record in self.records.values():
             if record.is_parsed:
                 counter.update(record.terms)
@@ -574,7 +574,7 @@ class Corpus(BaseModel):
             return counter.most_common(n)
         elif not most_common and n:
             return counter.most_common()[: -n - 1 : -1]
-        elif not most_common and n is None:
+        elif most_common is False and n is None:
             return counter.most_common()[::]
         else:
             return counter
