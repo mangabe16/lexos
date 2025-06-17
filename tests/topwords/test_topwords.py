@@ -241,10 +241,7 @@ def test_ztest_topwords_missing_background_input():
 
 
 def test_ztest_topwords_case_sensitivity_and_line_137(nlp):
-    """
-    Covers line 137: `token_text = token.lower_`
-    Tests both case_sensitive=True and case_sensitive=False scenarios.
-    """
+    """Tests both case_sensitive=True and case_sensitive=False scenarios."""
     # Adjusted data to make 'apple' a more distinguishing term when case_sensitive=False
     target_texts_case_ci = [
         "Many Apple trees are here.",
@@ -294,10 +291,7 @@ def test_ztest_topwords_case_sensitivity_and_line_137(nlp):
 
 
 def test_ztest_topwords_missing_target_input():
-    """
-    Covers line 110: `raise ValueError("Either 'target_texts' or 'target_docs' must be provided.")`
-    Tests the ValueError when neither target_texts nor target_docs are provided.
-    """
+    """Tests the ValueError when neither target_texts nor target_docs are provided."""
     with pytest.raises(
         ValueError, match="Either 'target_texts' or 'target_docs' must be provided."
     ):
@@ -306,10 +300,7 @@ def test_ztest_topwords_missing_target_input():
 
 
 def test_ztest_topwords_remove_digits_line_180(nlp):
-    """
-    Covers line 180: `if self.remove_digits and token.is_digit: continue`
-    Tests that digits are correctly removed when `remove_digits` is True.
-    """
+    """Tests that digits are correctly removed when `remove_digits` is True."""
     target = ["Document with 123 numbers."]
     background = ["Another document with no digits."]
     extractor = ZTestTopwords(
@@ -341,12 +332,7 @@ def test_ztest_topwords_remove_digits_line_180(nlp):
 
 
 def test_ztest_topwords_denominator_is_zero_line_214_216(nlp):
-    """
-    Covers line 214 (denominator calculation) and line 216 (`z = 0.0` when denominator is 0).
-    This case happens when p is exactly 0 or 1.
-    We create a scenario where a term is present in 100% of the tokens in both corpora,
-    forcing p to be 1, which makes (1-p) be 0, and thus denominator becomes 0.
-    """
+    """Tests a scenario where a term is present in 100% of the tokens in both corpora."""
     # Create a scenario where 'testword' is the ONLY word in both corpora.
     # This makes p1=1, p2=1, p=1, leading to denominator = 0.
     target_all_same = ["testword", "testword", "testword"]
@@ -368,9 +354,7 @@ def test_ztest_topwords_denominator_is_zero_line_214_216(nlp):
 
 
 def test_textacy_keywords_missing_text_or_doc_input():
-    """
-    Covers `raise ValueError("Either 'text' or 'doc' must be provided.")` in TextacyKeywords.__call__.
-    """
+    """Tests `raise ValueError("Either 'text' or 'doc' must be provided.")` in TextacyKeywords.__call__."""
     # Instantiate without 'text' or 'doc'
     extractor = TextacyKeywords(method="textrank", topn=5)
     with pytest.raises(ValueError, match="Either 'text' or 'doc' must be provided."):
