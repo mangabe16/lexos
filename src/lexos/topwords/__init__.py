@@ -48,7 +48,7 @@ class TextacyKeywords(TopwordsPlugin):
         default=None, description="Extracted keywords."
     )
 
-    def __call__(self) -> None:
+    def __call__(self) -> dict:
         """
         Extract keywords from the input text using the specified method.
         Returns:
@@ -78,6 +78,7 @@ class TextacyKeywords(TopwordsPlugin):
             {"term": term, "score": score} for term, score in results
         ]  # Format results for consistent output
         doc._.keywords = self.keywords
+        return self.to_dict()
 
     def to_dict(self):
         """Return the keywords as a dictionary with terms and scores."""
@@ -133,9 +134,10 @@ class ZTestTopwords(TopwordsPlugin):
     topwords: Optional[List[Tuple[str, float]]] = Field(
         default=None, description="Top distinguished words."
     )
+    output_format: str = Field("dict", description="Output format: dict, dataframe, list_of_dicts, or list_of_tuples")
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __call__(self) -> None:
+    def __call__(self) -> dict:
         """
         Calculate top distinguishing words using Z-test for significance.
 
@@ -157,9 +159,7 @@ class ZTestTopwords(TopwordsPlugin):
             background_docs = list(self.tokenizer.make_docs(self.background_texts))
             self.background_docs = background_docs
         else:
-            raise ValueError(
-                "Either 'background_texts' or 'background_docs' must be provided."
-            )
+            raise ValueError("Either 'background_texts' or 'background_docs' must be provided.")
 
         def get_tokens(docs: List[Any]) -> List[str]:
             """
@@ -238,10 +238,25 @@ class ZTestTopwords(TopwordsPlugin):
             for doc in self.docs:
                 doc._.topwords = self.topwords
 
+        # Output format logic
+        if self.output_format == "dict":
+            return self.to_dict()
+        elif self.output_format == "dataframe":
+            return {"topwords_df": self.to_df()}
+        elif self.output_format == "list_of_dicts":
+            return {"topwords_list": [
+                {"term": term, "z_score": z_score} for term, z_score in self.topwords
+            ]}
+        elif self.output_format == "list_of_tuples":
+            return {"topwords_list": self.to_list()}
+        else:
+            raise ValueError(f"Invalid output_format: {self.output_format}")
+
     def to_dict(self):
         """Return the topwords as a dictionary with terms and Z-scores."""
         return {
-            "topwords": [
+            "topwords":
+            [
                 {"term": term, "z_score": z_score}
                 for term, z_score in getattr(self, "topwords", [])
             ]
