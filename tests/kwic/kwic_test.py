@@ -34,3 +34,12 @@ def test_kwic_word_not_found(tokenizer) -> None:
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
     assert results_list == []  # No results expected for a word not found
+
+def test_kwic_find_with_regex_keyword(tokenizer) -> None:
+    """Test KWIC find method with a regex keyword."""
+    text = "This is a test string with multiple variations of the word Test, which will be searched using a regex expression."
+    doc = tokenizer(text)
+    kwic_results = Kwic.find(doc=doc, keyword=r"[Tt]est", window_size=50, pad_context=False)
+    results_list = list(kwic_results)
+    assert isinstance(kwic_results, Iterable)
+    assert results_list == [('This is a ', 'test', ' string with multiple variations of the word Test,'), (' test string with multiple variations of the word ', 'Test', ', which will be searched using a regex expression.')]
