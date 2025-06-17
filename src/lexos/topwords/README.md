@@ -2,6 +2,21 @@
 
 The lexos.topwords module provides tools for extracting significant keywords from documents and identifying statistically over-represented words in a corpus when compared to a background set of texts. It enables developers to perform comparative text analysis and keyword discovery using both algorithmic and statistical methods.
 
+## Difference on `keywords` and `topwords`
+
+The `TextacyKeywords` class uses Textacy's algorithmitic keyword extraction to return the statistically distinguishing terms in a document, whereas the `ZTestTopwords` class uses a Z socre to calculate which terms best distinguish a list of target documents in contrast to a list of background documents.
+
+
+| Feature            | `keywords` (TextacyKeywords)                                   | `topwords` (ZTestTopwords)                                 |
+|--------------------|---------------------------------------------------------------|------------------------------------------------------------|
+| **Purpose**        | Extracts representative or important terms from a single text  | Identifies words statistically over-represented in target texts compared to a background corpus |
+| **Method**         | Algorithmic keyword extraction (e.g., TextRank, SGRank)       | Statistical comparison using Z-test                        |
+| **Input**          | One document (string or spaCy Doc)                            | List of target documents and list of background documents  |
+| **Best for**       | Summarizing or highlighting main topics in a single document  | Finding distinguishing words that set a group of texts apart from others |
+| **Customization**  | Choice of extraction algorithm, number of keywords            | Preprocessing options (case, stopwords, etc.), number of top words |
+| **Output**         | Keywords ranked by importance                                 | Words ranked by statistical significance (Z-score)         |
+| **When to use**    | When you want to summarize or tag a document with key terms   | When you want to compare groups of texts and find what makes one group unique |
+
 ## Plugin Architecture
 
 All topwords-related classes inherit from a common base class, `TopwordsPlugin`, which provides a consistent API (such as `to_dict()`, `to_df()`, and `to_list()`) for serialization and output. This makes it easy to add new analysis methods as plugins.

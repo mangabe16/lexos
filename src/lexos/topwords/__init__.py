@@ -11,7 +11,7 @@ import textacy
 from textacy import extract
 from lexos.tokenizer import Tokenizer
 
-from typing import Any, Literal
+from typing import Any, Literal  # Only keep Any and Literal
 
 # register a custom extension for topwords if not already set
 if not Doc.has_extension("topwords"):
@@ -252,4 +252,5 @@ class ZTestTopwords(TopwordsPlugin):
         return pd.DataFrame(getattr(self, "topwords", []), columns=["term", "z_score"])
 
     def to_list(self):
-        """Return the topwords as a list of (term, z_score)
+        """Return the topwords as a list of (term, z_score) tuples."""
+        return getattr(self, "topwords", [])
