@@ -54,7 +54,7 @@ def nlp():
 
 
 def test_textacy_keywords_textrank(simple_text, nlp):
-    extractor = TextacyKeywords(text=simple_text, method="textrank", topn=5)
+    extractor = TextacyKeywords(document=simple_text, method="textrank", topn=5)
     extractor()
     result = extractor.to_dict()
     assert "keywords" in result
@@ -76,7 +76,7 @@ def test_textacy_keywords_textrank(simple_text, nlp):
 
 
 def test_textacy_keywords_sgrank(simple_text, nlp):
-    extractor = TextacyKeywords(text=simple_text, method="sgrank", topn=5)
+    extractor = TextacyKeywords(document=simple_text, method="sgrank", topn=5)
     extractor()
     result = extractor.to_dict()
     assert "keywords" in result
@@ -93,25 +93,25 @@ def test_textacy_keywords_sgrank(simple_text, nlp):
 
 
 def test_textacy_keywords_large_topn(simple_text):
-    extractor = TextacyKeywords(text=simple_text, method="textrank", topn=100)
+    extractor = TextacyKeywords(document=simple_text, method="textrank", topn=100)
     extractor()
     assert len(extractor.to_dict()["keywords"]) <= 100
 
 
 def test_textacy_keywords_only_stopwords(stopwords_text):
-    extractor = TextacyKeywords(text=stopwords_text, method="textrank", topn=5)
+    extractor = TextacyKeywords(document=stopwords_text, method="textrank", topn=5)
     extractor()
     assert extractor.to_dict()["keywords"] == []
 
 
 def test_textacy_keywords_only_punctuation(punctuation_text):
-    extractor = TextacyKeywords(text=punctuation_text, method="textrank", topn=5)
+    extractor = TextacyKeywords(document=punctuation_text, method="textrank", topn=5)
     extractor()
     assert extractor.to_dict()["keywords"] == []
 
 
 def test_textacy_keywords_repeated_words(repeated_text):
-    extractor = TextacyKeywords(text=repeated_text, method="textrank", topn=3)
+    extractor = TextacyKeywords(document=repeated_text, method="textrank", topn=3)
     extractor()
     kws = extractor.to_dict()["keywords"]
     assert len(kws) <= 3
@@ -121,14 +121,14 @@ def test_textacy_keywords_repeated_words(repeated_text):
 
 def test_textacy_keywords_invalid_method(simple_text):
     with pytest.raises(ValidationError):
-        TextacyKeywords(text=simple_text, method="invalid", topn=5)
+        TextacyKeywords(document=simple_text, method="invalid", topn=5)
 
 
 def test_textacy_keywords_invalid_topn(simple_text):
     with pytest.raises(ValidationError):
-        TextacyKeywords(text=simple_text, method="textrank", topn=0)
+        TextacyKeywords(document=simple_text, method="textrank", topn=0)
     with pytest.raises(ValidationError):
-        TextacyKeywords(text=simple_text, method="textrank", topn=-1)
+        TextacyKeywords(document=simple_text, method="textrank", topn=-1)
 
 
 # ---------------- ZTestTopwords Tests ----------------

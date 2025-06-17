@@ -1,5 +1,4 @@
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -10,10 +9,9 @@ from spacy.lang.en.stop_words import STOP_WORDS
 from spacy.tokens import Doc
 import textacy
 from textacy import extract
-from spacy.lang.en.stop_words import STOP_WORDS
-from spacy.tokens import Doc
 from lexos.tokenizer import Tokenizer
 
+from typing import Any, Literal
 
 # register a custom extension for topwords if not already set
 if not Doc.has_extension("topwords"):
@@ -33,57 +31,51 @@ class TopwordsPlugin(BaseModel):
 class TextacyKeywords(TopwordsPlugin):
     """Extracts keywords from text or a spaCy Doc using textacy algorithms."""
 
-    text: Optional[str] = Field(None, description="The raw text to analyze.")
-    doc: Optional[Any] = Field(None, description="A spaCy Doc to analyze.")
+    document: str | Doc | None = Field(None, description="The raw text or spaCy doc to analyze.")
     method: Literal["textrank", "sgrank"] = Field(
         ..., description="Method for keyword extraction (e.g., 'textrank', 'sgrank')."
-    )  # Fixed Literal for method
+    )
     topn: int = Field(
         10, gt=0, description="Number of top keywords to return."
-    )  # Defaults to 10, must be > 0
+    )
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    keywords: Optional[List[Dict[str, Any]]] = Field(
+    keywords: list[dict[str, Any]] | None = Field(
         default=None, description="Extracted keywords."
     )
 
     def __call__(self) -> dict:
         """
-        Extract keywords from the input text using the specified method.
+        Extract keywords from the input document (string or spaCy Doc) using the specified method.
         Returns:
             Dict[str, List[Dict[str, Any]]]: Extracted keywords and their scores.
         """
-        if self.doc is not None:
-            doc = self.doc
-        elif self.text is not None:
-            doc = self.tokenizer.make_doc(self.text)
-            self.doc = doc
+        if isinstance(self.document, Doc):
+            doc = self.document
+        elif isinstance(self.document, str):
+            doc = self.tokenizer.make_doc(self.document)
         else:
-            raise ValueError("Either 'text' or 'doc' must be provided.")
+            raise ValueError("The 'document' field must be a string or a spaCy Doc.")
 
         if self.method == "textrank":
-            results: List[Tuple[str, float]] = extract.keyterms.textrank(
+            results: list[tuple[str, float]] = extract.keyterms.textrank(
                 doc, normalize="lemma", topn=self.topn
             )
         elif self.method == "sgrank":
-            results: List[Tuple[str, float]] = extract.keyterms.sgrank(
+            results: list[tuple[str, float]] = extract.keyterms.sgrank(
                 doc, normalize="lower", ngrams=(1, 2, 3), topn=self.topn
             )
-        # else:
-        # raise ValueError("Invalid keyword extraction method.") I believe this is redundant, because  Pydantic's Literal field
-        # already guarantees that self.method will only be "textrank" or "sgrank"
 
         self.keywords = [
             {"term": term, "score": score} for term, score in results
-        ]  # Format results for consistent output
+        ]
         doc._.keywords = self.keywords
         return self.to_dict()
 
     def to_dict(self):
         """Return the keywords as a dictionary with terms and scores."""
-        # Call the base class's to_dict to get the model_dump, then add keywords
-        data = super().to_dict()  # This calls TopwordsPlugin.to_dict()
+        data = super().to_dict()
         data["keywords"] = [
             {"term": term, "score": score}
             for term, score in getattr(self, "keywords", [])
@@ -102,36 +94,30 @@ class TextacyKeywords(TopwordsPlugin):
 class ZTestTopwords(TopwordsPlugin):
     """Calculates top distinguishing words using Z-test for significance."""
 
-    target_texts: Optional[List[str]] = Field(
-        None, description="List of target documents."
+    target_documents: list[str | Doc] | None = Field(
+        None, description="List of target documents, either strings or spaCy docs"
     )
-    background_texts: Optional[List[str]] = Field(
-        None, description="List of background documents."
-    )
-    target_docs: Optional[List[Any]] = Field(
-        None, description="List of spaCy Doc objects for target documents."
-    )
-    background_docs: Optional[List[Any]] = Field(
-        None, description="List of spaCy Doc objects for background documents."
+    background_documents: list[str | Doc] | None = Field(
+        None, description="List of background documents, either strings or spaCy docs"
     )
     topn: int = Field(10, gt=0, description="Number of top words to return.")
-    case_sensitive: Optional[bool] = Field(
+    case_sensitive: bool | None = Field(
         True, description="Whether analysis is case sensitive."
     )
-    remove_stopwords: Optional[bool] = Field(
+    remove_stopwords: bool | None = Field(
         True, description="Whether to remove stopwords."
     )
-    remove_punct: Optional[bool] = Field(
+    remove_punct: bool | None = Field(
         True, description="Whether to remove punctuation."
     )
-    remove_digits: Optional[bool] = Field(
+    remove_digits: bool | None = Field(
         False, description="Whether to remove digits."
     )
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
-    docs: Optional[List[Any]] = Field(
+    docs: list[Any] | None = Field(
         None, description="Optional list of spaCy Doc objects to set results on."
     )
-    topwords: Optional[List[Tuple[str, float]]] = Field(
+    topwords: list[tuple[str, float]] | None = Field(
         default=None, description="Top distinguished words."
     )
     output_format: str = Field("dict", description="Output format: dict, dataframe, list_of_dicts, or list_of_tuples")
@@ -145,33 +131,33 @@ class ZTestTopwords(TopwordsPlugin):
             Dict[str, Any]: Top words and their Z-scores.
         """
         # Use provided docs or create them from text
-        if self.target_docs is not None:
-            target_docs = self.target_docs
-        elif self.target_texts is not None:
-            target_docs = list(self.tokenizer.make_docs(self.target_texts))
-            self.target_docs = target_docs
+        if self.target_documents is not None:
+            target_docs = [
+                doc if isinstance(doc, Doc) else self.tokenizer.make_doc(doc)
+                for doc in self.target_documents
+            ]
         else:
-            raise ValueError("Either 'target_texts' or 'target_docs' must be provided.")
+            raise ValueError("The 'target_documents' field must be provided.")
 
-        if self.background_docs is not None:
-            background_docs = self.background_docs
-        elif self.background_texts is not None:
-            background_docs = list(self.tokenizer.make_docs(self.background_texts))
-            self.background_docs = background_docs
+        if self.background_documents is not None:
+            background_docs = [
+                doc if isinstance(doc, Doc) else self.tokenizer.make_doc(doc)
+                for doc in self.background_documents
+            ]
         else:
-            raise ValueError("Either 'background_texts' or 'background_docs' must be provided.")
+            raise ValueError("The 'background_documents' field must be provided.")
 
-        def get_tokens(docs: List[Any]) -> List[str]:
+        def get_tokens(docs: list[Any]) -> list[str]:
             """
             Extract tokens from a list of spaCy Doc objects, applying filters.
 
             Args:
-                docs (List[Any]): List of spaCy Doc objects.
+                docs (list[Any]): List of spaCy Doc objects.
 
             Returns:
-                List[str]: List of filtered tokens.
+                list[str]: List of filtered tokens.
             """
-            tokens = []
+            tokens: list[str] = []
             for doc in docs:
                 for token in doc:
                     if not self.case_sensitive:
@@ -189,8 +175,8 @@ class ZTestTopwords(TopwordsPlugin):
                         tokens.append(token_text)
             return tokens
 
-        target_tokens: List[str] = get_tokens(target_docs)
-        background_tokens: List[str] = get_tokens(background_docs)
+        target_tokens: list[str] = get_tokens(target_docs)
+        background_tokens: list[str] = get_tokens(background_docs)
 
         target_counts: Counter = Counter(target_tokens)
         background_counts: Counter = Counter(background_tokens)
@@ -198,7 +184,7 @@ class ZTestTopwords(TopwordsPlugin):
         target_total: int = sum(target_counts.values())
         background_total: int = sum(background_counts.values())
 
-        results: List[Tuple[str, float]] = []
+        results: list[tuple[str, float]] = []
         all_terms: set = set(target_counts) | set(background_counts)
         for term in all_terms:
             p1: float = target_counts[term] / target_total if target_total else 0
@@ -225,7 +211,6 @@ class ZTestTopwords(TopwordsPlugin):
             results.append((term, z))
 
         # Filter out terms with a Z-score of 0.0 before sorting.
-        # Terms with 0.0 Z-score are not distinguishing.
         filtered_results = [item for item in results if item[1] != 0.0]
 
         sorted_results = sorted(
@@ -267,5 +252,4 @@ class ZTestTopwords(TopwordsPlugin):
         return pd.DataFrame(getattr(self, "topwords", []), columns=["term", "z_score"])
 
     def to_list(self):
-        """Return the topwords as a list of (term, z_score) tuples."""
-        return getattr(self, "topwords", [])
+        """Return the topwords as a list of (term, z_score)
