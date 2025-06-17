@@ -1,7 +1,5 @@
 # Ngrams
 
-TBD.
-
 ### ::: lexos.tokenizer.ngrams
 
     rendering:
