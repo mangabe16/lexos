@@ -1,7 +1,10 @@
 """__init__.py.
 
 Last Updated: 6/12/25
-Last Tested: 6/12/25
+Last Tested: 6/18/25
+
+Current Usage:
+- Find keywords within their context in a spaCy doc or string
 """
 
 from textacy.extract import kwic

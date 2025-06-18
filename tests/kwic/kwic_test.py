@@ -17,8 +17,8 @@ Usage:
 To run the test for this module:
     uv run pytest tests/kwic/kwic_test.py
 
-Last Updated: 6/17/25
-Last Tested: 6/17/25
+Last Updated: 6/18/25
+Last Tested: 6/18/25
 """
 
 from src.lexos.kwic import Kwic
