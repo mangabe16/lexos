@@ -37,7 +37,7 @@ class Kwic:
             window_width=window_size,
             pad_context=pad_context,
         )
-    
+
     @validate_call(config=model_config)
     def find_to_dataframe(
         doc: Doc | str,
@@ -49,14 +49,15 @@ class Kwic:
         """Generate KWIC results for a given term in the document in the form of a pandas DataFrame."""
         return pd.DataFrame(
             kwic.keyword_in_context(
-            doc=doc,
-            keyword=keyword,
-            ignore_case=ignore_case,
-            window_width=window_size,
-            pad_context=pad_context),
-            columns=["Left", "Keyword", "Right"]
+                doc=doc,
+                keyword=keyword,
+                ignore_case=ignore_case,
+                window_width=window_size,
+                pad_context=pad_context,
+            ),
+            columns=["Left", "Keyword", "Right"],
         )
-    
+
     @validate_call(config=model_config)
     def find_multiple_keywords(
         doc: Doc | str,
@@ -76,6 +77,34 @@ class Kwic:
                 pad_context=pad_context,
             ):
                 all_kwic_results.append((left, found_keyword, right, str(original_kw)))
-        
+
         return all_kwic_results
-    
+
+    @validate_call(config=model_config)
+    def find_in_sentences(
+        doc: Doc,  # Must be a Doc object, used for seperating sentences
+        keyword: str | Pattern,
+        ignore_case: bool = True,
+    ) -> Iterable[tuple[str, str, str]]:
+        """Generate KWIC results for a keyword in each sentence of the document."""
+        if not isinstance(doc, Doc):
+            raise TypeError(
+                "Input 'doc' must be a spaCy Doc object for sentence-level search."
+            )
+        if not doc.has_annotation("SENT_START"):
+            raise ValueError(
+                "The provided spaCy Doc object does not have sentence boundary annotations. "
+                "Ensure the spaCy pipeline used to create the doc includes 'sentencizer' or 'parser'."
+            )
+        all_sentence_kwic_results = []
+        for sent_idx, sentence_span in enumerate(doc.sents):
+            for left, found_keyword, right in kwic.keyword_in_context(
+                doc=sentence_span.text,
+                keyword=keyword,
+                ignore_case=ignore_case,
+                window_width=len(sentence_span.text) * 2,  # capture entire sentence
+                pad_context=False,
+            ):
+                all_sentence_kwic_results.append((left, found_keyword, right))
+
+        return all_sentence_kwic_results
