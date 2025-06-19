@@ -66,8 +66,7 @@ def test_textacy_keywords_textrank(simple_text, nlp):
     # Test doc attribute
     extractor2 = TextacyKeywords(document=nlp(simple_text), method="textrank", topn=5)
     extractor2()
-    # The following lines are removed/updated because the new model does not use .doc attribute directly
-    # Instead, check the extension on the doc
+    
     doc = nlp(simple_text)
     extractor3 = TextacyKeywords(document=doc, method="textrank", topn=5)
     extractor3()

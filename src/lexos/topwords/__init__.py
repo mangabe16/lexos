@@ -23,10 +23,9 @@ if not Doc.has_extension("keywords"):
 class TopwordsPlugin(BaseModel):
     """Base class for topwords plugins, providing a common API."""
 
-    def to_dict(self):
-        """Return a dictionary representation of the model."""
-        return self.model_dump()
-
+    def to_df(self):
+        """Return a pandas DataFrame representation of the model."""
+        ...
 
 class TextacyKeywords(TopwordsPlugin):
     """Extracts keywords from text or a spaCy Doc using textacy algorithms."""
@@ -75,12 +74,12 @@ class TextacyKeywords(TopwordsPlugin):
 
     def to_dict(self):
         """Return the keywords as a dictionary with terms and scores."""
-        data = super().to_dict()
-        data["keywords"] = [
-            {"term": term, "score": score}
-            for term, score in getattr(self, "keywords", [])
-        ]
-        return data
+        return {
+            "keywords": [
+                {"term": kw["term"], "score": kw["score"]}
+                for kw in (self.keywords or [])
+            ]
+        }
 
     def to_df(self):
         """Return the extracted keywords as a pandas DataFrame."""
@@ -249,7 +248,7 @@ class ZTestTopwords(TopwordsPlugin):
 
     def to_df(self):
         """Return the topwords as a pandas DataFrame."""
-        return pd.DataFrame(getattr(self, "topwords", []), columns=["term", "z_score"])
+        return pd.DataFrame(getattr(self, "topwords", []) or [], columns=["term", "z_score"])
 
     def to_list(self):
         """Return the topwords as a list of (term, z_score) tuples."""
