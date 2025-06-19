@@ -37,12 +37,22 @@ class TextacyKeywords(TopwordsPlugin):
     topn: int = Field(
         10, gt=0, description="Number of top keywords to return."
     )
+    model: str = Field(
+        default="en_core_web_sm",
+        description="spaCy model name to use for tokenization."
+    )
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
     keywords: list[dict[str, Any]] | None = Field(
         default=None, description="Extracted keywords."
     )
+
+    def __init__(self, **data):
+        # If tokenizer is not provided, create one with the specified model
+        if "tokenizer" not in data or data["tokenizer"] is None:
+            data["tokenizer"] = Tokenizer (model=data.get("model","en_core_web_sm"))
+        super().__init__(**data)
 
     def __call__(self) -> dict:
         """
@@ -112,6 +122,10 @@ class ZTestTopwords(TopwordsPlugin):
     remove_digits: bool | None = Field(
         False, description="Whether to remove digits."
     )
+    model:str = Field(
+        default="en_core_web_sm",
+        description="spaCy model name to use for tokenization."
+    )
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
     docs: list[Any] | None = Field(
         None, description="Optional list of spaCy Doc objects to set results on."
@@ -121,6 +135,12 @@ class ZTestTopwords(TopwordsPlugin):
     )
     output_format: str = Field("dict", description="Output format: dict, dataframe, list_of_dicts, or list_of_tuples")
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def __init__(self, **data):
+        #If tokenizer is not provided, create one with the specified model
+        if "tokenizer" not in data or data["tokenizer"] is None:
+            data["tokenizer"] = Tokenizer(model=data.get("model","en_core_web_sm"))
+        super().__init__(**data)
 
     def __call__(self) -> dict:
         """
@@ -147,31 +167,19 @@ class ZTestTopwords(TopwordsPlugin):
             raise ValueError("The 'background_documents' field must be provided.")
 
         def get_tokens(docs: list[Any]) -> list[str]:
-            """
-            Extract tokens from a list of spaCy Doc objects, applying filters.
-
-            Args:
-                docs (list[Any]): List of spaCy Doc objects.
-
-            Returns:
-                list[str]: List of filtered tokens.
-            """
             tokens: list[str] = []
             for doc in docs:
                 for token in doc:
-                    if not self.case_sensitive:
-                        token_text = token.lower_
-                    else:
-                        token_text = token.text
-
                     if self.remove_stopwords and token.is_stop:
                         continue
                     if self.remove_punct and token.is_punct:
                         continue
                     if self.remove_digits and token.is_digit:
                         continue
-                    if not token.is_stop and not token.is_punct and not token.is_space:
-                        tokens.append(token_text)
+                    if token.is_space:
+                        continue
+                    token_text = token.lower_ if not self.case_sensitive else token.text
+                    tokens.append(token_text)
             return tokens
 
         target_tokens: list[str] = get_tokens(target_docs)
