@@ -37,12 +37,22 @@ class Kwic:
             window_width=window_size,
             pad_context=pad_context,
         )
-
-    def to_dataframe(self) -> pd.DataFrame:
-        """Convert the KWIC results to a pandas DataFrame."""
-        if not self.results:
-            raise LexosException("No results to convert. Please run find() first.")
-
+    
+    @validate_call(config=model_config)
+    def find_to_df(
+        doc: Doc | str,
+        keyword: str | Pattern,
+        ignore_case: bool = True,
+        window_size: int = 50,
+        pad_context: bool = False,
+    ) -> pd.DataFrame:
+        """Generate KWIC results for a given term in the document in the form of a pandas DataFrame."""
         return pd.DataFrame(
-            self.results, columns=["Left Context", "Keyword", "Right Context"]
+            kwic.keyword_in_context(
+            doc=doc,
+            keyword=keyword,
+            ignore_case=ignore_case,
+            window_width=window_size,
+            pad_context=pad_context),
+            columns=["Left", "Keyword", "Right"]
         )
