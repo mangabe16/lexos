@@ -3,7 +3,7 @@
 This module provides a KMeansCluster class for performing KMeans clustering on document-term matrices (DTM), pandas DataFrames, or numpy arrays.
 """
 
-from typing import Optional, Union, Literal
+from typing import Optional, Literal
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 
 import numpy as np
@@ -17,7 +17,7 @@ from lexos.exceptions import LexosException
 
 class KMeansCluster(BaseModel):
     """Lexos KMeans clustering module."""
-    dtm: Optional[Union[DTM, pd.DataFrame, np.ndarray]] = Field(default=None)
+    dtm: Optional[DTM | pd.DataFrame | np.ndarray] = Field(default=None)
     k: int = Field(..., description="Number of clusters")
     init: Literal['k-means++', 'random'] = Field("k-means++", description="KMeans init method")
     max_iter: int = Field(300, description="Maximum number of iterations")
@@ -32,7 +32,7 @@ class KMeansCluster(BaseModel):
     @validate_call(config=model_config)
     def __call__(
         self,
-        dtm: Optional[Union[DTM, pd.DataFrame, np.ndarray]] = None,
+        dtm: Optional[DTM | pd.DataFrame | np.ndarray] = None,
         k: Optional[int] = None,
         init: Optional[Literal['k-means++', 'random']] = None,
         max_iter: Optional[int] = None,
@@ -42,7 +42,7 @@ class KMeansCluster(BaseModel):
         """Perform KMeans clustering and return cluster assignments."""
         # Set or update attributes
         self._set_attrs(
-            dtm=dtm, k=k, init=init, max_iter=max_iter, n_init=n_init, told=tol
+            dtm=dtm, k=k, init=init, max_iter=max_iter, n_init=n_init, tol=tol
         )
 
         # Validate and convert input matrix
