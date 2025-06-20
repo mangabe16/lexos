@@ -24,6 +24,7 @@ Last Tested: 6/18/25
 from src.lexos.kwic import Kwic
 from src.lexos.tokenizer import Tokenizer
 from typing import Iterable
+from lexos.exceptions import LexosException
 import pandas as pd
 import pytest
 
@@ -32,6 +33,7 @@ import pytest
 def tokenizer() -> Tokenizer:
     """Fixture of a tokenizer object."""
     return Tokenizer()
+
 
 @pytest.fixture
 def spacy_doc_sentences(tokenizer) -> str:
@@ -94,7 +96,9 @@ def test_kwic_find_with_regex_keyword(tokenizer) -> None:
 def test_basic_df_output() -> None:
     """Test basic DataFrame output from KWIC find method."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
-    kwic_df = Kwic.find_to_dataframe(doc=text, keyword="test", window_size=3, pad_context=True)
+    kwic_df = Kwic.find_to_dataframe(
+        doc=text, keyword="test", window_size=3, pad_context=True
+    )
     assert isinstance(kwic_df, pd.DataFrame)
     assert len(kwic_df) == 2
     assert list(kwic_df.columns) == ["Left", "Keyword", "Right"]
@@ -110,20 +114,21 @@ def test_empty_df_output(tokenizer) -> None:
         doc=doc, keyword="nonexistent", window_size=3, pad_context=True
     )
     assert isinstance(kwic_df, pd.DataFrame)
-    assert kwic_df.empty 
+    assert kwic_df.empty
 
 
 def test_doc_input_to_dataframe(tokenizer) -> None:
     """Test DataFrame output with a Doc object input."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc = tokenizer(text)
-    kwic_df = Kwic.find_to_dataframe(doc=doc, keyword="test", window_size=3, pad_context=True)
+    kwic_df = Kwic.find_to_dataframe(
+        doc=doc, keyword="test", window_size=3, pad_context=True
+    )
     assert isinstance(kwic_df, pd.DataFrame)
     assert len(kwic_df) == 2
     assert list(kwic_df.columns) == ["Left", "Keyword", "Right"]
     assert kwic_df.iloc[0].tolist() == [" a ", "test", " st"]
     assert kwic_df.iloc[1].tolist() == ["to ", "test", " th"]
-
 
 
 def test_multiple_keywords(tokenizer) -> None:
@@ -136,7 +141,7 @@ def test_multiple_keywords(tokenizer) -> None:
     )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert len(results_list) == 3  
+    assert len(results_list) == 3
     assert results_list[0] == (" a ", "test", " st", "test")
     assert results_list[1] == ("to ", "test", " th", "test")
     assert results_list[2] == ("he ", "Kwic", " mo", "Kwic")
@@ -153,6 +158,7 @@ def test_multiple_keywords_none_provided(tokenizer) -> None:
     assert isinstance(kwic_results, Iterable)
     assert results_list == []
 
+
 def test_mixed_string_regex_keywords(tokenizer) -> None:
     """Test KWIC find method with a mix of string and regex keywords."""
     text = "This is a test string to test the Kwic module for finding correct words in context using kwic."
@@ -163,8 +169,29 @@ def test_mixed_string_regex_keywords(tokenizer) -> None:
     )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert len(results_list) == 4  
+    assert len(results_list) == 4
     assert results_list[0] == (" a ", "test", " st", "test")
     assert results_list[1] == ("to ", "test", " th", "test")
     assert results_list[2] == ("he ", "Kwic", " mo", "[Kk]wic")
     assert results_list[3] == ("ng ", "kwic", ".  ", "[Kk]wic")
+
+
+def test_find_in_sentences(spacy_doc_sentences) -> None:
+    """Test KWIC find method in sentences."""
+    doc = spacy_doc_sentences
+    kwic_results = Kwic.find_in_sentences(doc=doc, keyword="keyword", ignore_case=True)
+    results_list = list(kwic_results)
+    assert isinstance(kwic_results, Iterable)
+    assert len(results_list) == 1
+    assert results_list[0] == ("This third sentence has ", "keyword", " in it.")
+
+
+def test_find_in_sentences_requires_doc_object() -> None:
+    """Test that find_in_sentences raises TypeError if doc is not a Doc object."""
+    with pytest.raises(
+        LexosException,
+        match="Input 'doc' must be a spaCy Doc object for sentence-level search.",
+    ):
+        Kwic.find_in_sentences(
+            doc="This is a string, not a Doc object.", keyword="keyword"
+        )
