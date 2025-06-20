@@ -24,6 +24,7 @@ Last Tested: 6/18/25
 from src.lexos.kwic import Kwic
 from src.lexos.tokenizer import Tokenizer
 from typing import Iterable
+import pandas as pd
 import pytest
 
 
@@ -31,6 +32,13 @@ import pytest
 def tokenizer() -> Tokenizer:
     """Fixture of a tokenizer object."""
     return Tokenizer()
+
+@pytest.fixture
+def spacy_doc_sentences(tokenizer) -> str:
+    """Fixture of a sample text that is tokenized into sentences."""
+    text = "This is the first sentence. This is a second sentence. This third sentence has keyword in it."
+    doc = tokenizer(text)
+    return doc
 
 
 def test_kwic_find_with_doc(tokenizer) -> None:
@@ -81,3 +89,37 @@ def test_kwic_find_with_regex_keyword(tokenizer) -> None:
             ", which will be searched using a regex expression.",
         ),
     ]
+
+
+def test_basic_df_output() -> None:
+    """Test basic DataFrame output from KWIC find method."""
+    text = "This is a test string to test the Kwic module for finding correct words in context."
+    kwic_df = Kwic.find_to_dataframe(doc=text, keyword="test", window_size=3, pad_context=True)
+    assert isinstance(kwic_df, pd.DataFrame)
+    assert len(kwic_df) == 2
+    assert list(kwic_df.columns) == ["Left", "Keyword", "Right"]
+    assert kwic_df.iloc[0].tolist() == [" a ", "test", " st"]
+    assert kwic_df.iloc[1].tolist() == ["to ", "test", " th"]
+
+
+def test_empty_df_output(tokenizer) -> None:
+    """Test DataFrame output when no keywords are found."""
+    text = "This is a test string to test the Kwic module for finding correct words in context."
+    doc = tokenizer(text)
+    kwic_df = Kwic.find_to_dataframe(
+        doc=doc, keyword="nonexistent", window_size=3, pad_context=True
+    )
+    assert isinstance(kwic_df, pd.DataFrame)
+    assert kwic_df.empty 
+
+
+def test_doc_input_to_dataframe(tokenizer) -> None:
+    """Test DataFrame output with a Doc object input."""
+    text = "This is a test string to test the Kwic module for finding correct words in context."
+    doc = tokenizer(text)
+    kwic_df = Kwic.find_to_dataframe(doc=doc, keyword="test", window_size=3, pad_context=True)
+    assert isinstance(kwic_df, pd.DataFrame)
+    assert len(kwic_df) == 2
+    assert list(kwic_df.columns) == ["Left", "Keyword", "Right"]
+    assert kwic_df.iloc[0].tolist() == [" a ", "test", " st"]
+    assert kwic_df.iloc[1].tolist() == ["to ", "test", " th"]
