@@ -477,3 +477,53 @@ class TestRecordEdgeCases:
         # The field serializer should be called during model_dump
         dumped = record.model_dump()
         assert isinstance(dumped["content"], bytes)
+    
+    def test_record_repr_else_branch(self):
+        """Test else branch in __repr__."""
+        # Create a Record with no content
+        record = Record(
+            id=str(uuid.uuid4()),
+            name="test",
+            content=None,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        # __repr__ should hit the else branch and set fields["content"] = "None"
+        rep = repr(record)
+        assert "content=None" in rep
+    
+    def test_record_from_bytes_parsed_doc(self, tmp_path, nlp):
+        """Test from_bytes with parsed Doc content."""
+        # Create a parsed record
+        doc = nlp("foo bar baz")
+        record = Record(
+            id=str(uuid.uuid4()),
+            name="test",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        record.is_parsed  # Ensure property is cached
+
+        # Serialize to bytes
+        bytes_data = record.to_bytes()
+
+        # Create a new record and load from bytes
+        new_record = Record()
+        new_record.from_bytes(bytes_data)
+
+        # The new record should now have a spaCy Doc as content
+        assert isinstance(new_record.content, Doc)
+        assert new_record.content.text == "foo bar baz"
+
+    def test_record_from_disk_raises_on_empty_string(self):
+        """Test from_disk raises exception on empty string path."""
+        record = Record()
+        with pytest.raises(LexosException, match="No path specified for loading the record."):
+            record.from_disk("")
+
+    def test_record_to_disk_raises_on_empty_string(self):
+        """Test from_disk raises exception on empty string path."""
+        record = Record()
+        with pytest.raises(LexosException, match="No path specified for saving the record."):
+            record.to_disk("")
