@@ -2,8 +2,10 @@ import pytest
 from pydantic import ValidationError
 from lexos.topwords import TextacyKeywords, ZTestTopwords
 import spacy
+import pandas as pd
 
 # ---------------- Fixtures ----------------
+
 
 @pytest.fixture
 def simple_text():
@@ -47,7 +49,9 @@ def identical_texts():
 def nlp():
     return spacy.blank("en")
 
+
 # ---------------- TextacyKeywords Tests ----------------
+
 
 def test_textacy_keywords_textrank(simple_text, nlp):
     extractor = TextacyKeywords(document=simple_text, method="textrank", topn=5)
@@ -66,13 +70,14 @@ def test_textacy_keywords_textrank(simple_text, nlp):
     # Test doc attribute
     extractor2 = TextacyKeywords(document=nlp(simple_text), method="textrank", topn=5)
     extractor2()
-    
+
     doc = nlp(simple_text)
     extractor3 = TextacyKeywords(document=doc, method="textrank", topn=5)
     extractor3()
     assert hasattr(doc._, "keywords")
     # The extension is set on the doc passed in
     assert doc._.keywords == extractor3.to_dict()["keywords"]
+
 
 def test_textacy_keywords_sgrank(simple_text, nlp):
     extractor = TextacyKeywords(document=simple_text, method="sgrank", topn=5)
@@ -90,20 +95,24 @@ def test_textacy_keywords_sgrank(simple_text, nlp):
     assert hasattr(doc._, "keywords")
     assert doc._.keywords == extractor2.to_dict()["keywords"]
 
+
 def test_textacy_keywords_large_topn(simple_text):
     extractor = TextacyKeywords(document=simple_text, method="textrank", topn=100)
     extractor()
     assert len(extractor.to_dict()["keywords"]) <= 100
+
 
 def test_textacy_keywords_only_stopwords(stopwords_text):
     extractor = TextacyKeywords(document=stopwords_text, method="textrank", topn=5)
     extractor()
     assert extractor.to_dict()["keywords"] == []
 
+
 def test_textacy_keywords_only_punctuation(punctuation_text):
     extractor = TextacyKeywords(document=punctuation_text, method="textrank", topn=5)
     extractor()
     assert extractor.to_dict()["keywords"] == []
+
 
 def test_textacy_keywords_repeated_words(repeated_text):
     extractor = TextacyKeywords(document=repeated_text, method="textrank", topn=3)
@@ -112,13 +121,15 @@ def test_textacy_keywords_repeated_words(repeated_text):
     assert len(kws) <= 3
     if kws:
         assert all(
-            all(word == "lexos" for word in kw["term"].lower().replace(".","").split())
+            all(word == "lexos" for word in kw["term"].lower().replace(".", "").split())
             for kw in kws
         )
+
 
 def test_textacy_keywords_invalid_method(simple_text):
     with pytest.raises(ValidationError):
         TextacyKeywords(document=simple_text, method="invalid", topn=5)
+
 
 def test_textacy_keywords_invalid_topn(simple_text):
     with pytest.raises(ValidationError):
@@ -126,7 +137,9 @@ def test_textacy_keywords_invalid_topn(simple_text):
     with pytest.raises(ValidationError):
         TextacyKeywords(document=simple_text, method="textrank", topn=-1)
 
+
 # ---------------- ZTestTopwords Tests ----------------
+
 
 def test_ztest_topwords_basic(target_texts, background_texts, nlp):
     extractor = ZTestTopwords(
@@ -154,10 +167,12 @@ def test_ztest_topwords_basic(target_texts, background_texts, nlp):
     assert hasattr(docs[0]._, "topwords")
     assert docs[0]._.topwords == extractor2.to_list()
 
+
 def test_ztest_topwords_empty_input():
     extractor = ZTestTopwords(target_documents=[], background_documents=[], topn=5)
     extractor()
     assert extractor.to_dict()["topwords"] == []
+
 
 def test_ztest_topwords_large_topn(target_texts, background_texts):
     extractor = ZTestTopwords(
@@ -166,15 +181,17 @@ def test_ztest_topwords_large_topn(target_texts, background_texts):
     extractor()
     assert len(extractor.to_dict()["topwords"]) <= 100
 
+
 def test_ztest_topwords_only_stopwords(stopwords_text):
     extractor = ZTestTopwords(
         target_documents=[stopwords_text],
         background_documents=["some other text"],
-        topn=5
+        topn=5,
     )
     extractor()
     topwords = extractor.to_dict()["topwords"]
-    assert all(word['term'] not in stopwords_text.split() for word in topwords)
+    assert all(word["term"] not in stopwords_text.split() for word in topwords)
+
 
 def test_ztest_topwords_repeated_words(repeated_text):
     extractor = ZTestTopwords(
@@ -186,12 +203,14 @@ def test_ztest_topwords_repeated_words(repeated_text):
     if tws:
         assert tws[0]["term"].lower() == "lexos"
 
+
 def test_ztest_topwords_identical_target_background(identical_texts):
     extractor = ZTestTopwords(
         target_documents=identical_texts, background_documents=identical_texts, topn=5
     )
     extractor()
     assert extractor.to_dict()["topwords"] == []
+
 
 def test_ztest_topwords_invalid_topn(target_texts, background_texts):
     with pytest.raises(ValidationError):
@@ -200,8 +219,11 @@ def test_ztest_topwords_invalid_topn(target_texts, background_texts):
         )
     with pytest.raises(ValidationError):
         ZTestTopwords(
-            target_documents=target_texts, background_documents=background_texts, topn=-1
+            target_documents=target_texts,
+            background_documents=background_texts,
+            topn=-1,
         )
+
 
 def test_ztest_topwords_background_docs_direct_input(
     nlp, target_texts, background_texts
@@ -220,6 +242,7 @@ def test_ztest_topwords_background_docs_direct_input(
     for tw in result["topwords"]:
         assert "term" in tw and "z_score" in tw
 
+
 def test_ztest_topwords_missing_background_input():
     """Tests the ValueError when neither background_documents nor background_docs are provided."""
     with pytest.raises(
@@ -227,6 +250,7 @@ def test_ztest_topwords_missing_background_input():
         match="The 'background_documents' field must be provided.",
     ):
         ZTestTopwords(target_documents=["some text"], topn=5)()
+
 
 def test_ztest_topwords_case_sensitivity_and_line_137(nlp):
     """Tests both case_sensitive=True and case_sensitive=False scenarios."""
@@ -264,9 +288,8 @@ def test_ztest_topwords_case_sensitivity_and_line_137(nlp):
     extractor_ci()
     ci_topwords = extractor_ci.to_list()
     assert any(term == "apple" for term, score in ci_topwords if score > 0)
-    assert not any(
-        term == "Apple" for term, _ in ci_topwords
-    )
+    assert not any(term == "Apple" for term, _ in ci_topwords)
+
 
 def test_ztest_topwords_missing_target_input():
     """Tests the ValueError when neither target_documents nor target_docs are provided."""
@@ -275,6 +298,7 @@ def test_ztest_topwords_missing_target_input():
     ):
         extractor = ZTestTopwords(background_documents=["some text"], topn=5)
         extractor()
+
 
 def test_ztest_topwords_remove_digits_line_180(nlp):
     """Tests that digits are correctly removed when `remove_digits` is True."""
@@ -304,6 +328,7 @@ def test_ztest_topwords_remove_digits_line_180(nlp):
     result_keep_digits = extractor_keep_digits.to_dict()["topwords"]
     assert any(any(char.isdigit() for char in kw["term"]) for kw in result_keep_digits)
 
+
 def test_ztest_topwords_denominator_is_zero_line_214_216(nlp):
     """Tests a scenario where a term is present in 100% of the tokens in both corpora."""
     target_all_same = ["testword", "testword", "testword"]
@@ -321,8 +346,82 @@ def test_ztest_topwords_denominator_is_zero_line_214_216(nlp):
     extractor()
     assert extractor.to_dict()["topwords"] == []
 
+
 def test_textacy_keywords_missing_text_or_doc_input():
     """Tests ValueError when neither 'document' is provided in TextacyKeywords."""
     extractor = TextacyKeywords(method="textrank", topn=5)
-    with pytest.raises(ValueError, match="The 'document' field must be a string or a spaCy Doc."):
+    with pytest.raises(
+        ValueError, match="The 'document' field must be a string or a spaCy Doc."
+    ):
         extractor()
+
+
+def test_ztest_topwords_output_format_dataframe(target_texts, background_texts):
+    """Test that the ZTestTopwords returns a DataFrame when output_format is 'dataframe'."""
+    extractor = ZTestTopwords(
+        target_documents=target_texts,
+        background_documents=background_texts,
+        topn=5,
+        output_format="dataframe",
+    )
+    result = extractor()
+    assert "topwords_df" in result
+    assert isinstance(result["topwords_df"], pd.DataFrame)
+    assert not result["topwords_df"].empty
+
+
+def test_ztest_topwords_output_format_list_of_dicts(target_texts, background_texts):
+    """Test that the ZTestTopwords returns a list of dictionaries when output_format is 'list_of_dicts'."""
+    extractor = ZTestTopwords(
+        target_documents=target_texts,
+        background_documents=background_texts,
+        topn=5,
+        output_format="list_of_dicts",
+    )
+    result = extractor()
+    assert "topwords_list" in result
+    assert isinstance(result["topwords_list"], list)
+    assert all(
+        isinstance(item, dict) and "term" in item and "z_score" in item
+        for item in result["topwords_list"]
+    )
+
+
+def test_ztest_topwords_output_format_list_of_tuples(target_texts, background_texts):
+    """Test that the ZTestTopwords returns a list of tuples when output_format is 'list_of_tuples'."""
+    extractor = ZTestTopwords(
+        target_documents=target_texts,
+        background_documents=background_texts,
+        topn=5,
+        output_format="list_of_tuples",
+    )
+    result = extractor()
+    assert "topwords_list" in result
+    assert isinstance(result["topwords_list"], list)
+    assert all(
+        isinstance(item, tuple) and len(item) == 2 for item in result["topwords_list"]
+    )
+
+
+def test_ztest_topwords_output_format_invalid(target_texts, background_texts):
+    """Test that ZTestTopwords raises a ValueError for an invalid output_format."""
+    extractor = ZTestTopwords(
+        target_documents=target_texts,
+        background_documents=background_texts,
+        topn=5,
+        output_format="invalid_format",
+    )
+    with pytest.raises(ValueError, match="Invalid output_format: invalid_format"):
+        extractor()
+
+
+def test_textacy_keywords_invalid_method_value_error(simple_text):
+    """Tests that a ValueError is raised when an invalid method is provided to TextacyKeywords' __call__ method."""
+    # Create an instance with a valid method initially to bypass Pydantic validation
+    # Then, directly modify the method attribute to an invalid value
+    extractor = TextacyKeywords(document=simple_text, method="textrank", topn=5)
+    extractor.method = "nonexistent_method"  # Set an invalid method directly
+
+    with pytest.raises(ValueError) as excinfo:
+        extractor()
+    assert "Invalid method. Choose 'textrank' or 'sgrank'." in str(excinfo.value)
