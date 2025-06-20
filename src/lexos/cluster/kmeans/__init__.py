@@ -1,5 +1,8 @@
 """KMeans clustering module for Lexos.
 
+Last Updated: July 20, 2025
+Last Tested: 
+
 This module provides a KMeansCluster class for performing KMeans clustering on document-term matrices (DTM), pandas DataFrames, or numpy arrays.
 """
 
@@ -12,17 +15,18 @@ import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 
 class KMeansCluster(BaseModel):
     """Lexos KMeans clustering module."""
     dtm: Optional[DTM | pd.DataFrame | np.ndarray] = Field(default=None)
-    k: int = Field(..., description="Number of clusters")
-    init: Literal['k-means++', 'random'] = Field("k-means++", description="KMeans init method")
-    max_iter: int = Field(300, description="Maximum number of iterations")
-    n_init: int = Field(10, description ="Number of centroid seeds")
-    tol: float = Field(1e-4, description="Convergence tolerance")
+    k: Optional[int] = None
+    init: Literal['k-means++', 'random'] = "k-means++"
+    max_iter: int = 300
+    n_init: int = 10
+    tol: float = 1e-4
     labels: Optional[list[str]] = None
     cluster_assignments: Optional[np.ndarray] = None
     plotly_fig: Optional[go.Figure] = None
@@ -49,6 +53,8 @@ class KMeansCluster(BaseModel):
         matrix = self._get_valid_matrix()
 
         # Run KMeans
+        if self.k is None:
+            raise LexosException("Number of clusters 'k' must be specified for KMeans clustering.")
         try:
             kmeans = KMeans(
                 n_clusters=self.k,
@@ -121,8 +127,10 @@ class KMeansCluster(BaseModel):
 
         if show:
             fig.show()
-        
+        return None
+
         return fig
+
     def plot_3d(self, show: bool = False, save_path: Optional[str] = None) -> go.Figure:
         """Generate a 3D PCA scatter plot of the clusters."""
         if self.cluster_assignments is None:
@@ -154,7 +162,64 @@ class KMeansCluster(BaseModel):
         self.plotly_fig = fig
         if save_path:
             fig.write_image(save_path)
+
         if show:
             fig.show()
+        return None
 
         return fig
+
+    def elbow_plot(
+        self,
+        k_range: range = range(1, 10),
+        show: bool = True,
+        save_path: Optional[str] = None,
+    ) -> None:
+        """Plot the Elbow curve to help choose the optimal number of clusters (k)."""
+        # Ensure matrix is valid
+        matrix = self._get_valid_matrix()
+
+        min_k = min(k_range)
+        max_k = min(len(matrix), max(k_range))
+
+        # Sanity check: avoid invalid ranges
+        if min_k > max_k:
+            raise LexosException(
+                f"Cannot fit KMeans: requested k range ({min_k}–{max(k_range)}) exceeds document count ({len(matrix)})."
+            )
+
+        adjusted_range = range(min_k, max_k + 1)
+        print(f"Running elbow plot for k = {min_k} to {max_k} (limited to document count)")
+
+        # Run KMeans for each k
+        inertias = []
+        for k in adjusted_range:
+            try:
+                model = KMeans(
+                    n_clusters=k,
+                    init=self.init,
+                    max_iter=self.max_iter,
+                    n_init=self.n_init,
+                    tol=self.tol,
+                    random_state=42,
+                )
+                model.fit(matrix)
+                inertias.append(model.inertia_)
+            except Exception as e:
+                raise LexosException(f"Error fitting KMeans for k={k}: {e}")
+
+        # Plot the elbow
+        plt.figure(figsize=(8, 5))
+        plt.plot(list(adjusted_range), inertias, marker="o")
+        plt.xlabel("Number of Clusters (k)")
+        plt.ylabel("Inertia (Within-cluster Sum of Squares)")
+        plt.title("Elbow Method for Optimal k")
+        plt.grid(True)
+
+        if save_path:
+            plt.savefig(save_path)
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
