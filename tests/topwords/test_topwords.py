@@ -1,7 +1,7 @@
 import pytest
+import spacy
 from pydantic import ValidationError
 from lexos.topwords import TextacyKeywords, ZTestTopwords
-import spacy
 import pandas as pd
 
 # ---------------- Fixtures ----------------
