@@ -11,7 +11,7 @@ import textacy
 from textacy import extract
 from lexos.tokenizer import Tokenizer
 
-from typing import Any, Literal  # Only keep Any and Literal
+from typing import Any, Literal, Tuple  # Only keep Any and Literal
 
 # register a custom extension for topwords if not already set
 if not Doc.has_extension("topwords"):
@@ -41,6 +41,10 @@ class TextacyKeywords(TopwordsPlugin):
         default="en_core_web_sm",
         description="spaCy model name to use for tokenization."
     )
+    ngrams: Tuple[int, int] = Field(
+        default=(1, 3),
+        description="The ngram range for keyword extraction, e.g., (1, 1) for unigrams only."
+    )
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -49,32 +53,36 @@ class TextacyKeywords(TopwordsPlugin):
     )
 
     def __init__(self, **data):
-        # If tokenizer is not provided, create one with the specified model
         if "tokenizer" not in data or data["tokenizer"] is None:
-            data["tokenizer"] = Tokenizer (model=data.get("model","en_core_web_sm"))
+            data["tokenizer"] = Tokenizer(model=data.get("model", "en_core_web_sm"))
         super().__init__(**data)
 
     def __call__(self) -> dict:
-        """
-        Extract keywords from the input document (string or spaCy Doc) using the specified method.
-        Returns:
-            Dict[str, List[Dict[str, Any]]]: Extracted keywords and their scores.
-        """
         if isinstance(self.document, Doc):
             doc = self.document
         elif isinstance(self.document, str):
-            doc = self.tokenizer.make_doc(self.document)
+            doc = self.tokenizer(self.document)
         else:
             raise ValueError("The 'document' field must be a string or a spaCy Doc.")
 
+        min_n, max_n = self.ngrams
+
         if self.method == "textrank":
-            results: list[tuple[str, float]] = extract.keyterms.textrank(
-                doc, normalize="lemma", topn=self.topn
+            results = extract.keyterms.textrank(
+                doc, normalize="lemma", topn=self.topn * 20 # went for 20 instead of 3 to guarantee to get some words, might need to narrow it down later
             )
+            # Filter by ngram length
+            results = [
+                (term, score)
+                for term, score in results
+                if min_n <= len(term.split()) <= max_n and term.lower() not in STOP_WORDS
+            ][:self.topn]
         elif self.method == "sgrank":
-            results: list[tuple[str, float]] = extract.keyterms.sgrank(
-                doc, normalize="lower", ngrams=(1, 2, 3), topn=self.topn
+            results = extract.keyterms.sgrank(
+                doc, normalize="lower", ngrams=self.ngrams, topn=self.topn
             )
+        else:
+            raise ValueError("Invalid method. Choose 'textrank' or 'sgrank'.")
 
         self.keywords = [
             {"term": term, "score": score} for term, score in results
@@ -83,7 +91,6 @@ class TextacyKeywords(TopwordsPlugin):
         return self.to_dict()
 
     def to_dict(self):
-        """Return the keywords as a dictionary with terms and scores."""
         return {
             "keywords": [
                 {"term": kw["term"], "score": kw["score"]}
@@ -92,11 +99,9 @@ class TextacyKeywords(TopwordsPlugin):
         }
 
     def to_df(self):
-        """Return the extracted keywords as a pandas DataFrame."""
         return pd.DataFrame(getattr(self, "keywords", []))
 
     def to_list(self):
-        """Return the extracted keywords as a list of (term, score) tuples."""
         return [(kw["term"], kw["score"]) for kw in getattr(self, "keywords", [])]
 
 
@@ -121,6 +126,10 @@ class ZTestTopwords(TopwordsPlugin):
     )
     remove_digits: bool | None = Field(
         False, description="Whether to remove digits."
+    )
+    ngrams: Tuple[int, int] = Field(
+        default=(1, 1),
+        description="The ngram range for analysis, e.g., (1, 1) for unigrams only."
     )
     model:str = Field(
         default="en_core_web_sm",
@@ -166,20 +175,28 @@ class ZTestTopwords(TopwordsPlugin):
         else:
             raise ValueError("The 'background_documents' field must be provided.")
 
+        def get_ngrams(doc, n):
+            tokens = [
+                token.lower_ if not self.case_sensitive else token.text
+                for token in doc
+                if not (
+                    (self.remove_stopwords and token.is_stop) or
+                    (self.remove_punct and token.is_punct) or
+                    (self.remove_digits and token.is_digit) or
+                    token.is_space
+                )
+            ]
+            return [
+                " ".join(tokens[i:i+n])
+                for i in range(len(tokens) - n + 1)
+            ]
+
         def get_tokens(docs: list[Any]) -> list[str]:
             tokens: list[str] = []
+            min_n, max_n = self.ngrams
             for doc in docs:
-                for token in doc:
-                    if self.remove_stopwords and token.is_stop:
-                        continue
-                    if self.remove_punct and token.is_punct:
-                        continue
-                    if self.remove_digits and token.is_digit:
-                        continue
-                    if token.is_space:
-                        continue
-                    token_text = token.lower_ if not self.case_sensitive else token.text
-                    tokens.append(token_text)
+                for n in range(min_n, max_n + 1):
+                    tokens.extend(get_ngrams(doc, n))
             return tokens
 
         target_tokens: list[str] = get_tokens(target_docs)

@@ -4,8 +4,7 @@ The lexos.topwords module provides tools for extracting significant keywords fro
 
 ## Difference on `keywords` and `topwords`
 
-The `TextacyKeywords` class uses Textacy's algorithmitic keyword extraction to return the statistically distinguishing terms in a document, whereas the `ZTestTopwords` class uses a Z socre to calculate which terms best distinguish a list of target documents in contrast to a list of background documents.
-
+The `TextacyKeywords` class uses Textacy's algorithmitic keyword extraction to return the statistically distinguishing terms in a document, whereas the `ZTestTopwords` class uses a Z score to calculate which terms best distinguish a list of target documents in contrast to a list of background documents.
 
 | Feature            | `keywords` (TextacyKeywords)                                   | `topwords` (ZTestTopwords)                                 |
 |--------------------|---------------------------------------------------------------|------------------------------------------------------------|
@@ -13,7 +12,7 @@ The `TextacyKeywords` class uses Textacy's algorithmitic keyword extraction to r
 | **Method**         | Algorithmic keyword extraction (e.g., TextRank, SGRank)       | Statistical comparison using Z-test                        |
 | **Input**          | One document (string or spaCy Doc)                            | List of target documents and list of background documents  |
 | **Best for**       | Summarizing or highlighting main topics in a single document  | Finding distinguishing words that set a group of texts apart from others |
-| **Customization**  | Choice of extraction algorithm, number of keywords            | Preprocessing options (case, stopwords, etc.), number of top words |
+| **Customization**  | Choice of extraction algorithm, number of keywords, ngram range | Preprocessing options (case, stopwords, etc.), ngram range, number of top words |
 | **Output**         | Keywords ranked by importance                                 | Words ranked by statistical significance (Z-score)         |
 | **When to use**    | When you want to summarize or tag a document with key terms   | When you want to compare groups of texts and find what makes one group unique |
 
@@ -37,14 +36,16 @@ These attributes are set automatically by the analysis classes if you provide sp
 - Extracts representative keywords from a single text document using algorithms from the textacy library.
 - Backend: textacy.extract.keyterms.
 - Methods: Supports standard keyword extraction algorithms via the method parameter, including `textrank` and `sgrank`.
-- Customization: The `topn` parameter allows you to specify the number of top keywords to return.
+- Customization: The `topn` parameter allows you to specify the number of top keywords to return. The `ngrams` parameter allows you to control the ngram range for keyword extraction.
 - Output: After calling the instance, use `.to_dict()`, `.to_df()`, or `.to_list()` to get the results in your preferred format.
 
 __Parameters:__
 
-- `text`: The raw text to analyze.
+- `document`: The raw text or spaCy Doc to analyze.
 - `method`: `"textrank"` or `"sgrank"` (default: `"textrank"`).
 - `topn`: Number of top keywords to return (default: 10).
+- `ngrams`: Tuple specifying the ngram range, e.g., `(1, 3)` (default: `(1, 3)`).
+- `model`: spaCy model name to use for tokenization (default: `"en_core_web_sm"`).
 - `tokenizer`: (optional) A `Tokenizer` instance.
 
 __Usage:__
@@ -52,12 +53,12 @@ __Usage:__
 ```python
 from lexos.topwords import TextacyKeywords
 
-kw = TextacyKeywords(text="Your text here", method="textrank", topn=5)
+kw = TextacyKeywords(document="Your text here", method="textrank", topn=5)
 kw()  # Run the analysis
 print(kw.to_dict())  # List of dicts
 print(kw.to_df())    # DataFrame
 print(kw.to_list())  # List of tuples
-# The keywords are also set on the spaCy Doc as kw.doc._.keywords
+# The keywords are also set on the spaCy Doc as kw.document._.keywords if you passed a Doc as input
 ```
 
 ### `ZTestTopwords`
@@ -66,17 +67,20 @@ print(kw.to_list())  # List of tuples
 - Backend: numpy for statistical calculations and spaCy (via the Lexos Tokenizer) for text processing.
 - Method: A Z-test is used to compare the proportions of word frequencies between the target and background corpora.
 - Preprocessing: Includes boolean options for `case_sensitive` analysis and for removing `stopwords`, `punct` (punctuation), and `digits`.
-- Customization: The `topn` parameter controls how many of the most significant words are returned.
+- Customization: The `topn` parameter controls how many of the most significant words are returned. The `ngrams` parameter allows you to control the ngram range for analysis.
 - Output: After calling the instance, use `.to_dict()`, `.to_df()`, or `.to_list()` to get the results in your preferred format.
 
 __Parameters:__
 
-- `target_texts`: List of target documents (strings).
-- `background_texts`: List of background documents (strings).
+- `target_documents`: List of target documents (strings or spaCy Docs).
+- `background_documents`: List of background documents (strings or spaCy Docs).
 - `topn`: Number of top words to return (default: 10).
+- `ngrams`: Tuple specifying the ngram range, e.g., `(1, 1)` for unigrams only (default: `(1, 1)`).
 - `case_sensitive`, `remove_stopwords`, `remove_punct`, `remove_digits`: Preprocessing options.
+- `model`: spaCy model name to use for tokenization (default: `"en_core_web_sm"`).
 - `tokenizer`: (optional) A `Tokenizer` instance.
 - `docs`: (optional) List of spaCy `Doc` objects to set results on.
+- `output_format`: Output format: `"dict"`, `"dataframe"`, `"list_of_dicts"`, or `"list_of_tuples"` (default: `"dict"`).
 
 __Usage:__
 
@@ -85,14 +89,15 @@ from lexos.topwords import ZTestTopwords
 import spacy
 
 nlp = spacy.blank("en")
-target_texts = ["This is a test.", "Another test document."]
-background_texts = ["Background text here.", "More background docs."]
-docs = [nlp(text) for text in target_texts]
+target_documents = ["This is a test.", "Another test document."]
+background_documents = ["Background text here.", "More background docs."]
+docs = [nlp(text) for text in target_documents]
 
 ztest = ZTestTopwords(
-    target_texts=target_texts,
-    background_texts=background_texts,
-    docs=docs
+    target_documents=target_documents,
+    background_documents=background_documents,
+    docs=docs,
+    ngrams=(1, 2)  # Example: use unigrams and bigrams
 )
 ztest()  # Run the analysis
 print(ztest.to_dict())  # List of dicts
