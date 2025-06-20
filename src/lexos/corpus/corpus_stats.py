@@ -57,12 +57,16 @@ class CorpusStats(BaseModel):
         object.__setattr__(self, "labels", [doc[1] for doc in self.docs])
 
         # Configure the DTM vectorizer with the provided settings
-        self.dtm.vectorizer.min_df = (self.min_df,)
-        self.dtm.vectorizer.max_df = (self.max_df,)
-        self.dtm.vectorizer.max_n_terms = (self.max_n_terms,)
+        vectorizer_kwargs = {}
+        if self.min_df is not None:
+            vectorizer_kwargs['min_df'] = self.min_df
+        if self.max_df is not None:
+            vectorizer_kwargs['max_df'] = self.max_df
+        if self.max_n_terms is not None:
+            vectorizer_kwargs['max_n_terms'] = self.max_n_terms
 
         # Create the Document-Term Matrix (DTM) using the provided token lists
-        self.dtm(docs=[doc[2] for doc in self.docs], labels=self.labels)
+        self.dtm(docs=[doc[2] for doc in self.docs], labels=self.labels, **vectorizer_kwargs)
 
     @property
     def df(self) -> pd.DataFrame:
@@ -94,6 +98,48 @@ class CorpusStats(BaseModel):
     def standard_deviation(self) -> float:
         """Get the standard deviation of the total tokens in the Corpus."""
         return self.mean_and_spread[1]
+
+    @cached_property
+    def iqr_values(self) -> tuple[float, float, float]:
+        """Get the Q1, Q3, and IQR values for total tokens.
+        
+        Returns:
+            tuple[float, float, float]: A tuple containing (q1, q3, iqr)
+        """
+        doc_lengths = self.doc_stats_df['total_tokens'].values
+        q1 = np.quantile(doc_lengths, 0.25)
+        q3 = np.quantile(doc_lengths, 0.75)
+        iqr = q3 - q1
+        return q1, q3, iqr
+
+    @cached_property
+    def iqr_bounds(self) -> tuple[float, float]:
+        """Get the IQR outlier bounds for total tokens.
+        
+        Returns:
+            tuple[float, float]: A tuple containing (lower_bound, upper_bound)
+        """
+        q1, q3, iqr = self.iqr_values
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        return lower_bound, upper_bound
+
+    @cached_property
+    def iqr_outliers(self) -> list[tuple[str, str]]:
+        """Get the IQR outliers for total tokens.
+        
+        Returns:
+            list[tuple[str, str]]: A list of tuples containing the document ID
+            and document name for each outlier.
+        """
+        doc_lengths = self.doc_stats_df['total_tokens'].values
+        lower_bound, upper_bound = self.iqr_bounds
+        
+        return [
+            (str(self.ids[i]), str(self.labels[i]))
+            for i, length in enumerate(doc_lengths)
+            if length < lower_bound or length > upper_bound
+        ]
 
     def _get_doc_stats_df(self) -> pd.DataFrame:
         """Get a Pandas dataframe containing the statistics of each document.
@@ -141,30 +187,7 @@ class CorpusStats(BaseModel):
             list[tuple[str, str]]: A list of tuples containing the document ID
             and document name for each outlier.
         """
-        # Get doc lengths from the doc_stats_df
-        doc_lengths = self.doc_stats_df["total_tokens"].values
-
-        # Convert to proper DataFrame with explicit column structure
-        df = pd.DataFrame({
-            'ids': self.ids,
-            'labels': self.labels,
-            'lengths': doc_lengths
-        })
-        
-        # Calculate IQR on the lengths column specifically
-        q1 = df['lengths'].quantile(0.25)
-        q3 = df['lengths'].quantile(0.75)
-        iqr = q3 - q1
-        lower_bound = q1 - 1.5 * iqr
-        upper_bound = q3 + 1.5 * iqr
-        
-        # Don't try to assign to self.iqr (Pydantic won't allow it)
-        # Return outliers
-        return [
-            (str(self.ids[i]), str(self.labels[i]))
-            for i, length in enumerate(doc_lengths)
-            if length < lower_bound or length > upper_bound
-        ]
+        return self.iqr_outliers
 
     def get_std_outliers(self) -> list[tuple[str, str]]:
         """Get the standard deviation outliers in the Corpus.

@@ -9,6 +9,7 @@ Last Update: 2025-06-12.
 import pytest
 import numpy as np
 import pandas as pd
+import time
 
 # Try to import corpus_stats and dependencies
 try:
@@ -50,6 +51,19 @@ def sample_small_docs():
     return [
         ("doc1", "Doc 1", ["hello", "world"]),
         ("doc2", "Doc 2", ["hello", "test", "world"]),
+    ]
+
+
+@pytest.fixture
+def iqr_test_docs():
+    """Sample data with known IQR values for testing cached properties."""
+    return [
+        ("doc1", "Document 1", ["word"] * 5),      # 5 tokens
+        ("doc2", "Document 2", ["word"] * 10),     # 10 tokens
+        ("doc3", "Document 3", ["word"] * 15),     # 15 tokens
+        ("doc4", "Document 4", ["word"] * 20),     # 20 tokens
+        ("doc5", "Document 5", ["word"] * 25),     # 25 tokens (outlier)
+        ("doc6", "Document 6", ["word"] * 2),      # 2 tokens (outlier)
     ]
 
 
@@ -423,6 +437,165 @@ class TestCorpusStatsBugSummary:
         print("  ✗ Automated CorpusStats workflows")
         
         print("="*60)
+
+
+class TestCorpusStatsCachedIQRProperties:
+    """Test cached IQR properties functionality in CorpusStats."""
+    
+    def test_cached_iqr_values_property(self, iqr_test_docs):
+        """Test iqr_values returns correct (q1, q3, iqr) tuple."""
+        stats = CorpusStats(docs=iqr_test_docs)
+        
+        # Get cached IQR values
+        q1, q3, iqr = stats.iqr_values
+        
+        # Manually calculate expected values
+        # Tokens: [2, 5, 10, 15, 20, 25]
+        # Sorted: [2, 5, 10, 15, 20, 25]
+        # Q1 (25th percentile) and Q3 (75th percentile)
+        token_counts = [2, 5, 10, 15, 20, 25]
+        expected_q1 = np.quantile(token_counts, 0.25)
+        expected_q3 = np.quantile(token_counts, 0.75)
+        expected_iqr = expected_q3 - expected_q1
+        
+        # Verify cached values match manual calculation
+        assert q1 == expected_q1, f"Q1 mismatch: got {q1}, expected {expected_q1}"
+        assert q3 == expected_q3, f"Q3 mismatch: got {q3}, expected {expected_q3}"
+        assert iqr == expected_iqr, f"IQR mismatch: got {iqr}, expected {expected_iqr}"
+        
+        # Verify return type
+        assert isinstance(q1, (int, float))
+        assert isinstance(q3, (int, float))
+        assert isinstance(iqr, (int, float))
+        
+        print(f"✓ IQR values: Q1={q1}, Q3={q3}, IQR={iqr}")
+
+    def test_cached_iqr_bounds_property(self, iqr_test_docs):
+        """Test iqr_bounds returns correct (lower_bound, upper_bound) bounds."""
+        stats = CorpusStats(docs=iqr_test_docs)
+        
+        # Get cached bounds
+        lower_bound, upper_bound = stats.iqr_bounds
+        
+        # Manually calculate expected bounds using cached iqr_values
+        q1, q3, iqr = stats.iqr_values
+        expected_lower = q1 - 1.5 * iqr
+        expected_upper = q3 + 1.5 * iqr
+        
+        # Verify bounds match manual calculation
+        assert lower_bound == expected_lower, f"Lower bound mismatch: got {lower_bound}, expected {expected_lower}"
+        assert upper_bound == expected_upper, f"Upper bound mismatch: got {upper_bound}, expected {expected_upper}"
+        
+        # Verify return type
+        assert isinstance(lower_bound, (int, float))
+        assert isinstance(upper_bound, (int, float))
+        
+        print(f"✓ IQR bounds: lower={lower_bound}, upper={upper_bound}")
+
+    def test_cached_iqr_outliers_property(self, iqr_test_docs):
+        """Test iqr_outliers returns correct list of outlier tuples."""
+        stats = CorpusStats(docs=iqr_test_docs)
+        
+        # Get cached outliers
+        outliers = stats.iqr_outliers
+        
+        # Manually calculate expected outliers
+        lower_bound, upper_bound = stats.iqr_bounds
+        token_counts = [2, 5, 10, 15, 20, 25]  # From our test data
+        
+        expected_outliers = []
+        for i, count in enumerate(token_counts):
+            if count < lower_bound or count > upper_bound:
+                doc_id = f"doc{i+1}"
+                doc_name = f"Document {i+1}"
+                expected_outliers.append((doc_id, doc_name))
+        
+        # Verify outliers match manual calculation
+        assert len(outliers) == len(expected_outliers), f"Outlier count mismatch: got {len(outliers)}, expected {len(expected_outliers)}"
+        
+        # Verify return type and structure
+        assert isinstance(outliers, list)
+        for outlier in outliers:
+            assert isinstance(outlier, tuple)
+            assert len(outlier) == 2
+            assert isinstance(outlier[0], str)  # doc_id
+            assert isinstance(outlier[1], str)  # doc_name
+        
+        print(f"✓ Found {len(outliers)} IQR outliers: {outliers}")
+
+    def test_iqr_properties_are_cached(self, iqr_test_docs):
+        """Test that multiple property accesses return identical objects (same memory reference)."""
+        stats = CorpusStats(docs=iqr_test_docs)
+        
+        # Access properties multiple times
+        iqr_values_1 = stats.iqr_values
+        iqr_values_2 = stats.iqr_values
+        
+        iqr_bounds_1 = stats.iqr_bounds
+        iqr_bounds_2 = stats.iqr_bounds
+        
+        iqr_outliers_1 = stats.iqr_outliers
+        iqr_outliers_2 = stats.iqr_outliers
+        
+        # Verify same object returned (cached)
+        assert iqr_values_1 is iqr_values_2, "iqr_values should return same cached object"
+        assert iqr_bounds_1 is iqr_bounds_2, "iqr_bounds should return same cached object"
+        assert iqr_outliers_1 is iqr_outliers_2, "iqr_outliers should return same cached object"
+        
+        # Verify values are identical
+        assert iqr_values_1 == iqr_values_2
+        assert iqr_bounds_1 == iqr_bounds_2
+        assert iqr_outliers_1 == iqr_outliers_2
+        
+        print("✓ All IQR properties are properly cached")
+
+    def test_get_iqr_outliers_uses_cached_property(self, iqr_test_docs):
+        """Test that get_iqr_outliers() returns same result as iqr_outliers property."""
+        stats = CorpusStats(docs=iqr_test_docs)
+        
+        # Get results from both method and property
+        method_result = stats.get_iqr_outliers()
+        property_result = stats.iqr_outliers
+        
+        # Verify identical results
+        assert method_result == property_result, "get_iqr_outliers() should return same result as iqr_outliers property"
+        assert method_result is property_result, "get_iqr_outliers() should return same cached object as iqr_outliers property"
+        
+        print("✓ get_iqr_outliers() correctly uses cached iqr_outliers property")
+
+    def test_iqr_caching_performance(self, iqr_test_docs):
+        """Test that cached access is faster than initial calculation."""
+        stats = CorpusStats(docs=iqr_test_docs)
+        
+        # Measure first access (calculates and caches)
+        start_time = time.time()
+        first_values = stats.iqr_values
+        first_bounds = stats.iqr_bounds
+        first_outliers = stats.iqr_outliers
+        first_access_time = time.time() - start_time
+        
+        # Measure subsequent accesses (cached)
+        start_time = time.time()
+        for _ in range(10):  # Multiple accesses to amplify timing difference
+            cached_values = stats.iqr_values
+            cached_bounds = stats.iqr_bounds
+            cached_outliers = stats.iqr_outliers
+        cached_access_time = time.time() - start_time
+        
+        # Verify cached values are identical
+        assert first_values == cached_values
+        assert first_bounds == cached_bounds
+        assert first_outliers == cached_outliers
+        
+        # Performance comparison (cached should be significantly faster)
+        # Note: This might be flaky in CI, so we're lenient
+        avg_cached_time = cached_access_time / 10
+        if first_access_time > 0.001 and avg_cached_time > 0:  # Only check if times are measurable
+            speed_ratio = first_access_time / avg_cached_time
+            print(f"✓ Caching performance: first={first_access_time:.6f}s, cached={avg_cached_time:.6f}s, ratio={speed_ratio:.2f}x")
+            assert speed_ratio > 1, "Cached access should be faster than initial calculation"
+        else:
+            print(f"✓ Caching working (timing too fast to measure reliably: first={first_access_time:.6f}s, cached={avg_cached_time:.6f}s)")
 
 
 # Tests that will be automatically enabled when bugs are fixed
