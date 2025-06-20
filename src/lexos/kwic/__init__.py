@@ -80,7 +80,6 @@ class Kwic:
 
         return all_kwic_results
 
-    # @validate_call(config=model_config)
     def find_in_sentences(
         doc: Doc,  # Must be a Doc object, used for seperating sentences
         keyword: str | Pattern,
