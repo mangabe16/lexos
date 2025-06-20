@@ -11,6 +11,9 @@ To reproduce the web app's Statistics module, call `stats = Corpus.get_token_sta
 # TODO:
 - Test.
 - Consider adding method to normalize extensions across entire corpus (PM suggestion: detect all extensions in corpus docs and set values to None if not present in a given Doc)
+- Complete communication architecture implementation once peer modules (kmeans, topwords, kwic, text classification) are available
+- Implement result validation and versioning for external module results
+- Add cross-module result correlation capabilities
 """
 
 import shutil
@@ -54,6 +57,10 @@ class Corpus(BaseModel):
     meta: dict[str, Any] = Field(
         {},
         description="Metadata dictionary for arbitrary metadata relating to the corpus.",
+    )
+    analysis_results: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Storage for results from external analysis modules (kmeans, topwords, kwic, etc.)",
     )
     model_cache: LexosModelCache = Field(
         LexosModelCache(),
@@ -618,3 +625,200 @@ class Corpus(BaseModel):
         else:
             # Return empty DataFrame with basic columns if no records
             return pd.DataFrame(columns=["id", "name", "is_active"])
+
+    # =============================================================================
+    # COMMUNICATION ARCHITECTURE - Phase 1.5
+    # =============================================================================
+
+    @validate_call(config=model_config)
+    def import_analysis_results(self, module_name: str, results_data: dict[str, Any], 
+                              version: str = "1.0.0", overwrite: bool = False) -> None:
+        """Import analysis results from external modules into corpus metadata.
+        
+        Args:
+            module_name: Name of the external module (e.g., 'kmeans', 'topwords', 'kwic', 'text_classification')
+            results_data: Dictionary containing the analysis results
+            version: Version string for result versioning and compatibility
+            overwrite: Whether to overwrite existing results for this module
+            
+        Note:
+            This is a framework implementation. Full functionality requires
+            peer modules to be implemented and their result schemas defined.
+        """
+        # TODO: Add result schema validation once peer modules are available
+        # TODO: Add proper versioning system for backward compatibility
+        # TODO: Implement result correlation capabilities across modules
+        
+        if module_name in self.analysis_results and not overwrite:
+            raise ValueError(
+                f"Results for module '{module_name}' already exist. "
+                f"Use overwrite=True to replace them."
+            )
+        
+        # Basic result structure with metadata
+        self.analysis_results[module_name] = {
+            "version": version,
+            "timestamp": pd.Timestamp.now().isoformat(),
+            "corpus_state": {
+                "num_docs": self.num_docs,
+                "num_active_docs": self.num_active_docs,
+                "corpus_fingerprint": self._generate_corpus_fingerprint()
+            },
+            "results": results_data
+        }
+        
+        print(f"✓ Imported {module_name} analysis results (version {version})")
+
+    @validate_call(config=model_config)  
+    def get_analysis_results(self, module_name: str = None) -> dict[str, Any]:
+        """Retrieve analysis results from external modules.
+        
+        Args:
+            module_name: Specific module name to retrieve, or None for all results
+            
+        Returns:
+            Dictionary containing analysis results
+        """
+        if module_name:
+            if module_name not in self.analysis_results:
+                raise ValueError(f"No results found for module '{module_name}'")
+            return self.analysis_results[module_name]
+        
+        return self.analysis_results
+
+    @validate_call(config=model_config)
+    def export_statistical_fingerprint(self) -> dict[str, Any]:
+        """Export standardized statistical summary for external modules.
+        
+        Returns:
+            Dictionary containing corpus statistical fingerprint for external module consumption
+            
+        Note:
+            This provides the standardized API for external modules to consume corpus statistics.
+        """
+        # TODO: Expand fingerprint based on external module requirements
+        # TODO: Add feature extraction optimized for different analysis types
+        
+        try:
+            stats = self.get_stats(active_only=True)
+            
+            # Core statistical fingerprint
+            fingerprint = {
+                "corpus_metadata": {
+                    "name": self.name,
+                    "num_docs": self.num_docs,
+                    "num_active_docs": self.num_active_docs,
+                    "num_tokens": self.num_tokens,
+                    "num_terms": self.num_terms,
+                    "corpus_fingerprint": self._generate_corpus_fingerprint()
+                },
+                "distribution_stats": stats.distribution_stats,
+                "percentiles": stats.percentiles,
+                "text_diversity": stats.text_diversity_stats,
+                "basic_stats": {
+                    "mean": stats.mean,
+                    "std": stats.standard_deviation,
+                    "iqr_values": stats.iqr_values,
+                    "iqr_bounds": stats.iqr_bounds
+                },
+                "document_features": stats.doc_stats_df.to_dict('records'),
+                "term_frequencies": self.term_counts(n=100, most_common=True)  # Top 100 terms
+            }
+            
+            return fingerprint
+            
+        except Exception as e:
+            # Fallback fingerprint if CorpusStats fails
+            return {
+                "corpus_metadata": {
+                    "name": self.name,
+                    "num_docs": self.num_docs,
+                    "num_active_docs": self.num_active_docs,
+                    "num_tokens": self.num_tokens,
+                    "num_terms": self.num_terms,
+                    "corpus_fingerprint": self._generate_corpus_fingerprint()
+                },
+                "error": f"Statistical analysis failed: {str(e)}",
+                "basic_features": {
+                    "document_ids": list(self.records.keys()),
+                    "document_names": list(self.names.keys())
+                }
+            }
+
+    def _generate_corpus_fingerprint(self) -> str:
+        """Generate a unique fingerprint for corpus state validation.
+        
+        Returns:
+            SHA256 hash representing current corpus state
+        """
+        import hashlib
+        
+        # Create fingerprint from corpus state
+        state_data = {
+            "num_docs": self.num_docs,
+            "num_active_docs": self.num_active_docs,
+            "record_ids": sorted(self.records.keys()),
+            "active_record_ids": sorted([k for k, v in self.records.items() if v and v.is_active])
+        }
+        
+        state_string = str(sorted(state_data.items()))
+        return hashlib.sha256(state_string.encode()).hexdigest()[:16]  # First 16 chars
+
+    @validate_call(config=model_config)
+    def validate_analysis_compatibility(self, module_name: str) -> dict[str, Any]:
+        """Validate if stored analysis results are compatible with current corpus state.
+        
+        Args:
+            module_name: Name of the module to validate
+            
+        Returns:
+            Dictionary containing validation results and recommendations
+        """
+        if module_name not in self.analysis_results:
+            return {
+                "compatible": False,
+                "reason": f"No analysis results found for module '{module_name}'"
+            }
+        
+        stored_results = self.analysis_results[module_name]
+        stored_state = stored_results.get("corpus_state", {})
+        current_fingerprint = self._generate_corpus_fingerprint()
+        stored_fingerprint = stored_state.get("corpus_fingerprint", "")
+        
+        compatibility = {
+            "compatible": stored_fingerprint == current_fingerprint,
+            "current_fingerprint": current_fingerprint,
+            "stored_fingerprint": stored_fingerprint,
+            "stored_timestamp": stored_results.get("timestamp", "unknown"),
+            "stored_version": stored_results.get("version", "unknown")
+        }
+        
+        if not compatibility["compatible"]:
+            compatibility["reason"] = "Corpus state has changed since analysis was performed"
+            compatibility["recommendation"] = f"Re-run {module_name} analysis with current corpus state"
+            
+            # Detailed state comparison
+            compatibility["state_changes"] = {
+                "num_docs": {
+                    "stored": stored_state.get("num_docs", 0),
+                    "current": self.num_docs,
+                    "changed": stored_state.get("num_docs", 0) != self.num_docs
+                },
+                "num_active_docs": {
+                    "stored": stored_state.get("num_active_docs", 0),
+                    "current": self.num_active_docs,
+                    "changed": stored_state.get("num_active_docs", 0) != self.num_active_docs
+                }
+            }
+        
+        return compatibility
+
+    # TODO: Add when peer modules are available
+    # def correlate_analysis_results(self, module1: str, module2: str) -> dict:
+    #     """Correlate results between different analysis modules."""
+    #     pass
+    
+    # TODO: Add when peer module schemas are defined
+    # def validate_result_schema(self, module_name: str, results_data: dict) -> bool:
+    #     """Validate that results conform to expected schema for the module."""
+    #     pass

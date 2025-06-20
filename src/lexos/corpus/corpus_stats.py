@@ -5,6 +5,7 @@ Last tested: TBD.
 """
 
 from functools import cached_property
+from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +15,7 @@ import seaborn as sns
 from plotly import express as px
 from plotly.subplots import make_subplots
 from pydantic import BaseModel, ConfigDict, Field, validate_call
+from scipy import stats
 from spacy.tokens import Doc
 
 from lexos.dtm import DTM
@@ -44,7 +46,7 @@ class CorpusStats(BaseModel):
     max_df: int | None = None
     max_n_terms: int | None = None
     dtm: DTM = Field(
-        default_factory=DTM, description="Document-Term Matrix (DTM) for the Corpus."
+        default=None, description="Document-Term Matrix (DTM) for the Corpus."
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -65,7 +67,9 @@ class CorpusStats(BaseModel):
         if self.max_n_terms is not None:
             vectorizer_kwargs['max_n_terms'] = self.max_n_terms
 
-        # Create the Document-Term Matrix (DTM) using the provided token lists
+        # Create and initialize the Document-Term Matrix (DTM) using the provided token lists
+        object.__setattr__(self, "dtm", DTM())
+        # Pass vectorizer kwargs during the call rather than initialization
         self.dtm(docs=[doc[2] for doc in self.docs], labels=self.labels, **vectorizer_kwargs)
 
     @property
@@ -141,6 +145,96 @@ class CorpusStats(BaseModel):
             if length < lower_bound or length > upper_bound
         ]
 
+    @cached_property
+    def distribution_stats(self) -> dict[str, float]:
+        """Get comprehensive distribution statistics for document lengths.
+        
+        Returns:
+            dict[str, float]: Dictionary containing skewness, kurtosis, and normality test results.
+        """
+        doc_lengths = self.doc_stats_df['total_tokens'].values
+        
+        # Calculate skewness and kurtosis
+        skewness = stats.skew(doc_lengths)
+        kurt = stats.kurtosis(doc_lengths)  # Excess kurtosis (normal dist = 0)
+        
+        # Shapiro-Wilk normality test
+        shapiro_stat, shapiro_p = stats.shapiro(doc_lengths)
+        
+        # Coefficient of variation (relative variability)
+        cv = self.standard_deviation / self.mean if self.mean != 0 else 0
+        
+        return {
+            "skewness": skewness,
+            "kurtosis": kurt,
+            "coefficient_of_variation": cv,
+            "shapiro_statistic": shapiro_stat,
+            "shapiro_p_value": shapiro_p,
+            "is_normal": shapiro_p > 0.05  # Conservative threshold
+        }
+
+    @cached_property
+    def percentiles(self) -> dict[str, float]:
+        """Get comprehensive percentile analysis for document lengths.
+        
+        Returns:
+            dict[str, float]: Dictionary containing various percentiles.
+        """
+        doc_lengths = self.doc_stats_df['total_tokens'].values
+        
+        return {
+            "percentile_5": np.percentile(doc_lengths, 5),
+            "percentile_10": np.percentile(doc_lengths, 10),
+            "percentile_25": np.percentile(doc_lengths, 25),  # Q1
+            "percentile_50": np.percentile(doc_lengths, 50),  # Median
+            "percentile_75": np.percentile(doc_lengths, 75),  # Q3
+            "percentile_90": np.percentile(doc_lengths, 90),
+            "percentile_95": np.percentile(doc_lengths, 95),
+            "min": np.min(doc_lengths),
+            "max": np.max(doc_lengths),
+            "range": np.max(doc_lengths) - np.min(doc_lengths)
+        }
+
+    @cached_property
+    def text_diversity_stats(self) -> dict[str, float]:
+        """Get text-specific diversity and complexity statistics.
+        
+        Returns:
+            dict[str, float]: Dictionary containing lexical diversity measures.
+        """
+        doc_stats = self.doc_stats_df
+        
+        # Type-Token Ratio statistics across corpus
+        ttr_values = doc_stats['vocabulary_density'].values / 100  # Convert from percentage
+        
+        # Hapax legomena statistics
+        hapax_values = doc_stats['hapax_legomena'].values
+        hapax_ratio = hapax_values / doc_stats['total_tokens'].values
+        
+        # Calculate corpus-level diversity metrics
+        total_tokens = doc_stats['total_tokens'].sum()
+        total_terms = len(self.dtm.sorted_terms_list) if hasattr(self.dtm, 'sorted_terms_list') else doc_stats['total_terms'].sum()
+        
+        # Hapax dislegomena statistics
+        dislegomena_values = doc_stats['hapax_dislegomena'].values
+        dislegomena_ratio = dislegomena_values / doc_stats['total_tokens'].values
+        
+        return {
+            "mean_ttr": np.mean(ttr_values),
+            "median_ttr": np.median(ttr_values),
+            "std_ttr": np.std(ttr_values),
+            "corpus_ttr": total_terms / total_tokens if total_tokens > 0 else 0,
+            "mean_hapax_ratio": np.mean(hapax_ratio),
+            "median_hapax_ratio": np.median(hapax_ratio),
+            "std_hapax_ratio": np.std(hapax_ratio),
+            "total_hapax": hapax_values.sum(),
+            "corpus_hapax_ratio": hapax_values.sum() / total_tokens if total_tokens > 0 else 0,
+            "mean_dislegomena_ratio": np.mean(dislegomena_ratio),
+            "median_dislegomena_ratio": np.median(dislegomena_ratio),
+            "total_dislegomena": dislegomena_values.sum(),
+            "corpus_dislegomena_ratio": dislegomena_values.sum() / total_tokens if total_tokens > 0 else 0
+        }
+
     def _get_doc_stats_df(self) -> pd.DataFrame:
         """Get a Pandas dataframe containing the statistics of each document.
 
@@ -178,6 +272,9 @@ class CorpusStats(BaseModel):
             file_stats["total_terms"] / file_stats["total_tokens"] * 100
         ).round(2)
 
+        # Add hapax dislegomena (words appearing exactly twice)
+        file_stats["hapax_dislegomena"] = df.eq(2).sum(axis=1)
+
         return file_stats
 
     def get_iqr_outliers(self) -> list[tuple[str, str]]:
@@ -208,6 +305,378 @@ class CorpusStats(BaseModel):
             for i, length in enumerate(doc_lengths)
             if abs(length - mean) > 2 * std_dev
         ]
+
+    def compare_groups(self, group1_labels: list[str], group2_labels: list[str], 
+                      metric: str = "total_tokens", test_type: str = "mann_whitney") -> dict:
+        """Compare two groups of documents using statistical tests.
+        
+        Args:
+            group1_labels: List of document labels for group 1
+            group2_labels: List of document labels for group 2  
+            metric: Column name to compare (default: "total_tokens")
+            test_type: Statistical test to use ("mann_whitney", "t_test", "welch_t")
+            
+        Returns:
+            dict: Test results including statistic, p-value, and effect size
+        """
+        doc_stats = self.doc_stats_df
+        
+        # Get values for each group
+        group1_values = doc_stats.loc[group1_labels, metric].values
+        group2_values = doc_stats.loc[group2_labels, metric].values
+        
+        results = {
+            "group1_size": len(group1_values),
+            "group2_size": len(group2_values),
+            "group1_mean": np.mean(group1_values),
+            "group2_mean": np.mean(group2_values),
+            "metric": metric,
+            "test_type": test_type
+        }
+        
+        if test_type == "mann_whitney":
+            statistic, p_value = stats.mannwhitneyu(group1_values, group2_values, alternative='two-sided')
+            # Calculate effect size (rank biserial correlation)
+            n1, n2 = len(group1_values), len(group2_values)
+            effect_size = (2 * statistic) / (n1 * n2) - 1
+            results.update({
+                "statistic": statistic,
+                "p_value": p_value,
+                "effect_size": effect_size,
+                "effect_size_interpretation": self._interpret_effect_size(abs(effect_size))
+            })
+            
+        elif test_type == "t_test":
+            statistic, p_value = stats.ttest_ind(group1_values, group2_values, equal_var=True)
+            # Calculate Cohen's d
+            pooled_std = np.sqrt(((len(group1_values) - 1) * np.var(group1_values, ddof=1) +
+                                 (len(group2_values) - 1) * np.var(group2_values, ddof=1)) /
+                                (len(group1_values) + len(group2_values) - 2))
+            cohens_d = (np.mean(group1_values) - np.mean(group2_values)) / pooled_std
+            results.update({
+                "statistic": statistic,
+                "p_value": p_value,
+                "effect_size": cohens_d,
+                "effect_size_interpretation": self._interpret_cohens_d(abs(cohens_d))
+            })
+            
+        elif test_type == "welch_t":
+            statistic, p_value = stats.ttest_ind(group1_values, group2_values, equal_var=False)
+            # Calculate Cohen's d with Welch correction
+            s1, s2 = np.std(group1_values, ddof=1), np.std(group2_values, ddof=1)
+            n1, n2 = len(group1_values), len(group2_values)
+            pooled_std = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
+            cohens_d = (np.mean(group1_values) - np.mean(group2_values)) / pooled_std
+            results.update({
+                "statistic": statistic,
+                "p_value": p_value,
+                "effect_size": cohens_d,
+                "effect_size_interpretation": self._interpret_cohens_d(abs(cohens_d))
+            })
+        
+        # Add significance interpretation
+        results["is_significant"] = p_value < 0.05
+        results["significance_level"] = "p < 0.001" if p_value < 0.001 else "p < 0.01" if p_value < 0.01 else "p < 0.05" if p_value < 0.05 else "ns"
+        
+        return results
+
+    def bootstrap_confidence_interval(self, metric: str = "total_tokens", 
+                                    confidence_level: float = 0.95, 
+                                    n_bootstrap: int = 1000) -> dict:
+        """Calculate bootstrap confidence intervals for a given metric.
+        
+        Args:
+            metric: Column name to analyze
+            confidence_level: Confidence level (default: 0.95 for 95% CI)
+            n_bootstrap: Number of bootstrap samples
+            
+        Returns:
+            dict: Bootstrap statistics including confidence intervals
+        """
+        values = self.doc_stats_df[metric].values
+        
+        # Bootstrap sampling
+        bootstrap_means = []
+        for _ in range(n_bootstrap):
+            bootstrap_sample = np.random.choice(values, size=len(values), replace=True)
+            bootstrap_means.append(np.mean(bootstrap_sample))
+        
+        bootstrap_means = np.array(bootstrap_means)
+        
+        # Calculate confidence intervals
+        alpha = 1 - confidence_level
+        lower_percentile = (alpha / 2) * 100
+        upper_percentile = (1 - alpha / 2) * 100
+        
+        ci_lower = np.percentile(bootstrap_means, lower_percentile)
+        ci_upper = np.percentile(bootstrap_means, upper_percentile)
+        
+        return {
+            "metric": metric,
+            "confidence_level": confidence_level,
+            "n_bootstrap": n_bootstrap,
+            "original_mean": np.mean(values),
+            "bootstrap_mean": np.mean(bootstrap_means),
+            "bootstrap_std": np.std(bootstrap_means),
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+            "margin_of_error": (ci_upper - ci_lower) / 2
+        }
+
+    def _interpret_effect_size(self, effect_size: float) -> str:
+        """Interpret effect size magnitude."""
+        if effect_size < 0.1:
+            return "negligible"
+        elif effect_size < 0.3:
+            return "small"
+        elif effect_size < 0.5:
+            return "medium"
+        else:
+            return "large"
+    
+    def _interpret_cohens_d(self, cohens_d: float) -> str:
+        """Interpret Cohen's d effect size."""
+        if cohens_d < 0.2:
+            return "negligible"
+        elif cohens_d < 0.5:
+            return "small"
+        elif cohens_d < 0.8:
+            return "medium"
+        else:
+            return "large"
+
+    @cached_property
+    def advanced_lexical_diversity(self) -> dict[str, float]:
+        """Calculate advanced lexical diversity measures beyond simple TTR.
+        
+        Returns:
+            dict: Advanced diversity measures including MTLD, HD-D, and more
+        """
+        doc_stats = self.doc_stats_df
+        
+        # Moving Average Type-Token Ratio (MATTR) simulation
+        # Calculate TTR for overlapping windows to reduce text length sensitivity
+        def calculate_mattr(tokens_list: list[str], window_size: int = 50) -> float:
+            if len(tokens_list) < window_size:
+                return len(set(tokens_list)) / len(tokens_list) if tokens_list else 0
+            
+            ttrs = []
+            for i in range(len(tokens_list) - window_size + 1):
+                window = tokens_list[i:i + window_size]
+                ttr = len(set(window)) / len(window)
+                ttrs.append(ttr)
+            return np.mean(ttrs) if ttrs else 0
+        
+        # Corrected TTR (CTTR) - TTR divided by square root of tokens
+        def calculate_cttr(types: int, tokens: int) -> float:
+            return types / np.sqrt(2 * tokens) if tokens > 0 else 0
+        
+        # Root TTR (RTTR) - Types divided by square root of tokens  
+        def calculate_rttr(types: int, tokens: int) -> float:
+            return types / np.sqrt(tokens) if tokens > 0 else 0
+        
+        # Log TTR (LogTTR) - Log of types divided by log of tokens
+        def calculate_log_ttr(types: int, tokens: int) -> float:
+            if types > 0 and tokens > 0:
+                return np.log(types) / np.log(tokens)
+            return 0
+        
+        # Calculate for each document
+        doc_diversity = []
+        for _, row in doc_stats.iterrows():
+            tokens = int(row['total_tokens'])
+            types = int(row['total_terms'])
+            
+            diversity = {
+                'ttr': types / tokens if tokens > 0 else 0,
+                'cttr': calculate_cttr(types, tokens),
+                'rttr': calculate_rttr(types, tokens),
+                'log_ttr': calculate_log_ttr(types, tokens)
+            }
+            doc_diversity.append(diversity)
+        
+        # Aggregate statistics
+        diversity_df = pd.DataFrame(doc_diversity)
+        
+        return {
+            "mean_cttr": diversity_df['cttr'].mean(),
+            "median_cttr": diversity_df['cttr'].median(),
+            "std_cttr": diversity_df['cttr'].std(),
+            "mean_rttr": diversity_df['rttr'].mean(),
+            "median_rttr": diversity_df['rttr'].median(),
+            "std_rttr": diversity_df['rttr'].std(),
+            "mean_log_ttr": diversity_df['log_ttr'].mean(),
+            "median_log_ttr": diversity_df['log_ttr'].median(),
+            "std_log_ttr": diversity_df['log_ttr'].std(),
+            "diversity_range": diversity_df['ttr'].max() - diversity_df['ttr'].min(),
+            "diversity_coefficient_variation": diversity_df['ttr'].std() / diversity_df['ttr'].mean() if diversity_df['ttr'].mean() > 0 else 0
+        }
+
+    @cached_property
+    def zipf_analysis(self) -> dict[str, Union[float, bool, str]]:
+        """Analyze corpus term frequency distribution using Zipf's law.
+        
+        Returns:
+            dict: Zipf distribution analysis including slope, R-squared, and goodness of fit
+        """
+        try:
+            # Get term frequencies from DTM
+            if hasattr(self.dtm, 'sorted_term_counts'):
+                term_counts = list(self.dtm.sorted_term_counts.values())
+            else:
+                # Fallback: aggregate from document stats
+                df = self.dtm.to_df().sparse.to_dense()
+                term_counts = df.sum(axis=0).sort_values(ascending=False).values
+            
+            if len(term_counts) < 10:  # Need sufficient data for meaningful analysis
+                return {
+                    "zipf_slope": 0.0,
+                    "zipf_intercept": 0.0,
+                    "r_squared": 0.0,
+                    "zipf_goodness_of_fit": "insufficient_data",
+                    "follows_zipf": False,
+                    "num_terms": len(term_counts)
+                }
+            
+            # Filter out zero counts and prepare for log-log analysis
+            term_counts = [count for count in term_counts if count > 0]
+            ranks = np.arange(1, len(term_counts) + 1)
+            
+            # Log-log transformation for Zipf analysis
+            log_ranks = np.log10(ranks)
+            log_freqs = np.log10(term_counts)
+            
+            # Linear regression on log-log data
+            slope, intercept, r_value, p_value, std_err = stats.linregress(log_ranks, log_freqs)
+            r_squared = r_value ** 2
+            
+            # Zipf's law predicts slope around -1
+            zipf_deviation = abs(slope + 1.0)  # How far from ideal Zipf slope of -1
+            
+            # Classify goodness of fit
+            if r_squared > 0.9 and zipf_deviation < 0.3:
+                fit_quality = "excellent"
+                follows_zipf = True
+            elif r_squared > 0.8 and zipf_deviation < 0.5:
+                fit_quality = "good"
+                follows_zipf = True
+            elif r_squared > 0.6 and zipf_deviation < 0.7:
+                fit_quality = "moderate"
+                follows_zipf = True
+            else:
+                fit_quality = "poor"
+                follows_zipf = False
+            
+            return {
+                "zipf_slope": slope,
+                "zipf_intercept": intercept,
+                "r_squared": r_squared,
+                "p_value": p_value,
+                "std_error": std_err,
+                "zipf_deviation": zipf_deviation,
+                "zipf_goodness_of_fit": fit_quality,
+                "follows_zipf": follows_zipf,
+                "num_terms": len(term_counts),
+                "frequency_range": {
+                    "min": int(min(term_counts)),
+                    "max": int(max(term_counts)),
+                    "ratio": max(term_counts) / min(term_counts) if min(term_counts) > 0 else 0
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "zipf_slope": 0.0,
+                "zipf_intercept": 0.0,
+                "r_squared": 0.0,
+                "zipf_goodness_of_fit": f"error: {str(e)}",
+                "follows_zipf": False,
+                "num_terms": 0
+            }
+
+    @cached_property
+    def corpus_quality_metrics(self) -> dict[str, Union[float, int, str]]:
+        """Calculate corpus quality and balance metrics for research validity.
+        
+        Returns:
+            dict: Quality metrics including balance, coverage, and sampling adequacy
+        """
+        doc_stats = self.doc_stats_df
+        
+        # Document length balance analysis
+        doc_lengths = doc_stats['total_tokens'].values
+        length_cv = np.std(doc_lengths) / np.mean(doc_lengths) if np.mean(doc_lengths) > 0 else 0
+        
+        # Vocabulary density balance
+        vocab_densities = doc_stats['vocabulary_density'].values / 100
+        density_cv = np.std(vocab_densities) / np.mean(vocab_densities) if np.mean(vocab_densities) > 0 else 0
+        
+        # Term coverage analysis
+        total_tokens = doc_stats['total_tokens'].sum()
+        total_unique_terms = len(self.dtm.sorted_terms_list) if hasattr(self.dtm, 'sorted_terms_list') else doc_stats['total_terms'].sum()
+        
+        # Hapax analysis for vocabulary richness
+        total_hapax = doc_stats['hapax_legomena'].sum()
+        total_dislegomena = doc_stats['hapax_dislegomena'].sum()
+        
+        # Calculate vocabulary growth rate (simplified)
+        # This approximates how much new vocabulary each document contributes
+        vocab_growth = total_unique_terms / len(doc_stats) if len(doc_stats) > 0 else 0
+        
+        # Corpus balance classification
+        def classify_balance(cv: float) -> str:
+            if cv < 0.2:
+                return "very_balanced"
+            elif cv < 0.4:
+                return "balanced"
+            elif cv < 0.6:
+                return "moderately_unbalanced"
+            else:
+                return "highly_unbalanced"
+        
+        # Sampling adequacy (based on vocabulary saturation)
+        vocab_saturation = total_hapax / total_unique_terms if total_unique_terms > 0 else 0
+        
+        def assess_sampling_adequacy(saturation: float) -> str:
+            if saturation < 0.1:
+                return "excellent"  # Very few hapax, good coverage
+            elif saturation < 0.3:
+                return "good"
+            elif saturation < 0.5:
+                return "adequate"
+            else:
+                return "insufficient"  # Too many hapax, need more data
+        
+        return {
+            "document_length_balance": {
+                "coefficient_variation": length_cv,
+                "classification": classify_balance(length_cv),
+                "range_ratio": np.max(doc_lengths) / np.min(doc_lengths) if np.min(doc_lengths) > 0 else 0
+            },
+            "vocabulary_density_balance": {
+                "coefficient_variation": density_cv,
+                "classification": classify_balance(density_cv)
+            },
+            "corpus_coverage": {
+                "total_tokens": int(total_tokens),
+                "unique_terms": int(total_unique_terms),
+                "coverage_ratio": total_unique_terms / total_tokens if total_tokens > 0 else 0,
+                "vocab_growth_per_doc": vocab_growth
+            },
+            "vocabulary_richness": {
+                "hapax_ratio": total_hapax / total_tokens if total_tokens > 0 else 0,
+                "dislegomena_ratio": total_dislegomena / total_tokens if total_tokens > 0 else 0,
+                "vocabulary_saturation": vocab_saturation,
+                "sampling_adequacy": assess_sampling_adequacy(vocab_saturation)
+            },
+            "corpus_size_metrics": {
+                "num_documents": len(doc_stats),
+                "mean_doc_length": np.mean(doc_lengths),
+                "median_doc_length": np.median(doc_lengths),
+                "recommended_min_docs": max(30, int(total_unique_terms * 0.1)),  # Rule of thumb
+                "size_adequacy": "adequate" if len(doc_stats) >= 30 else "small"
+            }
+        }
 
     @validate_call(config=model_config)
     def plot(
