@@ -10,6 +10,7 @@ To reproduce the web app's Statistics module, call `stats = Corpus.get_token_sta
 
 # TODO:
 - Test.
+- Consider adding method to normalize extensions across entire corpus (PM suggestion: detect all extensions in corpus docs and set values to None if not present in a given Doc)
 """
 
 import shutil

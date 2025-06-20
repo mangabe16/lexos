@@ -16,6 +16,7 @@ This code is designed to work by default with UUID4 for the ID field, which is a
 """
 
 import uuid
+import hashlib
 from collections import Counter
 from functools import cached_property
 from pathlib import Path
@@ -216,13 +217,39 @@ class Record(BaseModel):
         bytestring: bytes,
         model: Optional[str] = None,
         model_cache: Optional[LexosModelCache] = None,
+        verify_hash: bool = True,
     ) -> None:
         """Deserialise the record from bytes.
 
         Args:
             bytestring (bytes): The bytes to load the record from.
+            model (Optional[str]): The spaCy model to use for loading the Doc.
+            model_cache (Optional[LexosModelCache]): An optional cache for spaCy models.
+            verify_hash (bool): Whether to verify data integrity hash. Defaults to True.
         """
-        data = msgpack.unpackb(bytestring)
+        try:
+            data = msgpack.unpackb(bytestring)
+        except Exception as e:
+            raise LexosException(
+                f"Failed to deserialize record: Invalid or corrupted data format. "
+                f"Suggestion: Check if the file was completely written and not corrupted."
+            ) from e
+
+        # Verify data integrity if hash is present
+        if verify_hash and "data_integrity_hash" in data:
+            stored_hash = data["data_integrity_hash"]
+            # Recreate hash from core data (excluding the hash itself)
+            core_data = {k: v for k, v in data.items() if k != "data_integrity_hash"}
+            core_bytes = msgpack.dumps(core_data)
+            computed_hash = hashlib.sha256(core_bytes).hexdigest()
+            
+            if stored_hash != computed_hash:
+                raise LexosException(
+                    f"Data integrity check failed: Hash mismatch detected. "
+                    f"Expected: {stored_hash[:16]}..., Got: {computed_hash[:16]}... "
+                    f"Suggestion: The data may be corrupted during storage or transmission. "
+                    f"Try re-serializing the original document."
+                )
 
         # Update the record with the loaded data
         for k, v in data.items():
@@ -234,7 +261,20 @@ class Record(BaseModel):
         if data["is_parsed"] and isinstance(data["content"], bytes):
             if not model:
                 model = data.get("model")
-            self.content = self._doc_from_bytes(data["content"], model, model_cache)
+            try:
+                self.content = self._doc_from_bytes(data["content"], model, model_cache)
+            except OSError as e:
+                raise LexosException(
+                    f"Failed to load spaCy model '{model}': {str(e)}. "
+                    f"Suggestion: Install the model with 'python -m spacy download {model}' "
+                    f"or use a different model available in your environment."
+                ) from e
+            except Exception as e:
+                raise LexosException(
+                    f"Failed to deserialize spaCy document with model '{model}': {str(e)}. "
+                    f"Suggestion: Check model compatibility - document may have been "
+                    f"serialized with a different spaCy or model version."
+                ) from e
 
     @validate_call(config=model_config)
     def from_disk(
@@ -254,9 +294,24 @@ class Record(BaseModel):
             raise LexosException("No path specified for loading the record.")
 
         # Load the data from disk
-        with open(path, "rb") as f:
-            # data = msgpack.unpack(f)
-            data = f.read()
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except FileNotFoundError as e:
+            raise LexosException(
+                f"Record file not found: {path}. "
+                f"Suggestion: Check if the file path is correct and the file exists."
+            ) from e
+        except PermissionError as e:
+            raise LexosException(
+                f"Permission denied accessing record file: {path}. "
+                f"Suggestion: Check file permissions or run with appropriate privileges."
+            ) from e
+        except IOError as e:
+            raise LexosException(
+                f"Failed to read record file: {path}. Error: {str(e)}. "
+                f"Suggestion: Check disk space, file system health, or network connectivity."
+            ) from e
 
         # Get the record content from the bytestring
         self.from_bytes(data, model=model, model_cache=model_cache)
@@ -318,11 +373,12 @@ class Record(BaseModel):
             setattr(self, k, v)
 
     @validate_call(config=model_config)
-    def to_bytes(self, extensions: Optional[list[str]] = []) -> bytes:
+    def to_bytes(self, extensions: Optional[list[str]] = [], include_hash: bool = True) -> bytes:
         """Serialize the record to a dictionary.
 
         Args:
             extensions (list[str]): A list of extension names to include in the serialization.
+            include_hash (bool): Whether to include data integrity hash. Defaults to True.
 
         Returns:
             bytes: The serialized record.
@@ -342,6 +398,13 @@ class Record(BaseModel):
         if self.is_parsed:
             data["content"] = self._doc_to_bytes()
 
+        # Add data integrity hash if requested
+        if include_hash:
+            # Create hash of the core data (excluding the hash itself)
+            core_data = {k: v for k, v in data.items() if k != "data_integrity_hash"}
+            core_bytes = msgpack.dumps(core_data)
+            data["data_integrity_hash"] = hashlib.sha256(core_bytes).hexdigest()
+
         return msgpack.dumps(data)
 
     @validate_call(config=model_config)
@@ -360,8 +423,31 @@ class Record(BaseModel):
 
         # Serialize and save the record
         data = self.to_bytes(extensions)
-        with open(path, "wb") as f:
-            f.write(data)
+        
+        try:
+            with open(path, "wb") as f:
+                f.write(data)
+        except PermissionError as e:
+            raise LexosException(
+                f"Permission denied writing to: {path}. "
+                f"Suggestion: Check file/directory permissions or run with appropriate privileges."
+            ) from e
+        except OSError as e:
+            if "No space left on device" in str(e):
+                raise LexosException(
+                    f"Insufficient disk space to save record: {path}. "
+                    f"Suggestion: Free up disk space or choose a different location."
+                ) from e
+            else:
+                raise LexosException(
+                    f"Failed to write record to disk: {path}. Error: {str(e)}. "
+                    f"Suggestion: Check disk space, file system health, or network connectivity."
+                ) from e
+        except IOError as e:
+            raise LexosException(
+                f"Failed to write record file: {path}. Error: {str(e)}. "
+                f"Suggestion: Check disk space, file system health, or network connectivity."
+            ) from e
 
     def vocab_density(self) -> float:
         """Return the vocabulary density.
