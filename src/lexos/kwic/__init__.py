@@ -80,7 +80,7 @@ class Kwic:
 
         return all_kwic_results
 
-    @validate_call(config=model_config)
+    # @validate_call(config=model_config)
     def find_in_sentences(
         doc: Doc,  # Must be a Doc object, used for seperating sentences
         keyword: str | Pattern,
@@ -88,13 +88,8 @@ class Kwic:
     ) -> Iterable[tuple[str, str, str]]:
         """Generate KWIC results for a keyword in each sentence of the document."""
         if not isinstance(doc, Doc):
-            raise TypeError(
+            raise LexosException(
                 "Input 'doc' must be a spaCy Doc object for sentence-level search."
-            )
-        if not doc.has_annotation("SENT_START"):
-            raise ValueError(
-                "The provided spaCy Doc object does not have sentence boundary annotations. "
-                "Ensure the spaCy pipeline used to create the doc includes 'sentencizer' or 'parser'."
             )
         all_sentence_kwic_results = []
         for sent_idx, sentence_span in enumerate(doc.sents):
