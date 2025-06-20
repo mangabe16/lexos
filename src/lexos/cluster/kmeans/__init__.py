@@ -123,3 +123,38 @@ class KMeansCluster(BaseModel):
             fig.show()
         
         return fig
+    def plot_3d(self, show: bool = False, save_path: Optional[str] = None) -> go.Figure:
+        """Generate a 3D PCA scatter plot of the clusters."""
+        if self.cluster_assignments is None:
+            raise LexosException("You must run clustering before plotting.")
+
+        matrix = self._get_valid_matrix()
+        pca = PCA(n_components=3)
+        reduced = pca.fit_transform(matrix)
+
+        df = pd.DataFrame({
+            "x": reduced[:, 0],
+            "y": reduced[:, 1],
+            "z": reduced[:, 2],
+            "Cluster": self.cluster_assignments.astype(str),
+            "Document": self.labels or [f"Doc{i+1}" for i in range(len(matrix))]
+        })
+
+        fig = px.scatter_3d(
+            df,
+            x="x",
+            y="y",
+            z="z",
+            color="Cluster",
+            hover_name="Document",
+            title="KMeans Clustering 3D Plot",
+        )
+        fig.update_layout(margin=dict(l=12, r=10, t=40, b=10))
+
+        self.plotly_fig = fig
+        if save_path:
+            fig.write_image(save_path)
+        if show:
+            fig.show()
+
+        return fig
