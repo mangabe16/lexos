@@ -695,7 +695,7 @@ class CorpusStats(BaseModel):
         supported_types = ["seaborn_boxplot", "plotly_boxplot"]
         if type not in supported_types:
             raise ValueError(
-                f"Unsupported plot type: {type}. The following types are supported: {supported_types.split(', ')}."
+                f"Unsupported plot type: {type}. The following types are supported: {', '.join(supported_types)}."
             )
         if type == "seaborn":
             get_seaborn_boxplot(self.doc_stats_df, column=column, title=title)

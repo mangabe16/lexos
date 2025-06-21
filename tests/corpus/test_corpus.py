@@ -425,11 +425,11 @@ class TestCorpusClass:
             record = corpus.get(id=record_ids[0])
             assert record is not None
 
-    def test_corpus_repr(tmp_path):
+    def test_corpus_repr(self, temp_corpus_dir):
         """Test __repr__ method of Corpus."""
         from lexos.corpus.corpus import Corpus
 
-        corpus = Corpus(corpus_dir=str(tmp_path), name="TestCorpus")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="TestCorpus")
         rep = repr(corpus)
         assert rep.startswith("Corpus(")
         assert "name=TestCorpus" in rep
@@ -462,11 +462,11 @@ class TestCorpusClass:
         assert isinstance(active_terms, set)
         assert active_terms == {"apple", "banana"}
 
-    def test_corpus_meta_df(tmp_path):
+    def test_corpus_meta_df(self, temp_corpus_dir):
         """Test Corpus.meta_df property."""
 
         # Create a corpus with some metadata
-        corpus = Corpus(corpus_dir=str(tmp_path), name="MetaDFTest")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="MetaDFTest")
         corpus.meta = {"foo": "bar", "baz": 123}
 
         # Should return a DataFrame with the metadata
@@ -482,10 +482,10 @@ class TestCorpusClass:
         with pytest.raises(LexosException):
             _ = corpus.meta_df
 
-    def test_num_active_tokens_property(self, tmp_path, nlp):
+    def test_num_active_tokens_property(self, temp_corpus_dir, nlp):
         """Test Corpus.num_active_tokens property."""
         # Create a corpus
-        corpus = Corpus(corpus_dir=str(tmp_path), name="TokenTest")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="TokenTest")
 
         # Case 1: No records, should return 0
         assert corpus.num_active_tokens == 0
@@ -532,10 +532,10 @@ class TestCorpusClass:
         corpus._add_to_corpus(record_active2)
         assert corpus.num_active_tokens == 5
 
-    def test_num_active_terms_property(tmp_path, nlp):
+    def test_num_active_terms_property(self, temp_corpus_dir, nlp):
         """Test Corpus.num_active_terms property (lines 119-123 coverage)."""
 
-        corpus = Corpus(corpus_dir=str(tmp_path), name="ActiveTermsTest")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="ActiveTermsTest")
 
         # Case 1: No records, should return 0
         assert corpus.num_active_terms == 0
@@ -638,9 +638,9 @@ class TestCorpusClass:
         with pytest.raises(LexosException):
             corpus._get_by_name("not_in_corpus")
 
-    def test_corpus_add_method_full_coverage(tmp_path, nlp):
+    def test_corpus_add_method_full_coverage(self, temp_corpus_dir, nlp):
 
-        corpus = Corpus(corpus_dir=str(tmp_path), name="AddTest")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="AddTest")
 
         # 1. Add a single string
         corpus.add("hello world", name="doc1")
@@ -721,9 +721,9 @@ class TestCorpusClass:
         with pytest.raises(LexosException):
             corpus.add(duplicate_record)
         
-    def test_corpus_get_method_branches(tmp_path, nlp):
+    def test_corpus_get_method_branches(self, temp_corpus_dir, nlp):
 
-        corpus = Corpus(corpus_dir=str(tmp_path), name="GetTest")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="GetTest")
 
         # Add two records
         doc1 = nlp("foo bar")
@@ -873,9 +873,9 @@ class TestCorpusClass:
         stats_filtered = corpus.get_stats(min_df=1, max_df=2, max_n_terms=2)
         assert isinstance(stats_filtered, CorpusStats)
 
-    def test_get_stats_unparsed_record(tmp_path, nlp):
+    def test_get_stats_unparsed_record(self, temp_corpus_dir, nlp):
 
-        corpus = Corpus(corpus_dir=str(tmp_path), name="StatsTestUnparsed")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="StatsTestUnparsed")
 
         # Add a record that is NOT parsed
         text = "foo bar baz"
@@ -1096,12 +1096,10 @@ class TestCorpusClass:
         with pytest.raises(LexosException):
             corpus.remove(id=str(record1.id))
 
-    def test_corpus_set(self, tmp_path, nlp):
+    def test_corpus_set(self, temp_corpus_dir, nlp):
 
         # Setup: create a corpus and add a record
-        corpus_dir = tmp_path / "corpus"
-        corpus_dir.mkdir()
-        corpus = Corpus(corpus_dir=str(corpus_dir), name="SetTest")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="SetTest")
         doc = nlp("foo bar")
         testid =str(uuid.uuid4())
         record = Record(
@@ -1120,25 +1118,25 @@ class TestCorpusClass:
         corpus.set(id=testid, is_active=False)
         assert corpus.records[testid].is_active is False
 
-        # Set a metadata property
-        corpus.set(id=testid, meta={"foo": "bar"})
+        # Set a metadata property (preserve existing meta)
+        existing_meta = corpus.records[testid].meta.copy()
+        existing_meta["foo"] = "bar"
+        corpus.set(id=testid, meta=existing_meta)
         assert corpus.records[testid].meta["foo"] == "bar"
 
         # Simulate changing the filepath and ensure the old file is deleted
         old_filepath = corpus.records[testid].meta["filepath"]
-        new_filepath = str(tmp_path / "corpus" / "data" / "testid_changed.bin")
+        new_filepath = str(Path(temp_corpus_dir) / "data" / "testid_changed.bin")
         corpus.set(id=testid, meta={"filepath": new_filepath})
         # The old file should be deleted (if it existed)
         assert not Path(old_filepath).exists()
         # The new file should be set
         assert corpus.records[testid].meta["filepath"] == new_filepath
     
-    def test_corpus_term_counts(self, tmp_path, nlp):
+    def test_corpus_term_counts(self, temp_corpus_dir, nlp):
 
         # Setup: create a corpus and add records with terms
-        corpus_dir = tmp_path / "corpus"
-        corpus_dir.mkdir()
-        corpus = Corpus(corpus_dir=str(corpus_dir), name="TermTest")
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="TermTest")
         id1 = str(uuid.uuid4())
         doc = nlp("foo bar foo")
         record1 = Record(
@@ -1280,6 +1278,249 @@ class TestCorpusClass:
         assert df.loc[df["id"] == id1, "metadata_name"].iloc[0] == "meta_name_value"
         # The top-level "name" should still be present and correct
         assert df.loc[df["id"] == id1, "name"].iloc[0] == "doc1"
+
+    def test_communication_architecture_methods(self, tmp_path, nlp):
+        """Test communication architecture methods for corpus.py lines 652-670, 682-687, 702-732."""
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="CommunicationTest")
+        
+        # Add a record for context
+        doc = nlp("test document")
+        record = Record(
+            id=str(uuid.uuid4()),
+            name="testdoc",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        corpus._add_to_corpus(record)
+        
+        # Test import_analysis_results method (lines 652-670)
+        test_results = {
+            "cluster_results": [{"cluster_1": ["doc1", "doc2"]}, {"cluster_2": ["doc3"]}],
+            "similarity_matrix": [[1.0, 0.8], [0.8, 1.0]],
+            "performance_metrics": {"accuracy": 0.95, "precision": 0.92}
+        }
+        
+        # Test first import (should succeed)
+        corpus.import_analysis_results(
+            module_name="clustering",
+            results_data=test_results,
+            version="1.0.0"
+        )
+        
+        # Verify import succeeded
+        assert "clustering" in corpus.analysis_results
+        assert corpus.analysis_results["clustering"]["version"] == "1.0.0"
+        assert corpus.analysis_results["clustering"]["results"] == test_results
+        assert "corpus_state" in corpus.analysis_results["clustering"]
+        assert "corpus_fingerprint" in corpus.analysis_results["clustering"]["corpus_state"]
+        
+        # Test duplicate import without overwrite (should raise ValueError - lines 653-656)
+        with pytest.raises(ValueError, match="Results for module 'clustering' already exist"):
+            corpus.import_analysis_results(
+                module_name="clustering",
+                results_data={"new": "data"},
+                version="2.0.0"
+            )
+        
+        # Test duplicate import with overwrite=True (should succeed - line 652)
+        corpus.import_analysis_results(
+            module_name="clustering",
+            results_data={"updated": "results"},
+            version="2.0.0",
+            overwrite=True
+        )
+        assert corpus.analysis_results["clustering"]["version"] == "2.0.0"
+        assert corpus.analysis_results["clustering"]["results"] == {"updated": "results"}
+        
+        # Test get_analysis_results method (lines 682-687)
+        
+        # Test getting specific module results
+        clustering_results = corpus.get_analysis_results(module_name="clustering")
+        assert clustering_results["version"] == "2.0.0"
+        assert clustering_results["results"] == {"updated": "results"}
+        
+        # Test getting non-existent module (should raise ValueError - lines 683-684)
+        with pytest.raises(ValueError, match="No results found for module 'nonexistent'"):
+            corpus.get_analysis_results(module_name="nonexistent")
+        
+        # Test getting all results (lines 686-687)
+        all_results = corpus.get_analysis_results()
+        assert "clustering" in all_results
+        assert all_results["clustering"]["version"] == "2.0.0"
+        
+        print("✓ Communication architecture methods tested (lines 652-670, 682-687)")
+
+    def test_export_statistical_fingerprint_method(self, tmp_path, nlp):
+        """Test export_statistical_fingerprint method for corpus.py lines 702-732."""
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="StatFingerprintTest")
+        
+        # Add multiple records with different characteristics
+        for i in range(3):
+            doc = nlp(f"document {i} with some text content")
+            record = Record(
+                id=str(uuid.uuid4()),
+                name=f"doc{i}",
+                content=doc,
+                model="en_core_web_sm",
+                is_active=True
+            )
+            record.is_parsed = True
+            record.tokens = [f"document", str(i), "with", "some", "text", "content"]
+            record.terms = {f"document": 1, str(i): 1, "with": 1, "some": 1, "text": 1, "content": 1}
+            corpus._add_to_corpus(record)
+        
+        # Test export_statistical_fingerprint method
+        fingerprint = corpus.export_statistical_fingerprint()
+        
+        # Verify fingerprint structure (lines 702-732)
+        assert isinstance(fingerprint, dict)
+        assert "corpus_metadata" in fingerprint
+        assert "document_features" in fingerprint
+        assert "text_diversity" in fingerprint
+        
+        # Verify corpus metadata
+        metadata = fingerprint["corpus_metadata"]
+        assert metadata["num_docs"] == 3
+        assert metadata["num_active_docs"] == 3
+        assert "corpus_fingerprint" in metadata
+        
+        # Verify document features (list of dictionaries)
+        doc_features = fingerprint["document_features"]
+        assert isinstance(doc_features, list)
+        assert len(doc_features) == 3  # Should have 3 documents
+        
+        # Each document should have the expected features
+        for doc_feature in doc_features:
+            assert isinstance(doc_feature, dict)
+            assert "total_tokens" in doc_feature
+            assert "total_terms" in doc_feature
+            assert "vocabulary_density" in doc_feature
+        
+        # Verify text diversity statistics
+        text_div_stats = fingerprint["text_diversity"]
+        assert isinstance(text_div_stats, dict)
+        
+        # Verify term frequencies
+        assert "term_frequencies" in fingerprint
+        assert isinstance(fingerprint["term_frequencies"], list)
+        
+        print("✓ Export statistical fingerprint method tested (lines 702-732)")
+
+    def test_uuid_conversion_in_corpus_state_line_238(self, tmp_path):
+        """Test UUID conversion in _update_corpus_state method (line 238)."""
+        corpus_dir = tmp_path / "corpus" 
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="UUIDTest")
+        
+        # Add a record to trigger _update_corpus_state
+        corpus.add("Test content", name="test_doc")
+        
+        # The corpus metadata should be updated and any UUIDs converted to strings
+        # This exercises line 238 in the _update_corpus_state method
+        
+        # Verify the corpus metadata file was created and updated
+        metadata_file = corpus_dir / corpus.corpus_metadata_file
+        assert metadata_file.exists()
+        
+        print("✓ UUID conversion in corpus state covered (line 238)")
+
+    def test_fingerprinting_and_validation_methods(self, tmp_path, nlp):
+        """Test fingerprinting and validation methods for corpus.py lines 754-765, 777-814."""
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="FingerprintTest")
+        
+        # Add some records to create a meaningful corpus state
+        for i in range(2):
+            doc = nlp(f"test document {i}")
+            record = Record(
+                id=str(uuid.uuid4()),
+                name=f"testdoc{i}",
+                content=doc,
+                model="en_core_web_sm",
+                is_active=True
+            )
+            corpus._add_to_corpus(record)
+        
+        # Test _generate_corpus_fingerprint method (lines 754-765)
+        fingerprint1 = corpus._generate_corpus_fingerprint()
+        
+        # Verify fingerprint is a string and has expected length (first 16 chars of SHA256)
+        assert isinstance(fingerprint1, str)
+        assert len(fingerprint1) == 16
+        
+        # Fingerprint should be consistent for same corpus state
+        fingerprint2 = corpus._generate_corpus_fingerprint()
+        assert fingerprint1 == fingerprint2
+        
+        # Add another record - fingerprint should change
+        doc3 = nlp("another document")
+        record3 = Record(
+            id=str(uuid.uuid4()),
+            name="testdoc3",
+            content=doc3,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        corpus._add_to_corpus(record3)
+        
+        fingerprint3 = corpus._generate_corpus_fingerprint()
+        assert fingerprint3 != fingerprint1  # Should be different after adding record
+        
+        # Deactivate a record - fingerprint should change again
+        record3.is_active = False
+        fingerprint4 = corpus._generate_corpus_fingerprint()
+        assert fingerprint4 != fingerprint3  # Should be different after deactivating record
+        
+        print("✓ _generate_corpus_fingerprint method tested (lines 754-765)")
+        
+        # Test validate_analysis_compatibility method (lines 777-814)
+        
+        # First, add some analysis results to test compatibility against
+        test_results = {"test": "data"}
+        corpus.import_analysis_results(
+            module_name="test_module",
+            results_data=test_results,
+            version="1.0.0"
+        )
+        
+        # Test compatibility with current state (should be compatible)
+        compatibility = corpus.validate_analysis_compatibility("test_module")
+        assert compatibility["compatible"] is True
+        assert compatibility["current_fingerprint"] == corpus._generate_corpus_fingerprint()
+        assert compatibility["stored_fingerprint"] == compatibility["current_fingerprint"]
+        assert "stored_timestamp" in compatibility
+        assert compatibility["stored_version"] == "1.0.0"
+        
+        # Modify corpus state by adding another record
+        doc4 = nlp("yet another document")
+        record4 = Record(
+            id=str(uuid.uuid4()),
+            name="testdoc4",
+            content=doc4,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        corpus._add_to_corpus(record4)
+        
+        # Test compatibility after corpus state change (should be incompatible)
+        compatibility_changed = corpus.validate_analysis_compatibility("test_module")
+        assert compatibility_changed["compatible"] is False
+        assert compatibility_changed["current_fingerprint"] != compatibility_changed["stored_fingerprint"]
+        assert compatibility_changed["reason"] == "Corpus state has changed since analysis was performed"
+        assert compatibility_changed["recommendation"] == "Re-run test_module analysis with current corpus state"
+        
+        # Test validation for non-existent module (lines 777-781)
+        compatibility_missing = corpus.validate_analysis_compatibility("nonexistent_module")
+        assert compatibility_missing["compatible"] is False
+        assert compatibility_missing["reason"] == "No analysis results found for module 'nonexistent_module'"
+        
+        print("✓ validate_analysis_compatibility method tested (lines 777-814)")
 
 
 class TestCorpusIntegrationWhenAvailable:
