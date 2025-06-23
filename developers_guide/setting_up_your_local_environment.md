@@ -12,6 +12,9 @@ Before you begin, ensure you have the following installed:
 
 You can install Python using **uv** with `uv python install 3.12`. If you already have it installed using a distribution like Anaconda, **uv** will detect that installation.
 
+> [!IMPORTANT]
+> We highly recommend installing Anaconda, which comes with some dependencies need by Lexos pre-installed. If you use **uv** to download a fresh installation of Python, it may not have these dependencies, and they will need to be installed independently. See the **Installing SpaCy** section below for further details.
+
 ### Git
 
 **Git** is used for version control. If you don't have it installed, you can download it from [git-scm.com](https://git-scm.com/).
@@ -101,16 +104,31 @@ This creates a `.venv` directory and installs all dependencies listed in `pyproj
 
 ---
 
-### Installing spaCy Models
+### Installing SpaCy
 
-Our project relies on spaCy for Natural Language Processing. While spaCy itself is installed via **uv**, the language models need to be downloaded in a separate process.
+Lexos relies on the [spaCy](https://spacy.io/) for Natural Language Processing library for much of its functionality. SpaCy itself is written in Cython, which compiles Python code into C or C++ for better memory management. However, Cython does not come pre-installed in vanilla downloads of Python, and, as of June 2025, the spaCy installer wheels cannot themselves install all of Cython's dependencies (or cannot do so for all common operating systems and processors). This, at least, is our theory of why installation of spaCy fails when you call `uv sync` in a vanilla installation of Python. To remedy the problem, we recommend that you install Anaconda, which is distributed with Cython. This should allow spaCy to install correctly.
 
-Recent updates to `pyproject.toml` attempt to automatically download the default language models (multilingual and English) when you run `uv sync`. This feature is still experimental. If it does not work, you may need to manually download the models. From your activated virtual environment in the project root, run:
+The alternative is to install Cython's dependencies, and then Cython, independently. Cython requires a GCC-compatible C compiler to be present on your system. We have not thoroughly tested the following procedure, but it has worked in the a linux environment running on Windows 11 with an ARM64 processor (a challenging setup).
+
+```bash
+sudo apt-get install build-essential python3-dev
+uv pip install cython
+```
+
+The first command will install `build-essential`, which provides the C compiler and other development tools, along with the Python development headers. We have read that there may be some discrepancy between the installation paths used by **uv** and **pip**. To be safe, we suggest trying to install Cython using **pip** as shown in the command above. You may need to install **pip** in your environment first.
+
+---
+
+### Installing SpaCy Models
+
+SpaCy itself is installed as a dependency package via **uv**; however, its language models are downloaded as a separate process from urls. The two default models, "xx_sent_ud_sm" and "en_core_web_sm", are downloaded and installed automatically from commands in `pyproject.toml` when you run `uv sync`. If for any reason this fails, you can manually download the models. From your activated virtual environment in the project root, run:
 
 ```bash
 uv run python -m spacy download xx_sent_ud_sm
 uv run python -m spacy download en_core_web_sm
 ```
+
+You can also use these commands to download additional models, if required.
 
 ---
 
