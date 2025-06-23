@@ -187,16 +187,11 @@ class ZTest(TopWords):
         if self.output_format == "dict":
             return self.to_dict()
         elif self.output_format == "dataframe":
-            return {"topwords_df": self.to_df()}
+            return self.to_df()  # <--- Direct return
         elif self.output_format == "list_of_dicts":
-            return {
-                "topwords_list": [
-                    {"term": term, "z_score": z_score}
-                    for term, z_score in self.topwords
-                ]
-            }
+            return self.to_list_of_dicts()  # <--- Direct return
         elif self.output_format == "list_of_tuples":
-            return {"topwords_list": self.to_list()}
+            return self.to_list()  # <--- Direct return
         else:
             raise ValueError(f"Invalid output_format: {self.output_format}")
 
@@ -214,6 +209,13 @@ class ZTest(TopWords):
         return pd.DataFrame(
             getattr(self, "topwords", []) or [], columns=["term", "z_score"]
         )
+
+    def to_list_of_dicts(self):
+        """Return the topwords as a list of dictionaries with 'term' and 'z_score'."""
+        return [
+            {"term": term, "z_score": z_score}
+            for term, z_score in getattr(self, "topwords", [])
+        ]
 
     def to_list(self):
         """Return the topwords as a list of (term, z_score) tuples."""
