@@ -1,10 +1,13 @@
 """__init__.py.
 
-Last Updated: 6/12/25
+Last Updated: 6/23/25
 Last Tested: 6/18/25
 
 Current Usage:
 - Find keywords within their context in a spaCy doc or string
+    - Returns as either an iterable of tuples or a pandas DataFrame
+- Find multiple keywords and their context in a spaCy doc or string
+- Find keywords in sentences of a spaCy doc
 """
 
 from textacy.extract import kwic
@@ -29,7 +32,19 @@ class Kwic:
         window_size: int = 50,
         pad_context: bool = False,
     ) -> Iterable[tuple[str, str, str]]:
-        """Generate KWIC results for a given term in the document."""
+        """Generate KWIC results for a given term in the document.
+
+        Args:
+            doc (Doc | str): The document to search within, either as a spaCy Doc or a string.
+            keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
+            ignore_case (bool): Whether to ignore case when searching for the keyword.
+            window_size (int): The number of characters to include as context on either side of the keyword.
+            pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
+            
+        Returns:
+            Iterable[tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword, and the right context.
+        
+        """
         return kwic.keyword_in_context(
             doc=doc,
             keyword=keyword,
@@ -46,7 +61,18 @@ class Kwic:
         window_size: int = 50,
         pad_context: bool = False,
     ) -> pd.DataFrame:
-        """Generate KWIC results for a given term in the document in the form of a pandas DataFrame."""
+        """Generate KWIC results for a given term in the document in the form of a pandas DataFrame.
+        
+        Args:
+            doc (Doc | str): The document to search within, either as a spaCy Doc or a string.
+            keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
+            ignore_case (bool): Whether to ignore case when searching for the keyword.
+            window_size (int): The number of characters to include as context on either side of the keyword.
+            pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
+            
+        Returns:
+            pd.DataFrame: A DataFrame containing the left context, the keyword, and the right context.
+        """
         return pd.DataFrame(
             kwic.keyword_in_context(
                 doc=doc,
@@ -66,7 +92,18 @@ class Kwic:
         window_size: int = 50,
         pad_context: bool = False,
     ) -> Iterable[tuple[str, str, str, str]]:
-        """Generate KWIC results for multiple keywords in the document."""
+        """Generate KWIC results for multiple keywords in the document.
+        
+        Args:
+            doc (Doc | str): The document to search within, either as a spaCy Doc or a string.
+            keywords (Iterable[str | Pattern]): An iterable of keywords to search for, can be strings or regex patterns.
+            ignore_case (bool): Whether to ignore case when searching for the keywords.
+            window_size (int): The number of characters to include as context on either side of the keyword.
+            pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
+        
+        Returns:
+            Iterable[tuple[str, str, str, str]]: An iterable of tuples containing the left context, the keyword found, the right context, and the original keyword for each search.
+        """
         all_kwic_results = []
         for original_kw in keywords:
             for left, found_keyword, right in kwic.keyword_in_context(
@@ -85,7 +122,16 @@ class Kwic:
         keyword: str | Pattern,
         ignore_case: bool = True,
     ) -> Iterable[tuple[str, str, str]]:
-        """Generate KWIC results for a keyword in each sentence of the document."""
+        """Generate KWIC results for a keyword in each sentence of the document.
+        
+        Args:
+            doc (Doc): The spaCy Doc object containing the text to search within.
+            keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
+            ignore_case (bool): Whether to ignore case when searching for the keyword.
+            
+        Returns:
+            Iterable[tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
+        """
         if not isinstance(doc, Doc):
             raise LexosException(
                 "Input 'doc' must be a spaCy Doc object for sentence-level search."
