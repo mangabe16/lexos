@@ -31,7 +31,8 @@ class Kwic:
         ignore_case: bool = True,
         window_size: int = 50,
         pad_context: bool = False,
-    ) -> Iterable[tuple[str, str, str]]:
+        dataframe_format: bool = False,
+    ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
         """Generate KWIC results for a given term in the document.
 
         Args:
@@ -40,12 +41,14 @@ class Kwic:
             ignore_case (bool): Whether to ignore case when searching for the keyword.
             window_size (int): The number of characters to include as context on either side of the keyword.
             pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
+            dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
 
         Returns:
             Iterable[tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword, and the right context.
+            pd.DataFrame: A DataFrame containing the left context, the keyword, and the right context if dataframe_format is True.
 
         """
-        return kwic.keyword_in_context(
+        ret = kwic.keyword_in_context(
             doc=doc,
             keyword=keyword,
             ignore_case=ignore_case,
@@ -53,36 +56,9 @@ class Kwic:
             pad_context=pad_context,
         )
 
-    @validate_call(config=model_config)
-    def find_to_dataframe(
-        doc: Doc | str,
-        keyword: str | Pattern,
-        ignore_case: bool = True,
-        window_size: int = 50,
-        pad_context: bool = False,
-    ) -> pd.DataFrame:
-        """Generate KWIC results for a given term in the document in the form of a pandas DataFrame.
-
-        Args:
-            doc (Doc | str): The document to search within, either as a spaCy Doc or a string.
-            keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
-            ignore_case (bool): Whether to ignore case when searching for the keyword.
-            window_size (int): The number of characters to include as context on either side of the keyword.
-            pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the left context, the keyword, and the right context.
-        """
-        return pd.DataFrame(
-            kwic.keyword_in_context(
-                doc=doc,
-                keyword=keyword,
-                ignore_case=ignore_case,
-                window_width=window_size,
-                pad_context=pad_context,
-            ),
-            columns=["Left", "Keyword", "Right"],
-        )
+        if dataframe_format:
+            return pd.DataFrame(ret, columns=["Left", "Keyword", "Right"])
+        return ret
 
     @validate_call(config=model_config)
     def find_multiple_keywords(
@@ -91,7 +67,8 @@ class Kwic:
         ignore_case: bool = True,
         window_size: int = 50,
         pad_context: bool = False,
-    ) -> Iterable[tuple[str, str, str, str]]:
+        dataframe_format: bool = False,
+    ) -> Iterable[tuple[str, str, str, str]] | pd.DataFrame:
         """Generate KWIC results for multiple keywords in the document.
 
         Args:
@@ -100,9 +77,11 @@ class Kwic:
             ignore_case (bool): Whether to ignore case when searching for the keywords.
             window_size (int): The number of characters to include as context on either side of the keyword.
             pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
+            dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
 
         Returns:
             Iterable[tuple[str, str, str, str]]: An iterable of tuples containing the left context, the keyword found, the right context, and the original keyword for each search.
+            pd.DataFrame: A DataFrame containing the left context, the keyword found, the right context, and the original keyword if dataframe_format is True.
         """
         all_kwic_results = []
         for original_kw in keywords:
@@ -115,6 +94,11 @@ class Kwic:
             ):
                 all_kwic_results.append((left, found_keyword, right, str(original_kw)))
 
+        if dataframe_format:
+            return pd.DataFrame(
+                all_kwic_results,
+                columns=["Left", "Keyword", "Right", "Original Keyword"],
+            )
         return all_kwic_results
 
     @validate_call(config=model_config)
@@ -122,16 +106,19 @@ class Kwic:
         doc: Doc,  # Must be a Doc object, used for seperating sentences
         keyword: str | Pattern,
         ignore_case: bool = True,
-    ) -> Iterable[tuple[str, str, str]]:
+        dataframe_format: bool = False,
+    ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
         """Generate KWIC results for a keyword in each sentence of the document.
 
         Args:
             doc (Doc): The spaCy Doc object containing the text to search within.
             keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
             ignore_case (bool): Whether to ignore case when searching for the keyword.
+            dataframe (bool): Whether to return the results in the form of a pandas DataFrame.
 
         Returns:
             Iterable[tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
+            pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
         if not isinstance(doc, Doc):
             raise LexosException(
@@ -148,6 +135,11 @@ class Kwic:
             ):
                 all_sentence_kwic_results.append((left, found_keyword, right))
 
+        if dataframe_format:
+            return pd.DataFrame(
+                all_sentence_kwic_results,
+                columns=["Left", "Keyword", "Right"],
+            )
         return all_sentence_kwic_results
 
     @validate_call(config=model_config)
@@ -156,7 +148,8 @@ class Kwic:
         keyword: str | Pattern,
         token_window: int = 5,
         ignore_case: bool = True,
-    ) -> Iterable[tuple[str, str, str]]:
+        dataframe_format: bool = False,
+    ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
         """Generate KWIC results for a keyword in each sentence of the document, using a window of tokens as context.
 
         Args:
@@ -164,10 +157,11 @@ class Kwic:
             keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
             token_window (int): The number of tokens to include as context on each side.
             ignore_case (bool): Whether to ignore case when searching for the keyword.
+            dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
 
         Returns:
-            Iterable [tuple[str, str, str]]: An iterable of tuples containing the left context,
-            the keyword found, and the right context for each sentence.
+            Iterable [tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
+            pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
         if not isinstance(doc, Doc):
             raise LexosException(
@@ -193,4 +187,11 @@ class Kwic:
                         t.text for t in tokens[i + 1 : i + 1 + token_window]
                     )
                     all_sentence_kwic_results.append((left, token.text, right))
+
+        if dataframe_format:
+            return pd.DataFrame(
+                all_sentence_kwic_results,
+                columns=["Left", "Keyword", "Right"],
+            )
+
         return all_sentence_kwic_results
