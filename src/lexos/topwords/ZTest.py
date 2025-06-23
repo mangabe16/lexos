@@ -5,6 +5,8 @@ from spacy.schemas import DocJSONSchema
 from lexos.tokenizer import Tokenizer
 import numpy as np
 from collections import Counter
+from typing import Any
+import pandas as pd
 
 validation_config = ConfigDict(
     arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
