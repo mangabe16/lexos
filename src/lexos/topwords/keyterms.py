@@ -6,6 +6,7 @@ from lexos.tokenizer import Tokenizer
 from textacy import extract
 import pandas as pd
 from typing import Any, Literal
+import spacy
 
 validation_config = ConfigDict(
     arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
@@ -27,7 +28,7 @@ class KeyTerms(TopWords):
     )
     topn: int = Field(10, gt=0, description="Number of top keywords to return.")
     model: str = Field(
-        default="en_core_web_sm",
+        default="xx_sent_ud_sm",
         description="spaCy model name to use for tokenization.",
     )
     ngrams: tuple[int, int] = Field(
@@ -50,8 +51,13 @@ class KeyTerms(TopWords):
 
         If a tokenizer is not provided, creates one using the specified spaCy model.
         """
+        # Get the model name from data or use default
+        model_name = data.get("model", "xx_sent_ud_sm")
         if "tokenizer" not in data or data["tokenizer"] is None:
             data["tokenizer"] = Tokenizer(model=data.get("model", "xx_sent_ud_sm"))
+        # Load the spaCy model and get its stopwords
+        self.nlp = spacy.load(model_name)
+        self.stopwords = self.nlp.Defaults.stop_words
         super().__init__(**data)
 
     def __call__(self) -> dict:
@@ -78,8 +84,7 @@ class KeyTerms(TopWords):
             results = [
                 (term, score)
                 for term, score in results
-                if min_n <= len(term.split()) <= max_n
-                and term.lower() not in STOP_WORDS
+                if min_n <= len(term.split()) <= max_n and term.lower() not in self.stopwords
             ][: self.topn]
         elif self.method == "sgrank":
             results = extract.keyterms.sgrank(

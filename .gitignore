@@ -41,3 +41,6 @@ deprecated/
 
 #test
 src/lexos/cutter/token_chunks/*.txt
+
+# test coverage
+htmlcov/
