@@ -2,13 +2,14 @@
 
 Test suite for the Record class in lexos.corpus.record.
 
-Last Update: 2025-06-12.
+Last Update: 2025-06-23.
 """
 
 import uuid
 import tempfile
 from pathlib import Path
 from collections import Counter
+from unittest.mock import patch
 
 import pytest
 
@@ -527,3 +528,47 @@ class TestRecordEdgeCases:
         record = Record()
         with pytest.raises(LexosException, match="No path specified for saving the record."):
             record.to_disk("")
+    
+
+    def test_record_from_disk_permission_and_ioerror(self, tmp_path):
+        """Test from_disk raises exceptions for permission and IO errors."""
+        record = Record()
+        fake_path = tmp_path / "fakefile.bin"
+
+        # Simulate PermissionError
+        with patch("builtins.open", side_effect=PermissionError("No permission")):
+            with pytest.raises(LexosException, match="Permission denied accessing record file"):
+                record.from_disk(fake_path)
+
+        # Simulate generic IOError
+        with patch("builtins.open", side_effect=IOError("Disk error")):
+            with pytest.raises(LexosException, match="Failed to read record file"):
+                record.from_disk(fake_path)
+
+    def test_record_to_disk_permission_os_io_errors(self, tmp_path, nlp):
+        """Test to_disk raises exceptions for permission and IO errors."""
+
+        # Create a parsed record
+        doc = nlp("foo bar baz")
+        record = Record(
+            name="test",
+            content=doc,
+            model="en_core_web_sm",
+            is_active=True
+        )
+        file_path = tmp_path / "record.bin"
+
+        # Simulate PermissionError
+        with patch("builtins.open", side_effect=PermissionError("No permission")):
+            with pytest.raises(LexosException, match="Permission denied writing to:"):
+                record.to_disk(file_path)
+
+        # Simulate OSError with "No space left on device"
+        with patch("builtins.open", side_effect=OSError("No space left on device")):
+            with pytest.raises(LexosException, match="Insufficient disk space to save record:"):
+                record.to_disk(file_path)
+
+        # Simulate generic OSError
+        with patch("builtins.open", side_effect=OSError("Some other OS error")):
+            with pytest.raises(LexosException, match="Failed to write record to disk:"):
+                record.to_disk(file_path)
