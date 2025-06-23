@@ -42,7 +42,7 @@ class ZTest(TopWords):
         description="The ngram range for analysis, e.g., (1, 1) for unigrams only.",
     )
     model: str = Field(
-        default="en_core_web_sm",
+        default="xx_sent_ud_sm",
         description="spaCy model name to use for tokenization.",
     )
     tokenizer: Tokenizer = Field(default_factory=Tokenizer, exclude=True)
