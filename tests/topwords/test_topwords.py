@@ -6,10 +6,7 @@ from lexos.topwords.ZTest import ZTest  # Updated import
 from lexos.topwords.comparison_handler import ComparisonHandler
 import pandas as pd
 from spacy.tokens import Doc  # Needed for explicit Doc type hinting in tests
-from spacy.lang.en.stop_words import STOP_WORDS
 from collections import defaultdict
-
-
 
 
 # ---------------- Fixtures ----------------
@@ -17,26 +14,31 @@ from collections import defaultdict
 
 @pytest.fixture
 def simple_text():
+    """Fixture: Returns a simple example text for keyterm extraction tests."""
     return "Lexos is a tool for text analysis. Lexos helps find keyterms in documents."  # Changed keyword to keyterm
 
 
 @pytest.fixture
 def repeated_text():
+    """Fixture: Returns a text with a repeated word for testing repeated term handling."""
     return "Lexos Lexos Lexos Lexos Lexos."
 
 
 @pytest.fixture
 def stopwords_text():
+    """Fixture: Returns a string of only stopwords for stopword filtering tests."""
     return "the and if but or so yet for nor"
 
 
 @pytest.fixture
 def punctuation_text():
+    """Fixture: Returns a string of only punctuation for punctuation filtering tests."""
     return "!!! ??? ... ,,, ;;; :::"
 
 
 @pytest.fixture
 def target_texts():
+    """Fixture: Returns a list of target documents for ZTest tests."""
     return [
         "Lexos is a tool for text analysis.",
         "Lexos helps find keyterms.",
@@ -45,6 +47,7 @@ def target_texts():
 
 @pytest.fixture
 def background_texts():
+    """Fixture: Returns a list of background documents for ZTest tests."""
     return [
         "This document is about general topics.",
         "It does not mention special tools.",
@@ -53,18 +56,21 @@ def background_texts():
 
 @pytest.fixture
 def identical_texts():
+    """Fixture: Returns a list of identical texts for ZTest identical input tests."""
     return ["Lexos is great.", "Lexos is great."]
 
 
 @pytest.fixture
 def nlp():
+    """Fixture: Returns a blank English spaCy pipeline for Doc creation."""
     return spacy.blank("en")
 
 
 # ---------------- KeyTerms Tests (formerly TextacyKeywords) ----------------
 
 
-def test_keyterms_textrank(simple_text, nlp):  # Renamed function
+def test_keyterms_textrank(simple_text, nlp):
+    """Test KeyTerms extraction using the 'textrank' method on string and Doc input."""
     # Added normalize="lemma" as it's now required
     extractor = KeyTerms(
         document=simple_text, method="textrank", topn=5, normalize="lemma"
@@ -94,7 +100,8 @@ def test_keyterms_textrank(simple_text, nlp):  # Renamed function
     assert doc._.keyterms == extractor2.to_dict()["keyterms"]  # Changed from "keywords"
 
 
-def test_keyterms_sgrank(simple_text, nlp):  # Renamed function
+def test_keyterms_sgrank(simple_text, nlp):
+    """Test KeyTerms extraction using the 'sgrank' method on string and Doc input."""
     # Added normalize="lemma"
     extractor = KeyTerms(
         document=simple_text, method="sgrank", topn=5, normalize="lemma"
@@ -115,7 +122,8 @@ def test_keyterms_sgrank(simple_text, nlp):  # Renamed function
     assert doc._.keyterms == extractor2.to_dict()["keyterms"]  # Changed from "keywords"
 
 
-def test_keyterms_large_topn(simple_text):  # Renamed function
+def test_keyterms_large_topn(simple_text):
+    """Test KeyTerms returns no more than 'topn' results when a large topn is specified."""
     # Added normalize="lemma"
     extractor = KeyTerms(
         document=simple_text, method="textrank", topn=100, normalize="lemma"
@@ -124,7 +132,8 @@ def test_keyterms_large_topn(simple_text):  # Renamed function
     assert len(extractor.to_dict()["keyterms"]) <= 100  # Changed from "keywords"
 
 
-def test_keyterms_only_stopwords(stopwords_text):  # Renamed function
+def test_keyterms_only_stopwords(stopwords_text):
+    """Test KeyTerms returns an empty list when input is only stopwords."""
     # Added normalize="lemma"
     extractor = KeyTerms(
         document=stopwords_text, method="textrank", topn=5, normalize="lemma"
@@ -138,7 +147,8 @@ def test_keyterms_only_stopwords(stopwords_text):  # Renamed function
     assert extractor.to_dict()["keyterms"] == []  # Changed from "keywords"
 
 
-def test_keyterms_only_punctuation(punctuation_text):  # Renamed function
+def test_keyterms_only_punctuation(punctuation_text):
+    """Test KeyTerms returns an empty list when input is only punctuation."""
     # Added normalize="lemma"
     extractor = KeyTerms(
         document=punctuation_text, method="textrank", topn=5, normalize="lemma"
@@ -147,7 +157,8 @@ def test_keyterms_only_punctuation(punctuation_text):  # Renamed function
     assert extractor.to_dict()["keyterms"] == []  # Changed from "keywords"
 
 
-def test_keyterms_repeated_words(repeated_text):  # Renamed function
+def test_keyterms_repeated_words(repeated_text):
+    """Test KeyTerms handles repeated words correctly."""
     # Added normalize="lemma"
     extractor = KeyTerms(
         document=repeated_text, method="textrank", topn=3, normalize="lemma"
@@ -162,13 +173,15 @@ def test_keyterms_repeated_words(repeated_text):  # Renamed function
         )
 
 
-def test_keyterms_invalid_method(simple_text):  # Renamed function
+def test_keyterms_invalid_method(simple_text):
+    """Test KeyTerms raises ValidationError for an invalid method."""
     with pytest.raises(ValidationError):
         # Added normalize="lemma" as a placeholder to allow Pydantic validation to proceed to 'method'
         KeyTerms(document=simple_text, method="invalid", topn=5, normalize="lemma")
 
 
-def test_keyterms_invalid_topn(simple_text):  # Renamed function
+def test_keyterms_invalid_topn(simple_text):
+    """Test KeyTerms raises ValidationError for invalid topn values."""
     with pytest.raises(ValidationError):
         # Added normalize="lemma"
         KeyTerms(document=simple_text, method="textrank", topn=0, normalize="lemma")
@@ -180,7 +193,8 @@ def test_keyterms_invalid_topn(simple_text):  # Renamed function
 # ---------------- ZTest Tests (formerly ZTestTopwords) ----------------
 
 
-def test_ztest_basic(target_texts, background_texts, nlp):  # Renamed function
+def test_ztest_basic(target_texts, background_texts, nlp):
+    """Test ZTest basic functionality and output formats."""
     extractor = ZTest(
         target_documents=target_texts, background_documents=background_texts, topn=5
     )
@@ -219,13 +233,15 @@ def test_ztest_basic(target_texts, background_texts, nlp):  # Renamed function
     assert target_docs_for_ext2[0]._.topwords == extractor2.to_list()
 
 
-def test_ztest_empty_input():  # Renamed function
+def test_ztest_empty_input():
+    """Test ZTest returns empty results for empty input."""
     extractor = ZTest(target_documents=[], background_documents=[], topn=5)
     extractor()
     assert extractor.to_dict()["topwords"] == []
 
 
-def test_ztest_large_topn(target_texts, background_texts):  # Renamed function
+def test_ztest_large_topn(target_texts, background_texts):
+    """Test ZTest returns no more than 'topn' results when a large topn is specified."""
     extractor = ZTest(
         target_documents=target_texts, background_documents=background_texts, topn=100
     )
@@ -294,9 +310,8 @@ def test_ztest_output_format_list_of_dicts(target_texts, background_texts):
     )
 
 
-def test_ztest_repeated_words(
-    repeated_text, nlp
-):  # Renamed function, added nlp fixture
+def test_ztest_repeated_words(repeated_text, nlp):  # Renamed function, added nlp fixture
+    """Test ZTest handles repeated words correctly and identifies them as distinguishing if appropriate."""    
     extractor = ZTest(
         target_documents=[repeated_text],
         background_documents=["other words"],
@@ -317,6 +332,7 @@ def test_ztest_repeated_words(
 
 
 def test_ztest_identical_target_background(identical_texts):  # Renamed function
+    """Test that ZTest returns no topwords when target and background documents are identical."""
     extractor = ZTest(
         target_documents=identical_texts, background_documents=identical_texts, topn=5
     )
@@ -327,6 +343,7 @@ def test_ztest_identical_target_background(identical_texts):  # Renamed function
 
 
 def test_ztest_invalid_topn(target_texts, background_texts):  # Renamed function
+    """Test that ZTest raises ValidationError when 'topn' is zero or negative."""
     with pytest.raises(ValidationError):
         ZTest(
             target_documents=target_texts, background_documents=background_texts, topn=0
@@ -339,9 +356,7 @@ def test_ztest_invalid_topn(target_texts, background_texts):  # Renamed function
         )
 
 
-def test_ztest_background_docs_direct_input(  # Renamed function
-    nlp, target_texts, background_texts
-):
+def test_ztest_background_docs_direct_input(nlp, target_texts, background_texts): # Renamed function
     """Test providing `background_documents` as spaCy Docs directly."""
     target_docs = [nlp(text) for text in target_texts]
     background_docs = [nlp(text) for text in background_texts]
@@ -491,9 +506,7 @@ def test_keyterms_missing_text_or_doc_input():  # Renamed function
 
 
 # Output format tests for ZTest
-def test_ztest_output_format_dataframe(
-    target_texts, background_texts
-):  # Renamed function
+def test_ztest_output_format_dataframe(target_texts, background_texts):  # Renamed function
     """Test that ZTest returns a DataFrame when output_format is 'dataframe'."""
     extractor = ZTest(
         target_documents=target_texts,
@@ -528,9 +541,7 @@ def test_ztest_output_format_dataframe(
 #     )
 
 
-def test_ztest_output_format_list_of_tuples(
-    target_texts, background_texts
-):  # Renamed function
+def test_ztest_output_format_list_of_tuples(target_texts, background_texts):  # Renamed function
     """Test that ZTest returns a list of tuples when output_format is 'list_of_tuples'."""
     extractor = ZTest(
         target_documents=target_texts,
@@ -543,9 +554,7 @@ def test_ztest_output_format_list_of_tuples(
     assert all(isinstance(item, tuple) and len(item) == 2 for item in result)
 
 
-def test_ztest_output_format_invalid(
-    target_texts, background_texts
-):  # Renamed function
+def test_ztest_output_format_invalid(target_texts, background_texts):  # Renamed function
     """Test that ZTest raises a ValueError for an invalid output_format."""
     extractor = ZTest(
         target_documents=target_texts,
