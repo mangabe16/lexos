@@ -85,7 +85,9 @@ class MannWhitney(TopWords):
                 )
 
         if not results:
-            msg.warn("Warning: No suitable columns found to perform the Mann-Whitney U test.")
+            msg.warn(
+                "Warning: No suitable columns found to perform the Mann-Whitney U test."
+            )
             # Set result to empty list for consistency
             self.result = []
             return
@@ -115,7 +117,7 @@ class MannWhitney(TopWords):
         Also computes the difference in frequency from control to comparison.
 
         Args:
-            valid_terms: List of terms to calculate statistics for. If None, 
+            valid_terms: List of terms to calculate statistics for. If None,
                         calculates for all columns.
 
         Returns:
@@ -128,7 +130,7 @@ class MannWhitney(TopWords):
         else:
             x_subset = self.x
             y_subset = self.y
-        
+
         x_sorted = x_subset.T.sort_index(ascending=True)
         # Use numeric_only=True to handle non-numeric columns gracefully
         x_sorted["Mean"] = x_sorted.mean(axis=1, numeric_only=True)
