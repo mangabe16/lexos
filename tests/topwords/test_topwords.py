@@ -6,6 +6,9 @@ from lexos.topwords.ztest import ZTest  # Updated import
 import pandas as pd
 from spacy.tokens import Doc  # Needed for explicit Doc type hinting in tests
 from spacy.lang.en.stop_words import STOP_WORDS
+from collections import defaultdict
+
+from lexos.topwords.comparison_handler import ComparisonHandler
 
 
 # ---------------- Fixtures ----------------
@@ -566,3 +569,60 @@ def test_keyterms_invalid_method_value_error(simple_text):  # Renamed function
     with pytest.raises(ValueError) as excinfo:
         extractor()
     assert "Invalid method. Choose 'textrank' or 'sgrank'." in str(excinfo.value)
+
+
+# --------- Comparison Handler ---------
+
+
+# Dummy mock class to simulate ZTest/KeyTerms behavior
+class MockTopWords:
+    def __init__(self, target_documents, background_documents, **kwargs):
+        self.target_documents = target_documents
+        self.background_documents = background_documents
+        self.kwargs = kwargs
+
+    def __call__(self):
+        return {
+            "target": self.target_documents,
+            "background": self.background_documents,
+            "params": self.kwargs,
+        }
+
+
+def test_compare_each_doc_to_corpus():
+    """Tests comparing each document to corpus."""
+    documents = ["doc1", "doc2", "doc3"]
+    handler = ComparisonHandler(MockTopWords, topn=5)
+
+    results = handler.compare_each_doc_to_corpus(documents)
+
+    assert isinstance(results, list)
+    assert len(results) == 3
+    assert results[0]["target"] == ["doc1"]
+    assert results[0]["background"] == ["doc2", "doc3"]
+
+
+def test_compare_each_doc_to_other_classes():
+    """Tests comparing each document to other classes."""
+    class_docs = {"A": ["a1", "a2"], "B": ["b1"]}
+    handler = ComparisonHandler(MockTopWords, dummy_param=True)
+
+    results = handler.compare_each_doc_to_other_classes(class_docs)
+
+    assert isinstance(results, defaultdict)
+    assert "A" in results and "B" in results
+    assert len(results["A"]) == 2
+    assert results["A"][0]["background"] == ["b1"]
+
+
+def test_compare_each_class_to_other_classes():
+    """Tests comparing each class to other classes."""
+    class_docs = {"X": ["x1", "x2"], "Y": ["y1"]}
+    handler = ComparisonHandler(MockTopWords, flag=True)
+
+    results = handler.compare_each_class_to_other_classes(class_docs)
+
+    assert isinstance(results, dict)
+    assert "X" in results and "Y" in results
+    assert results["X"]["target"] == ["x1", "x2"]
+    assert results["X"]["background"] == ["y1"]
