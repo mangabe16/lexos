@@ -127,7 +127,6 @@ class KMeansCluster(BaseModel):
 
         if show:
             fig.show()
-        return None
 
         return fig
 
@@ -165,7 +164,6 @@ class KMeansCluster(BaseModel):
 
         if show:
             fig.show()
-        return None
 
         return fig
 
@@ -223,3 +221,49 @@ class KMeansCluster(BaseModel):
             plt.show()
         else:
             plt.close()
+            
+
+    def save_png(self, path: str) -> None:
+        """
+        Save the last Plotly figure as a PNG.
+        Usage: kmeans.plot_2d(...); kmeans.save_png('out.png')
+        """
+        if self.plotly_fig is None:
+            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
+        self.plotly_fig.write_image(path, format="png")
+
+    def save_svg(self, path: str) -> None:
+        """
+        Save the last Plotly figure as an SVG.
+        Usage: kmeans.plot_3d(...); kmeans.save_svg('out.svg')
+        """
+        if self.plotly_fig is None:
+            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
+        self.plotly_fig.write_image(path, format="svg")
+
+    def export_csv(self, path: str) -> None:
+        """
+        Export a CSV of each document’s PCA coordinates and cluster assignment.
+        Usage: kmeans(dtm); kmeans.export_csv('out.csv')
+        """
+        if self.cluster_assignments is None:
+            raise LexosException("No clustering results: run clustering first.")
+        
+        # Perform PCA to get 2D coordinates
+        matrix = self._get_valid_matrix()
+        pca = PCA(n_components=2)
+        coords = pca.fit_transform(matrix)
+        
+        # Create a DataFrame with document labels, cluster assignments, and PCA coordinates
+        df = pd.DataFrame({
+            "Document": self.labels or [f"Doc{i+1}" for i in range(len(coords))],
+            "Cluster": self.cluster_assignments.astype(str),
+            "PC1": coords[:, 0],
+            "PC2": coords[:, 1],
+        })
+        
+        # Export the DataFrame to a CSV file
+        try:
+            df.to_csv(path, index=False)
+        except Exception as e:
+            raise LexosException(f"Failed to export CSV: {e}")
