@@ -2,13 +2,14 @@ import pytest
 import spacy
 from pydantic import ValidationError
 from lexos.topwords.keyterms import KeyTerms  # Updated import
-from lexos.topwords.ztest import ZTest  # Updated import
+from lexos.topwords.ZTest import ZTest  # Updated import
+from lexos.topwords.comparison_handler import ComparisonHandler
 import pandas as pd
 from spacy.tokens import Doc  # Needed for explicit Doc type hinting in tests
 from spacy.lang.en.stop_words import STOP_WORDS
 from collections import defaultdict
 
-from lexos.topwords.comparison_handler import ComparisonHandler
+
 
 
 # ---------------- Fixtures ----------------
