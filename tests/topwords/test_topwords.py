@@ -2,7 +2,7 @@ import pytest
 import spacy
 from pydantic import ValidationError
 from lexos.topwords.keyterms import KeyTerms  # Updated import
-from lexos.topwords.ZTest import ZTest  # Updated import
+from lexos.topwords.ztest import ZTest  # Updated import
 from lexos.topwords.comparison_handler import ComparisonHandler
 import pandas as pd
 from spacy.tokens import Doc  # Needed for explicit Doc type hinting in tests
@@ -310,8 +310,10 @@ def test_ztest_output_format_list_of_dicts(target_texts, background_texts):
     )
 
 
-def test_ztest_repeated_words(repeated_text, nlp):  # Renamed function, added nlp fixture
-    """Test ZTest handles repeated words correctly and identifies them as distinguishing if appropriate."""    
+def test_ztest_repeated_words(
+    repeated_text, nlp
+):  # Renamed function, added nlp fixture
+    """Test ZTest handles repeated words correctly and identifies them as distinguishing if appropriate."""
     extractor = ZTest(
         target_documents=[repeated_text],
         background_documents=["other words"],
@@ -356,7 +358,9 @@ def test_ztest_invalid_topn(target_texts, background_texts):  # Renamed function
         )
 
 
-def test_ztest_background_docs_direct_input(nlp, target_texts, background_texts): # Renamed function
+def test_ztest_background_docs_direct_input(
+    nlp, target_texts, background_texts
+):  # Renamed function
     """Test providing `background_documents` as spaCy Docs directly."""
     target_docs = [nlp(text) for text in target_texts]
     background_docs = [nlp(text) for text in background_texts]
@@ -506,7 +510,9 @@ def test_keyterms_missing_text_or_doc_input():  # Renamed function
 
 
 # Output format tests for ZTest
-def test_ztest_output_format_dataframe(target_texts, background_texts):  # Renamed function
+def test_ztest_output_format_dataframe(
+    target_texts, background_texts
+):  # Renamed function
     """Test that ZTest returns a DataFrame when output_format is 'dataframe'."""
     extractor = ZTest(
         target_documents=target_texts,
@@ -541,7 +547,9 @@ def test_ztest_output_format_dataframe(target_texts, background_texts):  # Renam
 #     )
 
 
-def test_ztest_output_format_list_of_tuples(target_texts, background_texts):  # Renamed function
+def test_ztest_output_format_list_of_tuples(
+    target_texts, background_texts
+):  # Renamed function
     """Test that ZTest returns a list of tuples when output_format is 'list_of_tuples'."""
     extractor = ZTest(
         target_documents=target_texts,
@@ -554,7 +562,9 @@ def test_ztest_output_format_list_of_tuples(target_texts, background_texts):  # 
     assert all(isinstance(item, tuple) and len(item) == 2 for item in result)
 
 
-def test_ztest_output_format_invalid(target_texts, background_texts):  # Renamed function
+def test_ztest_output_format_invalid(
+    target_texts, background_texts
+):  # Renamed function
     """Test that ZTest raises a ValueError for an invalid output_format."""
     extractor = ZTest(
         target_documents=target_texts,
@@ -608,8 +618,9 @@ def test_compare_each_doc_to_corpus():
 
     assert isinstance(results, list)
     assert len(results) == 3
-    assert results[0]["target"] == ["doc1"]
-    assert results[0]["background"] == ["doc2", "doc3"]
+    # each element is {"label": ..., "result": {...}}
+    assert results[0]["result"]["target"] == ["doc1"]
+    assert results[0]["result"]["background"] == ["doc2", "doc3"]  # ✅ correct
 
 
 def test_compare_each_doc_to_other_classes():
@@ -622,7 +633,7 @@ def test_compare_each_doc_to_other_classes():
     assert isinstance(results, defaultdict)
     assert "A" in results and "B" in results
     assert len(results["A"]) == 2
-    assert results["A"][0]["background"] == ["b1"]
+    assert results["A"][0]["result"]["background"] == ["b1"]
 
 
 def test_compare_each_class_to_other_classes():
@@ -636,3 +647,13 @@ def test_compare_each_class_to_other_classes():
     assert "X" in results and "Y" in results
     assert results["X"]["target"] == ["x1", "x2"]
     assert results["X"]["background"] == ["y1"]
+
+
+def test_compare_each_doc_to_corpus_label_mismatch():
+    """Labels length must match documents length."""
+    docs = ["d1", "d2"]
+    labels = ["Only one label"]
+    handler = ComparisonHandler(MockTopWords, labels=labels, topn=5)
+
+    with pytest.raises(ValueError, match="labels.*count must match"):
+        handler.compare_each_doc_to_corpus(docs)
