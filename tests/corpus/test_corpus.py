@@ -1522,6 +1522,29 @@ class TestCorpusClass:
         
         print("✓ validate_analysis_compatibility method tested (lines 777-814)")
 
+    def test_update_corpus_state_uuid_conversion(self, tmp_path, monkeypatch):
+        """Test UUID conversion in _update_corpus_state method."""
+        # Create a Corpus with a UUID field in its model_dump
+        corpus = Corpus(corpus_dir=str(tmp_path), name="TestCorpus")
+        # Monkeypatch model_dump to inject a UUID value
+        fake_uuid = uuid.uuid4()
+        orig_model_dump = type(corpus).model_dump
+
+        def fake_model_dump(self,*args, **kwargs):
+            data = orig_model_dump(self,*args, **kwargs)
+            data["some_uuid"] = fake_uuid
+            return data
+
+        monkeypatch.setattr(type(corpus), "model_dump", fake_model_dump)
+
+        # This will call _update_corpus_state and hit the hasattr(value, 'hex') branch
+        corpus._update_corpus_state()
+
+        # Optionally, check that the value was converted to str
+        meta = srsly.read_json(tmp_path / corpus.corpus_metadata_file)
+        assert isinstance(meta["some_uuid"], str)
+        assert meta["some_uuid"] == str(fake_uuid)
+
 
 class TestCorpusIntegrationWhenAvailable:
     """Test integration scenarios when Corpus class becomes available."""
