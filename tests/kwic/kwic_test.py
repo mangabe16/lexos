@@ -17,8 +17,8 @@ Usage:
 To run the test for this module:
     uv run pytest tests/kwic/kwic_test.py
 
-Last Updated: 6/18/25
-Last Tested: 6/18/25
+Last Updated: 6/24/25
+Last Tested: 6/24/25
 """
 
 from src.lexos.kwic import Kwic
@@ -107,6 +107,7 @@ def test_kwic_find_to_dataframe(tokenizer) -> None:
     assert kwic_df.iloc[0].tolist() == [" a ", "test", " st"]
     assert kwic_df.iloc[1].tolist() == ["to ", "test", " th"]
 
+
 def test_kwic_find_empty_string(tokenizer) -> None:
     """Test KWIC find method with an empty string."""
     text = ""
@@ -151,7 +152,11 @@ def test_multiple_keywords_to_dataframe(tokenizer) -> None:
     doc = tokenizer(text)
     keywords = ["test", "Kwic"]
     kwic_df = Kwic.find_multiple_keywords(
-        doc=doc, keywords=keywords, window_size=3, pad_context=True, dataframe_format=True
+        doc=doc,
+        keywords=keywords,
+        window_size=3,
+        pad_context=True,
+        dataframe_format=True,
     )
     assert isinstance(kwic_df, pd.DataFrame)
     assert len(kwic_df) == 3
@@ -190,9 +195,7 @@ def test_find_in_sentences(spacy_doc_sentences) -> None:
 
 def test_find_in_sentences_requires_doc_object() -> None:
     """Test that find_in_sentences raises TypeError if doc is not a Doc object."""
-    with pytest.raises(
-        ValidationError
-    ):
+    with pytest.raises(ValidationError):
         Kwic.find_in_sentences(
             doc="This is a string, not a Doc object.", keyword="keyword"
         )
@@ -207,27 +210,44 @@ def test_find_in_sentences_to_dataframe(spacy_doc_sentences) -> None:
     assert isinstance(kwic_df, pd.DataFrame)
     assert len(kwic_df) == 1
     assert list(kwic_df.columns) == ["Left", "Keyword", "Right"]
-    assert kwic_df.iloc[0].tolist() == ["This third sentence has ", "keyword", " in it."]
+    assert kwic_df.iloc[0].tolist() == [
+        "This third sentence has ",
+        "keyword",
+        " in it.",
+    ]
 
 
 def test_find_tokens() -> None:
     """Test KWIC find_tokens method."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc = Tokenizer()(text)
-    kwic_results = Kwic.find_tokens(doc=doc, keyword="test", token_window=5, ignore_case=True)
+    kwic_results = Kwic.find_tokens(
+        doc=doc, keyword="test", token_window=5, ignore_case=True
+    )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
     assert len(results_list) == 2
     assert results_list[0] == ("This is a", "test", "string to test the Kwic")
-    assert results_list[1] == ("is a test string to", "test", "the Kwic module for finding")
+    assert results_list[1] == (
+        "is a test string to",
+        "test",
+        "the Kwic module for finding",
+    )
+
 
 def test_find_tokens_to_dataframe() -> None:
     """Test KWIC find_tokens method with DataFrame output."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc = Tokenizer()(text)
-    kwic_df = Kwic.find_tokens(doc=doc, keyword="test", token_window=5, ignore_case=True, dataframe_format=True)
+    kwic_df = Kwic.find_tokens(
+        doc=doc, keyword="test", token_window=5, ignore_case=True, dataframe_format=True
+    )
     assert isinstance(kwic_df, pd.DataFrame)
     assert len(kwic_df) == 2
     assert list(kwic_df.columns) == ["Left", "Keyword", "Right"]
     assert kwic_df.iloc[0].tolist() == ["This is a", "test", "string to test the Kwic"]
-    assert kwic_df.iloc[1].tolist() == ["is a test string to", "test", "the Kwic module for finding"]
+    assert kwic_df.iloc[1].tolist() == [
+        "is a test string to",
+        "test",
+        "the Kwic module for finding",
+    ]
