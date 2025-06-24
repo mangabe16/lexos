@@ -15,6 +15,9 @@ from spacy.tokens import Doc
 from typing import Iterable, Pattern
 from pydantic import validate_call, ConfigDict
 import pandas as pd
+from spacy.matcher import Matcher
+from spacy.language import Language
+import spacy
 
 from lexos.exceptions import LexosException
 
@@ -23,6 +26,7 @@ class Kwic:
     """A class for generating keyword-in-context (KWIC) results using textacy."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    nlp = spacy.load("xx_sent_ud_sm")
 
     @validate_call(config=model_config)
     def find(
@@ -145,6 +149,7 @@ class Kwic:
         token_window: int = 5,
         ignore_case: bool = True,
         dataframe_format: bool = False,
+        nlp: Language = nlp
     ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
         """Generate KWIC results for a keyword in each sentence of the document, using a window of tokens as context.
 
@@ -154,36 +159,40 @@ class Kwic:
             token_window (int): The number of tokens to include as context on each side.
             ignore_case (bool): Whether to ignore case when searching for the keyword.
             dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
+            nlp (Language): The spaCy Language model to use for matching.
 
         Returns:
             Iterable [tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
             pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
-        all_sentence_kwic_results = []
-        for sentence_span in doc.sents:
-            tokens = list(sentence_span)
-            for i, token in enumerate(tokens):
-                # Check if token matches keyword (string or pattern)
-                if (
-                    isinstance(keyword, str)
-                    and (
-                        (token.text.lower() == keyword.lower())
-                        if ignore_case
-                        else (token.text == keyword)
-                    )
-                ) or (hasattr(keyword, "search") and keyword.search(token.text)):
-                    left = " ".join(
-                        t.text for t in tokens[max(0, i - token_window) : i]
-                    )
-                    right = " ".join(
-                        t.text for t in tokens[i + 1 : i + 1 + token_window]
-                    )
-                    all_sentence_kwic_results.append((left, token.text, right))
+        # Instantiate the Matcher with the Doc's vocabulary
+        matcher = Matcher(nlp.vocab)
+        # Add the keyword pattern to the matcher
+        if (ignore_case):
+            matcher.add("search", [[{"LOWER": keyword.lower()}]])
+        else:
+            matcher.add("search", [[{"TEXT": keyword}]])
+        # Get the matches in the document
+        matches = matcher(doc)
+
+        # If there are no matches, return an empty list or DataFrame
+        if not matches:
+            raise LexosException(f"No matches found for keyword: {keyword}")
+
+        hits = []
+        # Iterate over the matches
+        for match_id, start, end in matches:
+            # Get the matched span.
+            span = doc[start:end]  # The matched span
+            left = start - token_window
+            right = end + token_window
+            left = max(left, 0)  # Ensure we don't go out of bounds
+            right = min(right, len(doc))  # Ensure we don't go out of bounds
+            left_context = doc[left:start].text.strip()
+            right_context = doc[end:right].text.strip()
+            hits.append((left_context, span.text, right_context))
 
         if dataframe_format:
-            return pd.DataFrame(
-                all_sentence_kwic_results,
-                columns=["Left", "Keyword", "Right"],
-            )
+            return pd.DataFrame(hits, columns=["Left", "Keyword", "Right"])
 
-        return all_sentence_kwic_results
+        return hits
