@@ -21,6 +21,7 @@ coverage.xml
 *.cover
 *.py,cover
 .pytest_cache/
+htmlcov/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -38,4 +39,9 @@ docs/
 
 # Private development files
 deprecated/
-CLAUDE.md
+
+#test
+src/lexos/cutter/token_chunks/*.txt
+
+# test coverage
+htmlcov/

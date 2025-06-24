@@ -1,6 +1,6 @@
 """record.py.
 
-Last updated: June 2, 2025
+Last updated: June 23, 2025
 Last tested: It works in a noteboook, but no unit tests written yet.
 
 Wrapping texts and spaCy Docs in a Pydantic model provides a lot of extra functionality, particularly through the model_dump() and model_dump_json() methods. See the Pydantic documentation for more information.
@@ -443,11 +443,6 @@ class Record(BaseModel):
                     f"Failed to write record to disk: {path}. Error: {str(e)}. "
                     f"Suggestion: Check disk space, file system health, or network connectivity."
                 ) from e
-        except IOError as e:
-            raise LexosException(
-                f"Failed to write record file: {path}. Error: {str(e)}. "
-                f"Suggestion: Check disk space, file system health, or network connectivity."
-            ) from e
 
     def vocab_density(self) -> float:
         """Return the vocabulary density.
