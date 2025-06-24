@@ -5,7 +5,7 @@ Last tested: It works in a noteboook, but no unit tests written yet.
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
 
-To reproduce the web app's Statistics module, call `stats = Corpus.get_token_stats()` to get a `CorpusStats` object. Its method produce the web app's calculations and output. By default, the `get_token_stats()` method retrieves stats for the entire corpus, but you can pass parameters to filter active documents or settings accepted by the vectorizer. You can also pass an arbitrary list of tuples containing the record ID, name, and tokens to retrieve statistics for any list of pre-tokenised documents.
+To reproduce the web app's Statistics module, call `stats = Corpus.get_token_stats()` to get a `CorpusStats` object. Its method produce the web app's calculations and output. By default, the `get_token_stats()` method retrieves stats for the entire corpus, but you can pass parameters to filter active records or settings accepted by the vectorizer. You can also pass an arbitrary list of tuples containing the record ID, name, and tokens to retrieve statistics for any list of pre-tokenised records.
 
 
 # TODO:
@@ -26,6 +26,7 @@ from typing import Any, Optional
 
 import pandas as pd
 import srsly
+from wasabi import msg
 from pydantic import (
     UUID4,
     BaseModel,
@@ -68,9 +69,9 @@ class Corpus(BaseModel):
         exclude=True,
     )
     num_active_docs: int = Field(
-        0, description="Number of active documents in the corpus."
+        0, description="Number of active records in the corpus."
     )
-    num_docs: int = Field(0, description="Total number of documents in the corpus.")
+    num_docs: int = Field(0, description="Total number of records in the corpus.")
     num_terms: int = Field(0, description="Total number of unique terms in the corpus.")
     num_tokens: int = Field(0, description="Total number of tokens in the corpus.")
     terms: set = Field(set(), description="Set of unique terms in the corpus.")
@@ -85,7 +86,7 @@ class Corpus(BaseModel):
         data = self.model_dump()
         data["terms"] = list(data["terms"])
         srsly.write_json(corpus_dir / self.corpus_metadata_file, data)
-        print("Corpus created.")
+        msg.good("Corpus created.")
 
     def __repr__(self):
         """Return a string representation of the Corpus."""
@@ -224,7 +225,7 @@ class Corpus(BaseModel):
         """Update the Corpus state after adding or removing records.
 
         Note:
-            This method recalculates the number of documents, active documents,
+            This method recalculates the number of records, active records,
             terms, tokens, and unique terms in the entire Corpus.
         """
         self.num_docs = len(self.records)
@@ -254,14 +255,14 @@ class Corpus(BaseModel):
         id_type: Optional[str] = "uuid4",
         cache: Optional[bool] = False,
     ):
-        """Add a document the Corpus.
+        """Add a record to the Corpus.
 
         Args:
-            content (Doc | Record | str | list[Doc | Record | str]): A text string, Record, or a spaCy document, or a list of any of these.
-            name (str): A name for the document.
-            is_active (bool): Whether or not the document is active.
-            model (str): The name of the language model used to parse the document (optional).
-            extensions (list[str]): A list of extension names to add to the document.
+            content (Doc | Record | str | list[Doc | Record | str]): A text string, Record, or a spaCy Doc, or a list of any of these.
+            name (str): A name for the record.
+            is_active (bool): Whether or not the record is active.
+            model (str): The name of the language model used to parse the record (optional).
+            extensions (list[str]): A list of extension names to add to the record.
             metadata (dict[str, Any]): A dict containing any metadata.
             id_type (str): The type of ID to generate. Can be "integer" or "uuid4". Defaults to "uuid4".
             cache (bool): Whether or not to cache the record.
@@ -319,8 +320,8 @@ class Corpus(BaseModel):
         Tries to get the record from memory; otherwise loads it from file.
 
         Args:
-            id (str | list[str]): A document id or list of ids from the Corpus records.
-            name (str | list[str]): A document name or list of names from the Corpus records.
+            id (str | list[str]): A record id or list of ids from the Corpus records.
+            name (str | list[str]): A record name or list of names from the Corpus records.
 
         Returns:
             Record | list[Record]: The record(s) with the given ID(s) or name(s).
@@ -376,8 +377,8 @@ class Corpus(BaseModel):
         Args:
             active_only (bool): If True, only include active records in the statistics. Defaults to True.
             type (str): The type of statistics to return. Can be "tokens" or "characters". Defaults to "tokens".
-            min_df (int | None): Minimum document frequency for terms to be included in the statistics. Defaults to None.
-            max_df (int | None): Maximum document frequency for terms to be included in the statistics. Defaults to None.
+            min_df (int | None): Minimum record frequency for terms to be included in the statistics. Defaults to None.
+            max_df (int | None): Maximum record frequency for terms to be included in the statistics. Defaults to None.
             max_n_terms (int | None): Maximum number of terms to include in the statistics. Defaults to None.
             token_list (list[tuple[str, str, list[str]]]): A list of tuples containing the record ID, name, and tokens. If not provided, it will be generated from the records.
 
@@ -535,7 +536,7 @@ class Corpus(BaseModel):
         """Set a property or properties of a record in the Corpus.
 
         Args:
-            id (str): A document id.
+            id (str): A record id.
             **props (dict): The dict containing any other properties to set.
         """
         # Get the record by ID
@@ -667,7 +668,7 @@ class Corpus(BaseModel):
             "results": results_data
         }
         
-        print(f"✓ Imported {module_name} analysis results (version {version})")
+        msg.good(f"Imported {module_name} analysis results (version {version})")
 
     @validate_call(config=model_config)  
     def get_analysis_results(self, module_name: str = None) -> dict[str, Any]:

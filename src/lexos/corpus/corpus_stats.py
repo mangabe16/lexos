@@ -5,7 +5,7 @@ Last tested: TBD.
 """
 
 from functools import cached_property
-from typing import Optional, Union
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,15 +25,15 @@ class CorpusStats(BaseModel):
     """A class to hold statistics about a Corpus.
 
     The input should be a list of tuples, where each tuple contains:
-        - id: A unique identifier for the document.
-        - label: A label for the document.
-        - token list: A list of tokens in the document. Tokens can be words, n-grams, or any other token unit.
+        - id: A unique identifier for the record.
+        - label: A label for the record.
+        - token list: A list of tokens in the record. Tokens can be words, n-grams, or any other token unit.
         - Settings to pass to the DTM vectorizer, such as min_df, max_df, and max_n_terms.
 
     To reproduce the webapp:
 
       - stats = CorpusStats(docs=docs)
-      - stats.doc_stats_df # The DataFrame containing document statistics.
+      - stats.doc_stats_df # The DataFrame containing record statistics.
       - stats.mean # The mean count for the entire corpus.
       - stats.standard_deviation # The standard deviation for the entire corpus.
       - stats.get_iqr_outliers() # Get outliers based on interquartile range (IQR).
@@ -79,10 +79,10 @@ class CorpusStats(BaseModel):
 
     @cached_property
     def doc_stats_df(self) -> pd.DataFrame:
-        """Get a Pandas dataframe containing the statistics of each document.
+        """Get a Pandas dataframe containing the statistics of each record.
 
         Returns:
-            A Pandas dataframe containing statistics of each document.
+            A Pandas dataframe containing statistics of each record.
         """
         return self._get_doc_stats_df()
 
@@ -133,8 +133,8 @@ class CorpusStats(BaseModel):
         """Get the IQR outliers for total tokens.
         
         Returns:
-            list[tuple[str, str]]: A list of tuples containing the document ID
-            and document name for each outlier.
+            list[tuple[str, str]]: A list of tuples containing the record ID
+            and record name for each outlier.
         """
         doc_lengths = self.doc_stats_df['total_tokens'].values
         lower_bound, upper_bound = self.iqr_bounds
@@ -147,7 +147,7 @@ class CorpusStats(BaseModel):
 
     @cached_property
     def distribution_stats(self) -> dict[str, float]:
-        """Get comprehensive distribution statistics for document lengths.
+        """Get comprehensive distribution statistics for record lengths.
         
         Returns:
             dict[str, float]: Dictionary containing skewness, kurtosis, and normality test results.
@@ -175,7 +175,7 @@ class CorpusStats(BaseModel):
 
     @cached_property
     def percentiles(self) -> dict[str, float]:
-        """Get comprehensive percentile analysis for document lengths.
+        """Get comprehensive percentile analysis for record lengths.
         
         Returns:
             dict[str, float]: Dictionary containing various percentiles.
@@ -236,14 +236,14 @@ class CorpusStats(BaseModel):
         }
 
     def _get_doc_stats_df(self) -> pd.DataFrame:
-        """Get a Pandas dataframe containing the statistics of each document.
+        """Get a Pandas dataframe containing the statistics of each record.
 
         Args:
             df: A DTM.to_df() dataframe.
-            names: A list of document names corresponding to the rows in the dataframe.
+            names: A list of record names corresponding to the rows in the dataframe.
 
         Returns:
-            A Pandas dataframe containing statistics of each document.
+            A Pandas dataframe containing statistics of each record.
         """
         # Check if empty corpus is given.
         if self.df.empty:
@@ -281,8 +281,8 @@ class CorpusStats(BaseModel):
         """Get the interquartile range (IQR) outliers in the Corpus.
 
         Returns:
-            list[tuple[str, str]]: A list of tuples containing the document ID
-            and document name for each outlier.
+            list[tuple[str, str]]: A list of tuples containing the record ID
+            and record name for each outlier.
         """
         return self.iqr_outliers
 
@@ -290,8 +290,8 @@ class CorpusStats(BaseModel):
         """Get the standard deviation outliers in the Corpus.
 
         Returns:
-            list[tuple[str, str]]: A list of tuples containing the document ID
-            and document name for each outlier.
+            list[tuple[str, str]]: A list of tuples containing the record ID
+            and record name for each outlier.
         """
         # Get doc lengths from the doc_stats_df
         doc_lengths = self.doc_stats_df["total_tokens"].values
@@ -308,11 +308,11 @@ class CorpusStats(BaseModel):
 
     def compare_groups(self, group1_labels: list[str], group2_labels: list[str], 
                       metric: str = "total_tokens", test_type: str = "mann_whitney") -> dict:
-        """Compare two groups of documents using statistical tests.
+        """Compare two groups of records using statistical tests.
         
         Args:
-            group1_labels: List of document labels for group 1
-            group2_labels: List of document labels for group 2  
+            group1_labels: List of record labels for group 1
+            group2_labels: List of record labels for group 2  
             metric: Column name to compare (default: "total_tokens")
             test_type: Statistical test to use ("mann_whitney", "t_test", "welch_t")
             
@@ -335,8 +335,15 @@ class CorpusStats(BaseModel):
         }
         
         if test_type == "mann_whitney":
+            # Mann-Whitney U test: Non-parametric test comparing distributions
+            # Tests null hypothesis that distributions are identical
             statistic, p_value = stats.mannwhitneyu(group1_values, group2_values, alternative='two-sided')
-            # Calculate effect size (rank biserial correlation)
+            
+            # Calculate effect size using rank biserial correlation:
+            # Formula: r = (2U)/(n1*n2) - 1
+            # Where U is the Mann-Whitney U statistic
+            # Range: -1 to +1 (like Pearson correlation)
+            # Interpretation: proportion of pairs where group1 > group2, adjusted
             n1, n2 = len(group1_values), len(group2_values)
             effect_size = (2 * statistic) / (n1 * n2) - 1
             results.update({
@@ -347,11 +354,21 @@ class CorpusStats(BaseModel):
             })
             
         elif test_type == "t_test":
+            # Independent samples t-test: Parametric test assuming equal variances
+            # Tests null hypothesis that population means are equal
             statistic, p_value = stats.ttest_ind(group1_values, group2_values, equal_var=True)
-            # Calculate Cohen's d
+            
+            # Calculate Cohen's d effect size:
+            # First, compute pooled standard deviation using formula:
+            # s_pooled = sqrt[((n1-1)*s1² + (n2-1)*s2²) / (n1+n2-2)]
+            # This weights each group's variance by its degrees of freedom
             pooled_std = np.sqrt(((len(group1_values) - 1) * np.var(group1_values, ddof=1) +
                                  (len(group2_values) - 1) * np.var(group2_values, ddof=1)) /
                                 (len(group1_values) + len(group2_values) - 2))
+            
+            # Cohen's d = (mean1 - mean2) / pooled_std
+            # Standardized mean difference in pooled standard deviation units
+            # Interpretation: 0.2=small, 0.5=medium, 0.8=large effect
             cohens_d = (np.mean(group1_values) - np.mean(group2_values)) / pooled_std
             results.update({
                 "statistic": statistic,
@@ -361,11 +378,22 @@ class CorpusStats(BaseModel):
             })
             
         elif test_type == "welch_t":
+            # Welch's t-test: Parametric test NOT assuming equal variances
+            # Uses Satterthwaite approximation for degrees of freedom
+            # More robust when group variances differ substantially
             statistic, p_value = stats.ttest_ind(group1_values, group2_values, equal_var=False)
-            # Calculate Cohen's d with Welch correction
+            
+            # Calculate Cohen's d for unequal variances:
+            # Even though we use Welch's t-test, we still use pooled std for Cohen's d
+            # as it provides a standardized effect size comparable across studies
             s1, s2 = np.std(group1_values, ddof=1), np.std(group2_values, ddof=1)
             n1, n2 = len(group1_values), len(group2_values)
+            
+            # Pooled standard deviation (same formula as regular t-test)
+            # This maintains comparability of effect sizes across different test types
             pooled_std = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
+            
+            # Cohen's d = standardized mean difference
             cohens_d = (np.mean(group1_values) - np.mean(group2_values)) / pooled_std
             results.update({
                 "statistic": statistic,
@@ -513,7 +541,7 @@ class CorpusStats(BaseModel):
         }
 
     @cached_property
-    def zipf_analysis(self) -> dict[str, Union[float, bool, str]]:
+    def zipf_analysis(self) -> dict[str, float | bool | str]:
         """Analyze corpus term frequency distribution using Zipf's law.
         
         Returns:
@@ -595,7 +623,7 @@ class CorpusStats(BaseModel):
             }
 
     @cached_property
-    def corpus_quality_metrics(self) -> dict[str, Union[float, int, str]]:
+    def corpus_quality_metrics(self) -> dict[str, float | int | str]:
         """Calculate corpus quality and balance metrics for research validity.
         
         Returns:

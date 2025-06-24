@@ -6,6 +6,8 @@ This fixes the import issue in corpus.py line 33.
 Last updated: June 12, 2025
 """
 
+from wasabi import msg
+
 # Import main classes to make them available at package level
 # Import order matters to avoid circular imports
 try:
@@ -20,7 +22,7 @@ try:
         from lexos.corpus.corpus_stats import CorpusStats
         corpus_stats_available = True
     except Exception as e:
-        print(f"Warning: CorpusStats not available: {e}")
+        msg.warn(f"CorpusStats not available: {e}")
         CorpusStats = None
         corpus_stats_available = False
     
@@ -29,7 +31,7 @@ try:
         from lexos.corpus.corpus import Corpus
         corpus_available = True
     except Exception as e:
-        print(f"Warning: Corpus class not available: {e}")
+        msg.warn(f"Corpus class not available: {e}")
         Corpus = None
         corpus_available = False
     
@@ -45,5 +47,5 @@ try:
 except ImportError as e:
     # If basic imports fail, define minimal __all__
     __all__ = []
-    print(f"Critical error: Failed to import basic corpus classes: {e}")
+    msg.fail(f"Critical error: Failed to import basic corpus classes: {e}")
 

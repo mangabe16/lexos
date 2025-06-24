@@ -1,2 +1,2 @@
 corpus_name,total_documents,active_documents,total_tokens,mean_document_length,std_document_length,iqr_outliers_count,corpus_fingerprint,length_balance_classification,sampling_adequacy,size_adequacy,zipf_follows_law,zipf_goodness_of_fit,zipf_r_squared
-My Research Corpus,10,10,246,44.4,9.628660919936433,0,da45637cb7e3b1f7,balanced,insufficient,small,False,poor,0.004878362946594962
+My Research Corpus,10,10,246,44.4,9.628660919936433,0,876026e194fc304f,balanced,insufficient,small,False,poor,0.004878362946594962
