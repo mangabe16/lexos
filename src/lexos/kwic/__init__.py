@@ -120,10 +120,6 @@ class Kwic:
             Iterable[tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
             pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
-        if not isinstance(doc, Doc):
-            raise LexosException(
-                "Input 'doc' must be a spaCy Doc object for sentence-level search."
-            )
         all_sentence_kwic_results = []
         for sent_idx, sentence_span in enumerate(doc.sents):
             for left, found_keyword, right in kwic.keyword_in_context(
@@ -163,10 +159,6 @@ class Kwic:
             Iterable [tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
             pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
-        if not isinstance(doc, Doc):
-            raise LexosException(
-                "Input 'doc' must be a spaCy Doc object for sentence-level search."
-            )
         all_sentence_kwic_results = []
         for sentence_span in doc.sents:
             tokens = list(sentence_span)
