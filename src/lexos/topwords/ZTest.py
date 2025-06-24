@@ -7,6 +7,8 @@ import numpy as np
 from collections import Counter
 from typing import Any
 import pandas as pd
+from lexos.topwords.comparison_handler import ComparisonHandler
+
 
 validation_config = ConfigDict(
     arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()

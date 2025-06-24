@@ -8,6 +8,8 @@ import pandas as pd
 from typing import Any, Literal
 import spacy  # Import spacy
 from spacy.lang.en.stop_words import STOP_WORDS  # Import STOP_WORDS
+from lexos.topwords.comparison_handler import ComparisonHandler
+
 
 validation_config = ConfigDict(
     arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
