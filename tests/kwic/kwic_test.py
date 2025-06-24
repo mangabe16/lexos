@@ -28,6 +28,7 @@ from lexos.exceptions import LexosException
 import pandas as pd
 import pytest
 from pydantic import ValidationError
+import spacy
 
 
 @pytest.fixture
@@ -221,8 +222,9 @@ def test_find_tokens() -> None:
     """Test KWIC find_tokens method."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc = Tokenizer()(text)
+    nlp = spacy.load("en_core_web_sm")
     kwic_results = Kwic.find_tokens(
-        doc=doc, keyword="test", token_window=5, ignore_case=True
+        doc=doc, keyword="test", token_window=5, ignore_case=True, nlp=nlp
     )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
@@ -234,13 +236,42 @@ def test_find_tokens() -> None:
         "the Kwic module for finding",
     )
 
+def test_find_tokens_no_ignore_case() -> None:
+    """Test KWIC find_tokens method while not ignoring case."""
+    text = "This is a test string to test the Kwic module for finding correct words in context."
+    doc = Tokenizer()(text)
+    nlp = spacy.load("en_core_web_sm")
+    kwic_results = Kwic.find_tokens(
+        doc=doc, keyword="test", token_window=5, ignore_case=False, nlp=nlp
+    )
+    results_list = list(kwic_results)
+    assert isinstance(kwic_results, Iterable)
+    assert len(results_list) == 2
+    assert results_list[0] == ("This is a", "test", "string to test the Kwic")
+    assert results_list[1] == (
+        "is a test string to",
+        "test",
+        "the Kwic module for finding",
+    )
+
+def test_find_tokens_no_matches() -> None:
+    """Test KWIC find_tokens method."""
+    text = "This is a test string to test the Kwic module for finding correct words in context."
+    doc = Tokenizer()(text)
+    nlp = spacy.load("en_core_web_sm")
+    with pytest.raises(LexosException):
+        Kwic.find_tokens(
+            doc=doc, keyword="bingo", token_window=5, ignore_case=True, nlp=nlp
+        )
+
 
 def test_find_tokens_to_dataframe() -> None:
     """Test KWIC find_tokens method with DataFrame output."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc = Tokenizer()(text)
+    nlp = spacy.load("en_core_web_sm")
     kwic_df = Kwic.find_tokens(
-        doc=doc, keyword="test", token_window=5, ignore_case=True, dataframe_format=True
+        doc=doc, keyword="test", token_window=5, ignore_case=True, dataframe_format=True, nlp=nlp
     )
     assert isinstance(kwic_df, pd.DataFrame)
     assert len(kwic_df) == 2
