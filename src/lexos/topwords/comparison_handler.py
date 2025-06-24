@@ -8,6 +8,7 @@ class ComparisonHandler:
     """Comparison handler which does all 3 comparison types as shown in the lexos web app."""
 
     def __init__(self, cls, **kwargs):
+        """Initialize the ComparisonHandler with a comparison class and optional keyword arguments."""
         self.cls = cls
         self.kwargs = kwargs
 
