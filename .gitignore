@@ -39,4 +39,9 @@ docs/
 
 # Private development files
 deprecated/
-CLAUDE.md
+
+#test
+src/lexos/cutter/token_chunks/*.txt
+
+# test coverage
+htmlcov/
