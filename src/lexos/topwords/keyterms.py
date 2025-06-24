@@ -36,7 +36,7 @@ class KeyTerms(TopWords):
         10, gt=0, description="Number of top keyterms to return."
     )  # Changed description
     model: str = Field(
-        default="en_core_web_sm",
+        default="xx_sent_ud_sm",
         description="spaCy model name to use for tokenization.",
     )
     ngrams: tuple[int, int] = Field(

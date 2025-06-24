@@ -12,6 +12,18 @@ class ComparisonHandler:
         self.kwargs = kwargs
 
     def compare_each_doc_to_corpus(self, documents: list[str]) -> list[dict]:
+        """Compare each document to the rest of the corpus (all other documents).
+
+        Parameters
+        ----------
+        documents : list of str
+            List of documents to compare.
+
+        Returns:
+        -------
+        list of dict
+            List of results for each document compared to the rest of the corpus.
+        """
         results = []
         for i, doc in enumerate(documents):
             background = documents[:i] + documents[i + 1 :]  # all except current
@@ -24,6 +36,18 @@ class ComparisonHandler:
     def compare_each_doc_to_other_classes(
         self, class_docs: dict[str, list[str]]
     ) -> dict[str, list[dict]]:
+        """Compare each document in each class to all documents in other classes.
+
+        Parameters
+        ----------
+        class_docs : dict of str to list of str
+            Dictionary mapping class names to lists of documents.
+
+        Returns:
+        -------
+        dict of str to list of dict
+            Dictionary mapping class names to lists of results for each document compared to all documents in other classes.
+        """
         results = defaultdict(list)
         for cls_name, docs in class_docs.items():
             background = [
@@ -44,6 +68,18 @@ class ComparisonHandler:
     def compare_each_class_to_other_classes(
         self, class_docs: dict[str, list[str]]
     ) -> dict[str, dict]:
+        """Compare each class (group of documents) to all documents in other classes.
+
+        Parameters
+        ----------
+        class_docs : dict of str to list of str
+            Dictionary mapping class names to lists of documents.
+
+        Returns:
+        -------
+        dict of str to dict
+            Dictionary mapping class names to results for each class compared to all documents in other classes.
+        """
         results = {}
         for cls_name, docs in class_docs.items():
             background = [
