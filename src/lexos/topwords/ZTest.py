@@ -58,7 +58,6 @@ class ZTest(TopWords):
         "dict",
         description="Output format: dict, dataframe, list_of_dicts, or list_of_tuples",
     )
-    model_config = ConfigDict(arbitrary_types_allowed=True)
     model_config = validation_config
 
     def __init__(self, **data):

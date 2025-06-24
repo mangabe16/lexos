@@ -123,6 +123,16 @@ The `ComparisonHandler` class provides utilities for comparative analysis, allow
 - Compare each document in a class to all documents in other classes
 - Compare each class (group of documents) to all other classes
 
+__Parameters__:
+
+- `cls`: The comparison class to use for analysis (e.g., `ZTest`, `KeyTerms`). This class should accept `target_documents`, `background_documents`, and any additional keyword arguments.
+- `**kwargs`: Additional keyword arguments to pass to the comparison class (such as `topn`, `ngrams`, preprocessing options, etc.).
+- For the comparison methods:
+    - `compare_each_doc_to_corpus(documents: list[str])`: Takes a list of documents (strings or spaCy Docs) and compares each document to the rest of the corpus.
+    - `compare_each_doc_to_other_classes(class_docs: dict[str, list[str]])`: Takes a dictionary mapping class names to lists of documents, and compares each document in a class to all documents in other classes.
+    - `compare_each_class_to_other_classes(class_docs: dict[str, list[str]])`: Takes a dictionary mapping class names to lists of documents, and compares each class (group of documents) to all documents in other classes.
+- Returns results as lists or dictionaries of results from the comparison class.
+
 ### Usage
 
 ```python
