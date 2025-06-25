@@ -1,0 +1,24 @@
+{
+  "corpus_dir":"corpus",
+  "corpus_metadata_file":"corpus_metadata.json",
+  "name":null,
+  "records":{
+
+  },
+  "names":{
+
+  },
+  "meta":{
+
+  },
+  "analysis_results":{
+
+  },
+  "num_active_docs":0,
+  "num_docs":0,
+  "num_terms":0,
+  "num_tokens":0,
+  "terms":[
+
+  ]
+}
