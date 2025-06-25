@@ -1,10 +1,10 @@
 """__init__.py.
 
-Last Updated: 6/24/25
+Last Updated: 6/25/25
 Last Tested: 6/24/25
 
 Current Usage:
-- Find keywords within their context in a spaCy doc or string
+- Find keywords and their surrounding context in spaCy docs
     - Returns as either an iterable of tuples or a pandas DataFrame
 - Find multiple keywords and their context in a spaCy doc or string
 - Find keywords in sentences of a spaCy doc
@@ -20,6 +20,7 @@ from spacy.language import Language
 import spacy
 
 from lexos.exceptions import LexosException
+from lexos.util import ensure_list
 
 
 class Kwic:
@@ -30,7 +31,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find(
-        doc: Doc | str,
+        doc: Doc | Iterable[Doc],
         keyword: str | Pattern,
         ignore_case: bool = True,
         window_size: int = 50,
@@ -40,7 +41,7 @@ class Kwic:
         """Generate KWIC results for a given term in the document.
 
         Args:
-            doc (Doc | str): The document to search within, either as a spaCy Doc or a string.
+            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
             keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
             ignore_case (bool): Whether to ignore case when searching for the keyword.
             window_size (int): The number of characters to include as context on either side of the keyword.
@@ -52,13 +53,15 @@ class Kwic:
             pd.DataFrame: A DataFrame containing the left context, the keyword, and the right context if dataframe_format is True.
 
         """
-        ret = kwic.keyword_in_context(
-            doc=doc,
-            keyword=keyword,
-            ignore_case=ignore_case,
-            window_width=window_size,
-            pad_context=pad_context,
-        )
+        ret = []
+        for doc in ensure_list(doc):
+            ret.append(kwic.keyword_in_context(
+                doc=doc,
+                keyword=keyword,
+                ignore_case=ignore_case,
+                window_width=window_size,
+                pad_context=pad_context,
+            ))
 
         if dataframe_format:
             return pd.DataFrame(ret, columns=["Left", "Keyword", "Right"])
@@ -66,7 +69,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_multiple_keywords(
-        doc: Doc | str,
+        doc: Doc | Iterable[Doc],
         keywords: Iterable[str | Pattern],
         ignore_case: bool = True,
         window_size: int = 50,
@@ -76,7 +79,7 @@ class Kwic:
         """Generate KWIC results for multiple keywords in the document.
 
         Args:
-            doc (Doc | str): The document to search within, either as a spaCy Doc or a string.
+            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
             keywords (Iterable[str | Pattern]): An iterable of keywords to search for, can be strings or regex patterns.
             ignore_case (bool): Whether to ignore case when searching for the keywords.
             window_size (int): The number of characters to include as context on either side of the keyword.
@@ -88,15 +91,16 @@ class Kwic:
             pd.DataFrame: A DataFrame containing the left context, the keyword found, the right context, and the original keyword if dataframe_format is True.
         """
         all_kwic_results = []
-        for original_kw in keywords:
-            for left, found_keyword, right in kwic.keyword_in_context(
-                doc=doc,
-                keyword=original_kw,
-                ignore_case=ignore_case,
-                window_width=window_size,
-                pad_context=pad_context,
-            ):
-                all_kwic_results.append((left, found_keyword, right, str(original_kw)))
+        for doc in ensure_list(doc):
+            for original_kw in keywords:
+                for left, found_keyword, right in kwic.keyword_in_context(
+                    doc=doc,
+                    keyword=original_kw,
+                    ignore_case=ignore_case,
+                    window_width=window_size,
+                    pad_context=pad_context,
+                ):
+                    all_kwic_results.append((left, found_keyword, right, str(original_kw)))
 
         if dataframe_format:
             return pd.DataFrame(
@@ -107,7 +111,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_in_sentences(
-        doc: Doc,  # Must be a Doc object, used for seperating sentences
+        doc: Doc | Iterable[Doc],  
         keyword: str | Pattern,
         ignore_case: bool = True,
         dataframe_format: bool = False,
@@ -115,7 +119,7 @@ class Kwic:
         """Generate KWIC results for a keyword in each sentence of the document.
 
         Args:
-            doc (Doc): The spaCy Doc object containing the text to search within.
+            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
             keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
             ignore_case (bool): Whether to ignore case when searching for the keyword.
             dataframe (bool): Whether to return the results in the form of a pandas DataFrame.
@@ -125,15 +129,16 @@ class Kwic:
             pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
         all_sentence_kwic_results = []
-        for sent_idx, sentence_span in enumerate(doc.sents):
-            for left, found_keyword, right in kwic.keyword_in_context(
-                doc=sentence_span.text,
-                keyword=keyword,
-                ignore_case=ignore_case,
-                window_width=len(sentence_span.text) * 2,  # capture entire sentence
-                pad_context=False,
-            ):
-                all_sentence_kwic_results.append((left, found_keyword, right))
+        for doc in ensure_list(doc):
+            for sent_idx, sentence_span in enumerate(doc.sents):
+                for left, found_keyword, right in kwic.keyword_in_context(
+                    doc=sentence_span.text,
+                    keyword=keyword,
+                    ignore_case=ignore_case,
+                    window_width=len(sentence_span.text) * 2,  # capture entire sentence
+                    pad_context=False,
+                ):
+                    all_sentence_kwic_results.append((left, found_keyword, right))
 
         if dataframe_format:
             return pd.DataFrame(
@@ -144,7 +149,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_tokens(
-        doc: Doc,
+        doc: Doc | Iterable[Doc],
         keyword: str | Pattern,
         token_window: int = 5,
         ignore_case: bool = True,
@@ -154,7 +159,7 @@ class Kwic:
         """Generate KWIC results for a keyword in each sentence of the document, using a window of tokens as context.
 
         Args:
-            doc (Doc): The spaCy Doc object containing the text to search within.
+            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
             keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
             token_window (int): The number of tokens to include as context on each side.
             ignore_case (bool): Whether to ignore case when searching for the keyword.
@@ -168,22 +173,34 @@ class Kwic:
         # Instantiate the Matcher with the Doc's vocabulary
         matcher = Matcher(nlp.vocab)
         # Add the keyword pattern to the matcher
-        if (ignore_case):
-            matcher.add("search", [[{"LOWER": keyword.lower()}]])
+        if isinstance(keyword, str):
+            if (ignore_case):
+                matcher.add("search", [[{"LOWER": keyword.lower()}]])
+            else:
+                matcher.add("search", [[{"TEXT": keyword}]])
         else:
-            matcher.add("search", [[{"TEXT": keyword}]])
-        # Get the matches in the document
-        matches = matcher(doc)
+            pattern = [{"TEXT": {"REGEX": keyword.pattern}}]
+            matcher.add("search", [pattern])
+
+        # Get the matches in the document(s)
+        all_matches = []
+        for doc in ensure_list(doc):
+            matches = matcher(doc)
+            for match in matches:
+                all_matches.append((doc, match))
+                
 
         # If there are no matches, return an empty list or DataFrame
-        if not matches:
+        if not all_matches:
             raise LexosException(f"No matches found for keyword: {keyword}")
 
         hits = []
         # Iterate over the matches
-        for match_id, start, end in matches:
+        for doc_of_match, match in all_matches:
+            match_id, start, end = match  # Get the start and end indices of the match       
             # Get the matched span.
-            span = doc[start:end]  # The matched span
+            span = doc_of_match[start:end]  # The matched span
+
             left = start - token_window
             right = end + token_window
             left = max(left, 0)  # Ensure we don't go out of bounds
