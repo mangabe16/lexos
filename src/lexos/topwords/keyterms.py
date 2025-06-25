@@ -8,6 +8,8 @@ import pandas as pd
 from typing import Any, Literal
 import spacy  # Import spacy
 from spacy.lang.en.stop_words import STOP_WORDS  # Import STOP_WORDS
+from lexos.topwords.comparison_handler import ComparisonHandler
+
 
 validation_config = ConfigDict(
     arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
@@ -34,7 +36,7 @@ class KeyTerms(TopWords):
         10, gt=0, description="Number of top keyterms to return."
     )  # Changed description
     model: str = Field(
-        default="en_core_web_sm",
+        default="xx_sent_ud_sm",
         description="spaCy model name to use for tokenization.",
     )
     ngrams: tuple[int, int] = Field(

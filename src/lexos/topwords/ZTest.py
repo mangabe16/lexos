@@ -7,6 +7,8 @@ import numpy as np
 from collections import Counter
 from typing import Any
 import pandas as pd
+from lexos.topwords.comparison_handler import ComparisonHandler
+
 
 validation_config = ConfigDict(
     arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
@@ -56,7 +58,6 @@ class ZTest(TopWords):
         "dict",
         description="Output format: dict, dataframe, list_of_dicts, or list_of_tuples",
     )
-    model_config = ConfigDict(arbitrary_types_allowed=True)
     model_config = validation_config
 
     def __init__(self, **data):
