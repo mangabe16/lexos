@@ -70,7 +70,19 @@ class ComparisonHandler:
             instance = self.cls(
                 target_documents=[doc], background_documents=background, **self.kwargs
             )
-            results.append(instance())
+            # Use label if provided, else fallback
+            label = (
+                self.labels[i]
+                if self.labels is not None and i < len(self.labels)
+                else f"Doc {i+1}"
+            )
+            result = instance()
+            # Attach label to result dict
+            if isinstance(result, dict):
+                result = {"label": label, **result}
+            else:
+                result = {"label": label, "result": result}
+            results.append(result)
         return self._format_output(results)
 
     def compare_each_doc_to_other_classes(
@@ -164,23 +176,42 @@ class ComparisonHandler:
     
     @staticmethod
     def to_df(results):
-        """Return results as a pandas DataFrame."""
-        # Handles both list of dicts and dict of lists of dicts
+        """Return results as a pandas DataFrame, flattened so each row is a single topword."""
+        rows = []
+        # Handle list of dicts (e.g., from compare_each_doc_to_corpus)
         if isinstance(results, list):
-            return pd.DataFrame(results)
-        elif isinstance(results, dict):
-            rows = []
-            for group, group_results in results.items():
-                for res in group_results:
-                    row = {"group": group}
-                    if isinstance(res, dict):
-                        row.update(res)
-                    elif isinstance(res, (list, tuple)) and len(res) == 2:
-                        row["term"], row["score"] = res
+            for i, res in enumerate(results):
+                label = res.get("label", f"Doc {i+1}") if isinstance(res, dict) else f"Doc {i+1}"
+                # Support both {'topwords': [...]} and just a list of dicts
+                topwords = res.get("topwords", []) if isinstance(res, dict) else []
+                for tw in topwords:
+                    row = {"label": label}
+                    row.update(tw)
                     rows.append(row)
-            return pd.DataFrame(rows)
+        # Handle dict of dicts (e.g., from compare_each_class_to_other_classes)
+        elif isinstance(results, dict):
+            # Check if values are dicts (not lists)
+            if all(isinstance(v, dict) for v in results.values()):
+                for group, res in results.items():
+                    label = group
+                    topwords = res.get("topwords", []) if isinstance(res, dict) else []
+                    for tw in topwords:
+                        row = {"group": group, "label": label}
+                        row.update(tw)
+                        rows.append(row)
+            else:
+                # existing code for dict of lists
+                for group, group_results in results.items():
+                    for res in group_results:
+                        label = res.get("label", group) if isinstance(res, dict) else group
+                        topwords = res.get("result", {}).get("topwords", []) if isinstance(res, dict) else []
+                        for tw in topwords:
+                            row = {"group": group, "label": label}
+                            row.update(tw)
+                            rows.append(row)
         else:
             raise ValueError("Unsupported results format for DataFrame conversion.")
+        return pd.DataFrame(rows)
         
     @staticmethod
     def to_list_of_dicts(results):
