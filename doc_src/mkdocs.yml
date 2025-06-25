@@ -26,6 +26,8 @@ nav:
   #     - Topic Modelling with MALLET: user_guide/mallet_topic_models.md
   # - Development:
   #     - Index: development/index.md
+  - Tutorials:
+      - Overview: tutorials/index.md
   - API:
       - Overview: api/index.md
       - cutter:
