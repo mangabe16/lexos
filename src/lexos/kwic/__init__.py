@@ -54,17 +54,19 @@ class Kwic:
 
         """
         ret = []
-        for doc in ensure_list(doc):
-            ret.append(kwic.keyword_in_context(
-                doc=doc,
+        for eachDoc in ensure_list(doc):
+            ret.append(list(kwic.keyword_in_context(
+                doc=eachDoc,
                 keyword=keyword,
                 ignore_case=ignore_case,
                 window_width=window_size,
-                pad_context=pad_context,
-            ))
+                pad_context=pad_context
+            )))
 
         if dataframe_format:
-            return pd.DataFrame(ret, columns=["Left", "Keyword", "Right"])
+            # from RomanPerekhrest on StackOverflow
+            # https://stackoverflow.com/questions/57509968/list-of-lists-of-tuples-to-pandas-dataframe
+            return pd.DataFrame([t for lst in ret for t in lst], columns=["Left", "Keyword", "Right"])
         return ret
 
     @validate_call(config=model_config)
