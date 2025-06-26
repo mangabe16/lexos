@@ -52,16 +52,18 @@ def test_kwic_find_with_doc(tokenizer) -> None:
     kwic_results = Kwic.find(doc=doc, keyword="test", window_size=3, pad_context=True)
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert results_list == [(" a ", "test", " st"), ("to ", "test", " th")]
+    assert list(results_list) == [[(" a ", "test", " st"), ("to ", "test", " th")]]
 
-
-def test_kwic_find_with_string() -> None:
+def test_kwic_find_with_string(tokenizer) -> None:
     """Test KWIC find method with a string input."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
-    kwic_results = Kwic.find(doc=text, keyword="test", window_size=3, pad_context=True)
+    doc1 = tokenizer(text)
+    doc2 = tokenizer(text)
+    kwic_results = Kwic.find(doc=[doc1, doc2], keyword="test", window_size=3, pad_context=True)
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert results_list == [(" a ", "test", " st"), ("to ", "test", " th")]
+    assert results_list[0] == [(" a ", "test", " st"), ("to ", "test", " th")]
+    assert results_list[1] == [(" a ", "test", " st"), ("to ", "test", " th")]
 
 
 def test_kwic_word_not_found(tokenizer) -> None:
@@ -73,7 +75,7 @@ def test_kwic_word_not_found(tokenizer) -> None:
     )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert results_list == []  # No results expected for a word not found
+    assert results_list == [[]]  # No results expected for a word not found
 
 
 def test_kwic_find_with_regex_keyword(tokenizer) -> None:
@@ -85,14 +87,14 @@ def test_kwic_find_with_regex_keyword(tokenizer) -> None:
     )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert results_list == [
+    assert results_list == [[
         ("This is a ", "test", " string with multiple variations of the word Test,"),
         (
             " test string with multiple variations of the word ",
             "Test",
             ", which will be searched using a regex expression.",
         ),
-    ]
+    ]]
 
 
 def test_kwic_find_to_dataframe(tokenizer) -> None:
@@ -116,7 +118,7 @@ def test_kwic_find_empty_string(tokenizer) -> None:
     kwic_results = Kwic.find(doc=doc, keyword="test", window_size=3, pad_context=True)
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert results_list == []  # No results expected for an empty string
+    assert results_list == [[]]  # No results expected for an empty string
 
 
 def test_multiple_keywords(tokenizer) -> None:
@@ -196,7 +198,7 @@ def test_find_in_sentences(spacy_doc_sentences) -> None:
 
 def test_find_in_sentences_requires_doc_object() -> None:
     """Test that find_in_sentences raises TypeError if doc is not a Doc object."""
-    with pytest.raises(ValidationError):
+    with pytest.raises(AttributeError):
         Kwic.find_in_sentences(
             doc="This is a string, not a Doc object.", keyword="keyword"
         )
