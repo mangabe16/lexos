@@ -292,235 +292,178 @@ class BCT(BaseModel):
         return fig
 
     def _draw_fan_tree(self, tree, normalized_color, style: str) -> Figure:
-        """Draw fan-style (circular) tree layout with perfectly aligned labels."""
+        """Draw fan-style (circular) tree layout."""
         import math
+        from matplotlib.patches import Arc
         
         # Create figure with equal aspect ratio for circular plot
-        fig, ax = plt.subplots(figsize=(12, 12))
+        fig, ax = plt.subplots(figsize=(10, 10))
         ax.set_aspect('equal')
         
-        # Get all terminal nodes and calculate their positions
-        terminals = list(tree.get_terminals())
-        num_terminals = len(terminals)
+        # Calculate tree layout
+        leaf_nodes = list(tree.get_terminals())
+        num_leaves = len(leaf_nodes)
         
-        if num_terminals == 0:
+        if num_leaves == 0:
             raise ValueError("Tree has no terminal nodes")
         
-        # Calculate angular positions for terminal nodes
+        # Calculate angular positions for leaves
         if style == "fan":
             # Fan style: use 270 degrees (3/4 circle)
-            start_angle = -135  # Start at bottom-left
-            total_angle = 270   # 270 degrees total
+            start_angle = 45  # Start at 45 degrees
+            end_angle = 315   # End at 315 degrees
+            angle_span = end_angle - start_angle
         else:  # circular
             # Full circle: use 360 degrees
             start_angle = 0
-            total_angle = 360
+            angle_span = 360
         
-        # Assign angles to terminal nodes
-        terminal_angles = {}
-        for i, terminal in enumerate(terminals):
-            if num_terminals == 1:
+        angles = {}
+        for i, leaf in enumerate(leaf_nodes):
+            if num_leaves == 1:
                 angle = start_angle
             else:
-                angle = start_angle + (i * total_angle / num_terminals)
-            terminal_angles[terminal] = math.radians(angle)
+                angle = start_angle + (i * angle_span / (num_leaves - 1 if style == "fan" else num_leaves))
+            angles[leaf] = math.radians(angle)
         
-        # Calculate tree depth for all nodes
-        node_depths = {}
-        max_depth = 0
+        # Calculate distances from root
+        distances = {}
         
-        def calculate_depths(node, depth=0):
-            """Calculate depth from root for each node."""
-            nonlocal max_depth
-            node_depths[node] = depth
-            max_depth = max(max_depth, depth)
+        def calculate_distances(clade, dist_from_root=0):
+            current_dist = dist_from_root + (clade.branch_length or 0)
+            distances[clade] = current_dist
             
-            if not node.is_terminal():
-                for child in node.clades:
-                    calculate_depths(child, depth + 1)
+            if not clade.is_terminal():
+                for child in clade.clades:
+                    calculate_distances(child, current_dist)
         
-        calculate_depths(tree.root)
+        calculate_distances(tree.root)
         
-        # Set circumference radius for terminals
-        circumference_radius = 1.0
-        
-        # Calculate positions for all nodes
-        node_positions = {}
-        terminal_parent_map = {}  # Store parent-child relationships for terminals
-        
-        def calculate_positions(node):
-            """Calculate x, y positions for all nodes."""
-            if node.is_terminal():
-                # Terminal nodes: place directly on circumference
-                angle = terminal_angles[node]
-                x = circumference_radius * math.cos(angle)
-                y = circumference_radius * math.sin(angle)
-                node_positions[node] = (x, y, angle)
-                return angle, circumference_radius
+        # Calculate internal node positions
+        def calculate_internal_positions(clade):
+            if clade.is_terminal():
+                # Terminal nodes are positioned at their angles
+                angle = angles[clade]
+                radius = distances[clade]
+                return angle, radius
             else:
-                # Internal nodes: calculate based on children
+                # Internal nodes are positioned at the average angle of their children
                 child_angles = []
-                child_distances = []
+                child_radii = []
                 
-                for child in node.clades:
-                    child_angle, child_distance = calculate_positions(child)
+                for child in clade.clades:
+                    child_angle, child_radius = calculate_internal_positions(child)
                     child_angles.append(child_angle)
-                    child_distances.append(child_distance)
-                    
-                    # Store parent-child relationship for terminals
-                    if child.is_terminal():
-                        terminal_parent_map[child] = node
+                    child_radii.append(child_radius)
                 
-                # Internal node angle is the average of its children's angles
-                if style == "circular":
-                    # Convert angles to unit vectors, average, then back to angle
-                    avg_x = sum(math.cos(a) for a in child_angles) / len(child_angles)
-                    avg_y = sum(math.sin(a) for a in child_angles) / len(child_angles)
-                    avg_angle = math.atan2(avg_y, avg_x)
-                else:
-                    # For fan style, simple average works
+                # Calculate average angle, handling circular wraparound
+                if style == "fan":
                     avg_angle = sum(child_angles) / len(child_angles)
+                else:  # circular - handle wraparound
+                    # Convert to unit vectors, average, then back to angle
+                    x = sum(math.cos(a) for a in child_angles) / len(child_angles)
+                    y = sum(math.sin(a) for a in child_angles) / len(child_angles)
+                    avg_angle = math.atan2(y, x)
                 
-                # Position internal nodes VERY close to center for maximum clustering
-                depth = node_depths[node]
-                
-                if depth == 0:  # Root node
-                    distance = 0.02  # Almost at center
-                else:
-                    # Use extremely aggressive scaling - internal nodes very close to root
-                    normalized_depth = depth / max_depth
-                    distance = circumference_radius * (0.05 + 0.15 * (normalized_depth ** 3.0))
-                
-                x = distance * math.cos(avg_angle)
-                y = distance * math.sin(avg_angle)
-                node_positions[node] = (x, y, avg_angle)
-                
-                return avg_angle, distance
+                angles[clade] = avg_angle
+                radius = distances[clade]
+                return avg_angle, radius
         
         # Calculate all positions
-        calculate_positions(tree.root)
+        calculate_internal_positions(tree.root)
         
-        # Draw the tree with proper branching structure
-        def draw_branches(node):
-            """Draw branches connecting nodes with proper tree structure."""
-            if node not in node_positions:
-                return
-                
-            node_x, node_y, node_angle = node_positions[node]
+        # Draw the tree
+        def draw_clade(clade, parent_angle=None, parent_radius=None):
+            current_angle = angles[clade]
+            current_radius = distances[clade]
             
-            # For internal nodes with multiple children, we want to create proper branching
-            if not node.is_terminal() and len(node.clades) > 1:
-                # First, draw lines from this node to each child
-                for child in node.clades:
-                    if child in node_positions:
-                        child_x, child_y, child_angle = node_positions[child]
-                        
-                        # Draw the branch
-                        if child.is_terminal():
-                            linewidth = 2.0
-                            alpha = 0.9
-                        else:
-                            linewidth = 1.8
-                            alpha = 0.8
-                        
-                        ax.plot([node_x, child_x], [node_y, child_y], 
-                            color=normalized_color, linewidth=linewidth, alpha=alpha)
-                        
-                        # Recursively draw children
-                        draw_branches(child)
-            elif len(node.clades) == 1:
-                # Single child - direct connection
-                child = node.clades[0]
-                if child in node_positions:
-                    child_x, child_y, child_angle = node_positions[child]
-                    
-                    linewidth = 2.0 if child.is_terminal() else 1.8
-                    alpha = 0.9 if child.is_terminal() else 0.8
-                    
-                    ax.plot([node_x, child_x], [node_y, child_y], 
-                        color=normalized_color, linewidth=linewidth, alpha=alpha)
-                    
-                    draw_branches(child)
-        
-        # Draw all branches starting from root
-        draw_branches(tree.root)
-        
-        # Draw nodes and labels with perfect alignment
-        for node in node_positions:
-            x, y, angle = node_positions[node]
+            # Convert to Cartesian coordinates
+            x = current_radius * math.cos(current_angle)
+            y = current_radius * math.sin(current_angle)
             
-            if node.is_terminal():
-                # Terminal node: draw label perfectly aligned by extending the branch vector
-                label = str(node.name) if node.name else "Unnamed"
+            # Draw branch from parent if it exists
+            if parent_angle is not None and parent_radius is not None:
+                parent_x = parent_radius * math.cos(parent_angle)
+                parent_y = parent_radius * math.sin(parent_angle)
                 
-                # Get the parent node position
-                if node in terminal_parent_map:
-                    parent = terminal_parent_map[node]
-                    parent_x, parent_y, parent_angle = node_positions[parent]
-                    
-                    # Calculate the direction vector from parent to terminal
-                    dx = x - parent_x
-                    dy = y - parent_y
-                    
-                    # Normalize the direction vector
-                    branch_length = math.sqrt(dx*dx + dy*dy)
-                    if branch_length > 0:
-                        dx_norm = dx / branch_length
-                        dy_norm = dy / branch_length
-                        
-                        # Extend the label position along the same direction vector
-                        label_extension = 0.02  # Distance to extend beyond terminal
-                        label_x = x + dx_norm * label_extension
-                        label_y = y + dy_norm * label_extension
-                        
-                        # Calculate rotation angle from the direction vector
-                        branch_angle_rad = math.atan2(dy, dx)
-                        angle_deg = math.degrees(branch_angle_rad)
-                        
-                        # Ensure text is readable (not upside down)
-                        if -90 <= angle_deg <= 90:
-                            rotation = angle_deg
-                            ha = 'left'
-                            va = 'center'
-                        else:
-                            rotation = angle_deg + 180
-                            ha = 'right'
-                            va = 'center'
-                        
-                        # Draw the label perfectly aligned with branch direction
-                        ax.text(label_x, label_y, label, 
-                            rotation=rotation, rotation_mode="anchor", ha=ha, va=va,
-                            color=normalized_color, fontsize=12, weight='bold')
+                # Draw radial line
+                ax.plot([parent_x, x], [parent_y, y], 
+                    color=normalized_color, linewidth=1, alpha=0.8)
+            
+            # Draw terminal node label
+            if clade.is_terminal():
+                label = str(clade.name) if clade.name else "Unnamed"
+                
+                # Position label slightly outside the circle
+                label_radius = current_radius * 1.1
+                label_x = label_radius * math.cos(current_angle)
+                label_y = label_radius * math.sin(current_angle)
+                
+                # Calculate text rotation
+                angle_deg = math.degrees(current_angle)
+                if style == "fan":
+                    # For fan style, rotate text to be readable
+                    if 90 < angle_deg < 270:
+                        rotation = angle_deg + 180
+                        ha = 'right'
                     else:
-                        # Fallback if branch_length is zero (shouldn't happen)
-                        ax.text(x * 1.08, y * 1.08, label, 
-                            color=normalized_color, fontsize=12, weight='bold')
-                else:
-                    # Fallback if no parent found (shouldn't happen)
-                    ax.text(x * 1.08, y * 1.08, label, 
-                        color=normalized_color, fontsize=12, weight='bold')
+                        rotation = angle_deg
+                        ha = 'left'
+                else:  # circular
+                    # For full circle, always rotate for readability
+                    if 90 < angle_deg < 270:
+                        rotation = angle_deg + 180
+                        ha = 'right'
+                    else:
+                        rotation = angle_deg
+                        ha = 'left'
                 
-                # Don't draw terminal node markers - only show labels
+                ax.text(label_x, label_y, label, 
+                    rotation=rotation, ha=ha, va='center',
+                    color=normalized_color, fontsize=9)
                 
-            elif node == tree.root:
-                # Only draw the root node marker - hide all other internal nodes
-                ax.plot(x, y, 'o', color=normalized_color, markersize=6, alpha=1.0)
+                # Draw terminal node point
+                ax.plot(x, y, 'o', color=normalized_color, markersize=3)
+            else:
+                # Draw internal node
+                ax.plot(x, y, 'o', color=normalized_color, markersize=2)
+            
+            # Recursively draw children
+            if not clade.is_terminal():
+                for child in clade.clades:
+                    draw_clade(child, current_angle, current_radius)
         
-        # Set up the plot limits
-        plot_limit = circumference_radius * 1.25
-        ax.set_xlim(-plot_limit, plot_limit)
-        ax.set_ylim(-plot_limit, plot_limit)
+        # Start drawing from root
+        draw_clade(tree.root)
+        
+        # Set up the plot
+        ax.set_xlim(-1.2 * max(distances.values()), 1.2 * max(distances.values()))
+        ax.set_ylim(-1.2 * max(distances.values()), 1.2 * max(distances.values()))
         
         # Remove axes for cleaner look
         ax.set_xticks([])
         ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
         
         # Add title
         style_name = "Fan" if style == "fan" else "Circular"
         plt.title(f"Bootstrap Consensus Tree ({style_name} Layout)", 
-                color=normalized_color, pad=30, fontsize=16, weight='bold')
+                color=normalized_color, pad=20, fontsize=14)
+        
+        # Add scale indicator
+        max_dist = max(distances.values())
+        scale_radius = max_dist * 0.8
+        scale_x = scale_radius
+        scale_y = -max_dist * 0.9
+        
+        ax.plot([0, scale_x], [scale_y, scale_y], color=normalized_color, linewidth=2)
+        ax.text(scale_x/2, scale_y - max_dist*0.05, f'{scale_radius:.3f}', 
+            ha='center', va='top', color=normalized_color, fontsize=8)
+        ax.text(scale_x/2, scale_y - max_dist*0.1, 'Branch Length', 
+            ha='center', va='top', color=normalized_color, fontsize=8)
         
         plt.tight_layout()
         
