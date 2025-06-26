@@ -7,7 +7,24 @@ This module is designed to find key words and their sorrunding contexts in a tok
 
 ## Features
 
-The tokenizer module includes 1 class with one function. The Kwic class has one function, `find()`, which finds the context of a desired key word. The amount of context in behind and ahead the key words can be chosen by the user, in terms of amount of characters. The `find()` function works with spaCy docs or regex expressions.
+The tokenizer module includes 1 class with 4 functions:
+- `find()`
+    - Find all instances of a keyword within a spaCy doc and the context of each instance of that keyword
+    - Context is determined by number of characters
+- `find_multiple_keywords()`
+    - Find all instances of multiple keywrods within a spaCy doc and the context of each instance of each keyword
+- `find_in_sentences()`
+    - Find all instances of a keyword and return the sentences that they appear in as context
+    - Context window size is always the entire sentence length - cannot be modified
+- `find_tokens()`
+    - Find all instances of a keyword within a spaCy doc and the context of each instance of that keyword
+    - Context is determined by number of tokens
+
+All functions contain at least 4 parameters:
+- `doc`: The spaCy doc(s) to search for the keyword in. Can be a single doc, or a list of docs.
+- `keyword`: The keyword to search for. Most functions expect a string, but `find_multiple_keywords()` expects a list of strings.
+- `ignore_case`: Weather to ignore the case of the word in the search.
+- `dataframe_format`: Weather the output should be in the format of a pandas dataframe. If set to false, will return a list of tuples instead.
 
 ## Dependencies
 
@@ -15,6 +32,11 @@ The kwic module is a part of the greater Lexos library -- please see the Lexos R
 
 The kwic module is a wrapper class of the kwic class from the textacy module. The texacty kwic method, `keyword_in_context`, requires a spaCy doc or a regrex expression as input. While these libraries are included as a part of ther Lexos API, please ensure these libraries are installed to enable full functionality.
 
+The kwic module only takes in spaCy docs as input. To convert a string or other input to a spaCy doc, users can use the `tokenizer` module of the Lexos library - please see that module's README and tutorial for usage.
+
+## In-Depth Tutorial
+
+For a guide on how to use the kwic module and more details about its utility, please refer to the Jupyter notenook **`tutorial.ipynb`**, which includes executable code examples on how to use the module. 
 
 ## Running Tests (For Developers)
 
