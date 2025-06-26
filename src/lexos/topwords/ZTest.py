@@ -240,6 +240,9 @@ class ZTestComparison(BaseModel):
     cats: Optional[list[str]] = Field(None, description="Categories for each document")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    output_format: str = Field(
+        "dict", description = "Output format: 'dict, 'dataframe', 'list_of_dicts', 'list_of_tuples'"
+    )
 
     def model_post_init(self, __context):
         """Validate and initialize labels after model initialization."""
@@ -405,7 +408,7 @@ class ZTestComparison(BaseModel):
                 continue
 
         return results
-    
+  
     def compare_each_doc_to_other_classes(self, **kwargs) -> dict[str,list[dict]]:
         """For each class, compare each document in that class to all documentes in otehr classes.
 
@@ -413,7 +416,7 @@ class ZTestComparison(BaseModel):
         """
         if self.cats is None:
             raise ValueError("Categories (cats) must be provided for this comparison")
-        
+      
         # Build mapping from class to docs
         class_to_docs = {}
         for doc, cat in zip(self.corpus, self.cats):
@@ -569,3 +572,63 @@ class ZTestComparison(BaseModel):
             )
 
         return target_documents, background_documents
+    
+    def _format_output(self, results):
+        """Format the output according to the output_format"""
+        if self.output_format == "dict":
+            return results
+        elif self.output_format == "dataframe":
+            return self.to_df(results)
+        elif self.output_format == "list_of_dicts":
+            return self.to_list_of_dicts(results)
+        elif self.output_format == "list_of_tuples":
+            return self.to_list_of_tuples(results)
+        else:
+            return results # fallback to raw results
+
+    @staticmethod
+    def to_df(results):
+        """Return results as a pandas DataFrame with columns: label, term, z_score."""
+        import pandas as pd
+
+        rows = []
+
+        def extract_rows(label, ztest_result):
+            # ztest_result can be a ZTest instance or a dict with 'result'
+            if hasattr(ztest_result, "topwords"):
+                topwords = getattr(ztest_result, "topwords", [])
+            elif isinstance(ztest_result, dict) and "result" in ztest_result:
+                return extract_rows(label, ztest_result["result"])
+            else:
+                topwords = []
+            for term, z_score in topwords:
+                rows.append({"label": label, "term": term, "z_score": z_score})
+
+        if isinstance(results, list):
+            for item in results:
+                label = item.get("label", None)
+                result = item.get("result", None)
+                if label is not None and result is not None:
+                    extract_rows(label, result)
+        elif isinstance(results, dict):
+            # Try to handle dicts of the form {cat: {category, background_categories, result}}
+            for group, comparison_result in results.items():
+                # If nested dict with 'result', use group as label
+                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                    extract_rows(group, comparison_result["result"])
+                # If dict with 'label' and 'result'
+                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                    extract_rows(comparison_result["label"], comparison_result["result"])
+                # If already a ZTest instance
+                elif hasattr(comparison_result, "topwords"):
+                    extract_rows(group, comparison_result)
+        # Return DataFrame
+        return pd.DataFrame(rows, columns=["label", "term", "z_score"])
+
+    @staticmethod
+    def to_list_of_dicts(results):
+        """Return results as a list of dicts"""
+        
+        @staticmethod
+    def to_list_of_tuples(results):
+        """Return results as a list of tuples"""
