@@ -264,9 +264,9 @@ class ZTestComparison(BaseModel):
             )
 
     def compare_docs_to_corpus(
-        self, docs: list[Doc | str], **kwargs
+        self, docs: list[Doc | str], background_cats: Optional[list[str]] = None,  **kwargs
     ) -> list[dict[str, str | ZTest]]:
-        """Compare each document against the rest of the corpus using Z-test.
+        """Compare each document against a filtered background (by categories if specified).
 
         Args:
             docs: Documents to compare against the corpus. Must be a subset of corpus.
@@ -285,35 +285,28 @@ class ZTestComparison(BaseModel):
 
         # Get labels for the specified docs
         doc_labels = self._get_doc_labels(docs)
-
-        # Create mapping for efficient lookup
-        doc_to_indices = self._create_doc_mapping()
-
         results = []
 
-        # Process each document
-        for label, doc in zip(doc_labels, docs):
-            doc_str = str(doc)
-            doc_indices = doc_to_indices[doc_str]
-
-            # Create background corpus by excluding current document
-            background_corpus = [
-                self.corpus[i] for i in range(len(self.corpus)) if i not in doc_indices
-            ]
-
-            if not background_corpus:
-                raise ValueError(
-                    f"Document '{doc_str}' appears in entire corpus - no background documents available."
-                )
-
-            # Create ZTest instance
+        for label,doc in zip(doc_labels,docs):
+            # build background set
+            if background_cats is not None and self.cats is not None:
+                background_docs = [
+                    d for d, c in zip(self.corpus, self.cats)
+                    if c in background_cats and d != doc
+                ]
+            else:
+                background_docs = [d for d in self.corpus if d != doc]
+            
+            if not background_docs:
+                raise ValueError("No background documents available for comparison.")
+            
             ztest_instance = ZTest(
-                target_documents=[doc], background_documents=background_corpus, **kwargs
+                target_documents=[doc], background_documents=background_docs, **kwargs
             )
-
             results.append({"label": label, "result": ztest_instance})
-
+        
         return results
+    
 
     def compare_cat_to_corpus(
         self, cat: str, background_cats: Optional[list[str]] = None, **kwargs
@@ -414,8 +407,8 @@ class ZTestComparison(BaseModel):
         return results
     
     def compare_each_doc_to_other_classes(self, **kwargs) -> dict[str,list[dict]]:
-        """
-        For each class, compare each document in that class to all documentes in otehr classes.
+        """For each class, compare each document in that class to all documentes in otehr classes.
+
         Returns a dict mapping class name to a list of results for each document in that class.
         """
         if self.cats is None:
@@ -444,8 +437,8 @@ class ZTestComparison(BaseModel):
         return results
 
     def compare_each_class_to_each_other_class(self, **kwargs) -> dict[str,dict[str,dict]]:
-        """
-        For each class, compare it to every other class individually.
+        """For each class, compare it to every other class individually.
+        
         Returns a nested dict: {target_class: {background_class: result_dict}}
         """
         if self.cats is None:
