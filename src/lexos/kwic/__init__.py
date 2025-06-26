@@ -31,7 +31,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find(
-        doc: Doc | Iterable[Doc],
+        doc: Doc | list[Doc],
         keyword: str | Pattern,
         ignore_case: bool = True,
         window_size: int = 50,
