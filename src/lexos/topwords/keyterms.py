@@ -56,6 +56,9 @@ class KeyTerms(TopWords):
             description="Extracted keyterms.",  # Changed description
         )
     )
+    output_format: str = Field(
+        "dict", description="Output format: 'dict', 'dataframe', 'list_of_dicts', or 'list_of_tuples'."
+    )
 
     def __init__(self, **data):
         """Initialize the KeyTerms class, ensuring a tokenizer is set.
@@ -107,7 +110,16 @@ class KeyTerms(TopWords):
             {"term": term, "score": score} for term, score in results
         ]  # Changed self.keywords to self.keyterms
         doc._.keyterms = self.keyterms  # Changed doc._.keywords to doc._.keyterms
-        return self.to_dict()
+        
+        # Output format handling
+        if self.output_format == "dict":
+            return self.to_dict()
+        elif self.output_format == "dataframe":
+            return self.to_df()
+        elif self.output_format == "list":
+            return self.to_list()
+        else:
+            raise ValueError(f"Invalid output_format: {self.output_format}")
 
     def to_dict(self):
         """Return the extracted keyterms as a dictionary."""  # Changed description

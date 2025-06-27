@@ -226,7 +226,6 @@ class BCT(BaseModel):
             style: Tree visualization style. Options:
                 - "rectangular": Traditional rectangular tree layout
                 - "fan": Circular fan-style tree layout
-                - "circular": Circular tree with equal arc spacing
         
         Returns:
             Figure: The matplotlib figure containing the tree visualization.
@@ -241,7 +240,7 @@ class BCT(BaseModel):
 
         if style == "rectangular":
             return self._draw_rectangular_tree(tree, normalized_color)
-        elif style in ["fan", "circular"]:
+        elif style in ["fan"]:
             return self._draw_fan_tree(tree, normalized_color, style)
         else:
             raise ValueError(f"Unknown style: {style}. Use 'rectangular', 'fan', or 'circular'.")
@@ -292,8 +291,9 @@ class BCT(BaseModel):
         return fig
 
     def _draw_fan_tree(self, tree, normalized_color, style: str) -> Figure:
-        """Draw fan-style (circular) tree layout with perfectly aligned labels."""
+        """Draw fan-style (circular) tree layout with color-coded labels by clade."""
         import math
+        import matplotlib.colors as mcolors
         
         # Create figure with equal aspect ratio for circular plot
         fig, ax = plt.subplots(figsize=(12, 12))
@@ -306,15 +306,9 @@ class BCT(BaseModel):
         if num_terminals == 0:
             raise ValueError("Tree has no terminal nodes")
         
-        # Calculate angular positions for terminal nodes
-        if style == "fan":
-            # Fan style: use 270 degrees (3/4 circle)
-            start_angle = -135  # Start at bottom-left
-            total_angle = 270   # 270 degrees total
-        else:  # circular
-            # Full circle: use 360 degrees
-            start_angle = 0
-            total_angle = 360
+        # Fan style: use 270 degrees (3/4 circle)
+        start_angle = -135  # Start at bottom-left
+        total_angle = 270   # 270 degrees total
         
         # Assign angles to terminal nodes
         terminal_angles = {}
@@ -340,6 +334,70 @@ class BCT(BaseModel):
                     calculate_depths(child, depth + 1)
         
         calculate_depths(tree.root)
+        
+        # Generate color palette
+        def generate_colors(n):
+            """Generate n distinct colors."""
+            if n <= 10:
+                # Use predefined colors for small numbers
+                colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+                        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+                return colors[:n]
+            else:
+                # Generate colors using HSV color space for larger numbers
+                import colorsys
+                colors = []
+                for i in range(n):
+                    hue = i / n
+                    rgb = colorsys.hsv_to_rgb(hue, 0.8, 0.9)
+                    colors.append(mcolors.rgb2hex(rgb))
+                return colors
+        
+        # Find clade groupings for color assignment at higher levels
+        terminal_colors = {}
+        
+        def assign_higher_level_colors():
+            """Assign colors based on higher-level splits in the tree."""
+            color_palette = generate_colors(10)
+            color_index = 0
+            
+            def find_terminal_descendants(node):
+                """Get all terminal nodes that descend from this node."""
+                if node.is_terminal():
+                    return [node]
+                
+                descendants = []
+                for child in node.clades:
+                    descendants.extend(find_terminal_descendants(child))
+                return descendants
+            
+            def assign_colors_recursive(node, current_depth=0):
+                """Recursively assign colors based on tree structure."""
+                nonlocal color_index
+                
+                if node.is_terminal():
+                    return
+                
+                # For nodes at depth 1 (direct children of root), assign same color to all descendants
+                if current_depth == 1:
+                    descendants = find_terminal_descendants(node)
+                    current_color = color_palette[color_index % len(color_palette)]
+                    
+                    for terminal in descendants:
+                        if terminal not in terminal_colors:
+                            terminal_colors[terminal] = current_color
+                    
+                    color_index += 1
+                
+                # Continue recursively for deeper nodes
+                for child in node.clades:
+                    assign_colors_recursive(child, current_depth + 1)
+            
+            # Start from root
+            assign_colors_recursive(tree.root)
+        
+        # Assign colors based on higher-level clades
+        assign_higher_level_colors()
         
         # Set circumference radius for terminals
         circumference_radius = 1.0
@@ -372,14 +430,7 @@ class BCT(BaseModel):
                         terminal_parent_map[child] = node
                 
                 # Internal node angle is the average of its children's angles
-                if style == "circular":
-                    # Convert angles to unit vectors, average, then back to angle
-                    avg_x = sum(math.cos(a) for a in child_angles) / len(child_angles)
-                    avg_y = sum(math.sin(a) for a in child_angles) / len(child_angles)
-                    avg_angle = math.atan2(avg_y, avg_x)
-                else:
-                    # For fan style, simple average works
-                    avg_angle = sum(child_angles) / len(child_angles)
+                avg_angle = sum(child_angles) / len(child_angles)
                 
                 # Position internal nodes VERY close to center for maximum clustering
                 depth = node_depths[node]
@@ -445,13 +496,16 @@ class BCT(BaseModel):
         # Draw all branches starting from root
         draw_branches(tree.root)
         
-        # Draw nodes and labels with perfect alignment
+        # Draw nodes and labels with perfect alignment and color coding
         for node in node_positions:
             x, y, angle = node_positions[node]
             
             if node.is_terminal():
                 # Terminal node: draw label perfectly aligned by extending the branch vector
                 label = str(node.name) if node.name else "Unnamed"
+                
+                # Get the color for this terminal node
+                label_color = terminal_colors.get(node, normalized_color)
                 
                 # Get the parent node position
                 if node in terminal_parent_map:
@@ -469,7 +523,7 @@ class BCT(BaseModel):
                         dy_norm = dy / branch_length
                         
                         # Extend the label position along the same direction vector
-                        label_extension = 0.02  # Distance to extend beyond terminal
+                        label_extension = 0.02  # Your preferred distance
                         label_x = x + dx_norm * label_extension
                         label_y = y + dy_norm * label_extension
                         
@@ -487,18 +541,18 @@ class BCT(BaseModel):
                             ha = 'right'
                             va = 'center'
                         
-                        # Draw the label perfectly aligned with branch direction
+                        # Draw the label perfectly aligned with branch direction and colored by clade
                         ax.text(label_x, label_y, label, 
                             rotation=rotation, rotation_mode="anchor", ha=ha, va=va,
-                            color=normalized_color, fontsize=12, weight='bold')
+                            color=label_color, fontsize=12, weight='bold')
                     else:
                         # Fallback if branch_length is zero (shouldn't happen)
                         ax.text(x * 1.08, y * 1.08, label, 
-                            color=normalized_color, fontsize=12, weight='bold')
+                            color=label_color, fontsize=12, weight='bold')
                 else:
                     # Fallback if no parent found (shouldn't happen)
                     ax.text(x * 1.08, y * 1.08, label, 
-                        color=normalized_color, fontsize=12, weight='bold')
+                        color=label_color, fontsize=12, weight='bold')
                 
                 # Don't draw terminal node markers - only show labels
                 
@@ -518,8 +572,7 @@ class BCT(BaseModel):
             spine.set_visible(False)
         
         # Add title
-        style_name = "Fan" if style == "fan" else "Circular"
-        plt.title(f"Bootstrap Consensus Tree ({style_name} Layout)", 
+        plt.title(f"Bootstrap Consensus Tree (Fan Layout)", 
                 color=normalized_color, pad=30, fontsize=16, weight='bold')
         
         plt.tight_layout()
@@ -528,6 +581,7 @@ class BCT(BaseModel):
             plt.close()
         
         return fig
+
 
     # Update the __call__ method to include the style parameter
     @validate_call(config=model_config)

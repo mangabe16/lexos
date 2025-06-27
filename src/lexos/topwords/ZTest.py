@@ -61,7 +61,7 @@ class ZTest(TopWords):
     topwords: list[tuple[str, float]] | None = Field(
         default=None, description="Top distinguished words."
     )
-    output_format: str = Field(
+    output_format: str | None = Field(
         "dict",
         description="Output format: dict, dataframe, list_of_dicts, or list_of_tuples",
     )
