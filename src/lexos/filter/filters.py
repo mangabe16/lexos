@@ -1,6 +1,7 @@
 """filters.py.
 
-Last Update: February 11, 2025
+Last Update: June 24, 2025
+Last Tested: June 24, 2025
 
 The filter model provides a base class for applying filters to a document and returning
 a new document, as well as extracting tokens or ids form filtered docs. Filters are
@@ -145,16 +146,24 @@ class IsRomanFilter(BaseFilter):
             self.doc = doc
         if attr:
             self.attr = attr
-        if default:
+        if default is not None:
             self.default = default
+        
+        # Use instance attributes if we have them
+        working_doc = self.doc if self.doc is not None else doc
+        working_attr = self.attr if hasattr(self, 'attr') and self.attr is not None else attr
+        working_default = self.default if hasattr(self, 'default') and self.default is not None else default
+        
         # Set custom extensions
-        if self.attr:
-            self._set_extensions(self.attr, self.default)
-        # Apply the filter
-        for i, token in enumerate(self.doc):
-            setattr(self.doc[i]._, self.attr, self.is_roman(token))
+        if working_attr:
+            self._set_extensions(working_attr, working_default)
+        
+        # Apply the filter only if we have a valid doc
+        if working_doc is not None:
+            for i, token in enumerate(working_doc):
+                setattr(working_doc[i]._, working_attr, self.is_roman(token))
 
-        return self.doc
+        return working_doc if working_doc is not None else doc
 
     @validate_call(config=model_config)
     def is_roman(self, token: Token) -> bool:
@@ -175,9 +184,9 @@ class IsRomanFilter(BaseFilter):
 class IsStopwordFilter(BaseFilter):
     """A filter to detect stop words in a spaCy doc."""
 
-    id: Optional[str] = "is_stopword"
+    id: ClassVar[str] = "is_stopword"
     doc: Optional[Doc] = None
-    stopwords: Optional[Iterable | str] = None
+    stopwords: Optional[list | str] = None
     remove: Optional[bool] = False
 
     model_config = ConfigDict(
@@ -189,7 +198,7 @@ class IsStopwordFilter(BaseFilter):
 
         Args:
             doc (Optional[Doc]): A spaCy doc.
-            stopwords (Optional[Iterable | str]): An iterable containing the stop word(s) to add or remove.
+            stopwords (Optional[list | str]): A list or string containing the stop word(s) to add or remove.
             remove (Optional[bool]): If True, the stop word(s) will be removed from the model.
         """
         super().__init__(**data)
@@ -199,14 +208,14 @@ class IsStopwordFilter(BaseFilter):
     def __call__(
         self,
         doc: Optional[Doc],
-        stopwords: Optional[Iterable | str] = None,
+        stopwords: Optional[list | str] = None,
         remove: Optional[bool] = False,
     ) -> Doc:
         """Apply the filter.
 
         Args:
             doc (Optional[Doc]): A spaCy doc.
-            stopwords (Optional[Iterable | str]): An iterable containing the stop word(s) to add or remove.
+            stopwords (Optional[list | str]): A list or string containing the stop word(s) to add or remove.
             default (Optional[Any]): If True, the stop word(s) will be removed from the model.
 
         Returns:
@@ -219,19 +228,39 @@ class IsStopwordFilter(BaseFilter):
         # Validation
         if doc:
             self.doc = doc
-        if stopwords:
-            self.stopwords = stopwords
-        if remove:
+        if stopwords is not None:
+            self.stopwords = ensure_list(stopwords)
+        if remove is not None:
             self.remove = remove
-        # Apply the filter
-        if remove:
-            for item in stopwords:
-                doc.vocab[item].is_stop = False
+        
+        # Use instance attributes if parameters are None
+        working_doc = self.doc if self.doc is not None else doc
+        # Handle stopwords carefully - convert to list if it's a pydantic ValidatorIterator
+        if stopwords is None and hasattr(self, 'stopwords') and self.stopwords is not None:
+            try:
+                working_stopwords = list(self.stopwords)
+            except (TypeError, AttributeError):
+                working_stopwords = self.stopwords
         else:
-            for item in stopwords:
-                doc.vocab[item].is_stop = True
+            working_stopwords = stopwords
+        working_remove = self.remove if hasattr(self, 'remove') and self.remove is not None else remove
+        
+        # Apply the filter only if we have valid inputs
+        if working_doc is not None and working_stopwords is not None:
+            # Ensure stopwords is iterable and properly formatted
+            if not isinstance(working_stopwords, list):
+                working_stopwords = ensure_list(working_stopwords)
+            
+            if working_remove:
+                for item in working_stopwords:
+                    if item is not None:  # Skip None values
+                        working_doc.vocab[item].is_stop = False
+            else:
+                for item in working_stopwords:
+                    if item is not None:  # Skip None values
+                        working_doc.vocab[item].is_stop = True
 
-        return doc
+        return working_doc if working_doc is not None else doc
 
 
 class IsWordFilter(BaseFilter):
@@ -296,24 +325,32 @@ class IsWordFilter(BaseFilter):
             self.doc = doc
         if exclude:
             self.exclude = ensure_list(exclude)
-        if exclude_digits:
+        if exclude_digits is not None:
             self.exclude_digits = exclude_digits
-        if exclude_roman_numerals:
+        if exclude_roman_numerals is not None:
             self.exclude_roman_numerals = exclude_roman_numerals
         if exclude_pattern:
             self.exclude_pattern = ensure_list(exclude_pattern)
         if attr:
             self.attr = attr
-        if default:
+        if default is not None:
             self.default = default
+        
+        # Use instance attributes if we have them
+        working_doc = self.doc if self.doc is not None else doc
+        working_attr = self.attr if hasattr(self, 'attr') and self.attr is not None else attr
+        working_default = self.default if hasattr(self, 'default') and self.default is not None else default
+        
         # Set ._is_word extension
-        if self.attr:
-            self._set_extensions(self.attr, self.default)
-        # Apply the filter
-        for i, token in enumerate(self.doc):
-            setattr(self.doc[i]._, self.attr, self.is_word(token))
+        if working_attr:
+            self._set_extensions(working_attr, working_default)
+        
+        # Apply the filter only if we have a valid doc
+        if working_doc is not None:
+            for i, token in enumerate(working_doc):
+                setattr(working_doc[i]._, working_attr, self.is_word(token))
 
-        return self.doc
+        return working_doc if working_doc is not None else doc
 
     def _is_roman_numeral(self, string: str) -> bool:
         """Check if a string is a Roman numeral.
