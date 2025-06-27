@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Updated: 6/25/25
-Last Tested: 6/24/25
+Last Updated: 6/27/25
+Last Tested: 6/27/25
 
 Current Usage:
 - Find keywords and their surrounding context in spaCy docs
@@ -55,18 +55,24 @@ class Kwic:
         """
         ret = []
         for eachDoc in ensure_list(doc):
-            ret.append(list(kwic.keyword_in_context(
-                doc=eachDoc,
-                keyword=keyword,
-                ignore_case=ignore_case,
-                window_width=window_size,
-                pad_context=pad_context
-            )))
+            ret.append(
+                list(
+                    kwic.keyword_in_context(
+                        doc=eachDoc,
+                        keyword=keyword,
+                        ignore_case=ignore_case,
+                        window_width=window_size,
+                        pad_context=pad_context,
+                    )
+                )
+            )
 
         if dataframe_format:
             # from RomanPerekhrest on StackOverflow
             # https://stackoverflow.com/questions/57509968/list-of-lists-of-tuples-to-pandas-dataframe
-            return pd.DataFrame([t for lst in ret for t in lst], columns=["Left", "Keyword", "Right"])
+            return pd.DataFrame(
+                [t for lst in ret for t in lst], columns=["Left", "Keyword", "Right"]
+            )
         return ret
 
     @validate_call(config=model_config)
@@ -102,7 +108,9 @@ class Kwic:
                     window_width=window_size,
                     pad_context=pad_context,
                 ):
-                    all_kwic_results.append((left, found_keyword, right, str(original_kw)))
+                    all_kwic_results.append(
+                        (left, found_keyword, right, str(original_kw))
+                    )
 
         if dataframe_format:
             return pd.DataFrame(
@@ -113,7 +121,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_in_sentences(
-        doc: Doc | Iterable[Doc],  
+        doc: Doc | Iterable[Doc],
         keyword: str | Pattern,
         ignore_case: bool = True,
         dataframe_format: bool = False,
@@ -156,14 +164,14 @@ class Kwic:
         token_window: int = 5,
         ignore_case: bool = True,
         dataframe_format: bool = False,
-        nlp: Language = nlp
+        nlp: Language = nlp,
     ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
-        """Generate KWIC results for a keyword in each sentence of the document, using a window of tokens as context.
+        """Generate KWIC results for a keyword within documents, using a window of tokens as context.
 
         Args:
             doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
             keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
-            token_window (int): The number of tokens to include as context on each side.
+            token_window (int): The number of tokens to include as context on each side of the keyword.
             ignore_case (bool): Whether to ignore case when searching for the keyword.
             dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
             nlp (Language): The spaCy Language model to use for matching.
@@ -176,7 +184,7 @@ class Kwic:
         matcher = Matcher(nlp.vocab)
         # Add the keyword pattern to the matcher
         if isinstance(keyword, str):
-            if (ignore_case):
+            if ignore_case:
                 matcher.add("search", [[{"LOWER": keyword.lower()}]])
             else:
                 matcher.add("search", [[{"TEXT": keyword}]])
@@ -190,7 +198,6 @@ class Kwic:
             matches = matcher(doc)
             for match in matches:
                 all_matches.append((doc, match))
-                
 
         # If there are no matches, return an empty list or DataFrame
         if not all_matches:
@@ -199,7 +206,7 @@ class Kwic:
         hits = []
         # Iterate over the matches
         for doc_of_match, match in all_matches:
-            match_id, start, end = match  # Get the start and end indices of the match       
+            match_id, start, end = match  # Get the start and end indices of the match
             # Get the matched span.
             span = doc_of_match[start:end]  # The matched span
 
