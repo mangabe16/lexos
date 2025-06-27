@@ -284,3 +284,21 @@ def test_find_tokens_to_dataframe() -> None:
         "test",
         "the Kwic module for finding",
     ]
+
+
+
+def test_find_tokens_multiple_sentences() -> None:
+    """Test KWIC find_tokens method with multiple sentences."""
+    text = "This is the first sentence. This is a second sentence. This third sentence has keyword in it."
+    doc = Tokenizer()(text)
+    nlp = spacy.load("en_core_web_sm")
+    kwic_results = Kwic.find_tokens(
+        doc=doc, keyword="sentence", token_window=5, ignore_case=True, nlp=nlp
+    )
+    results_list = list(kwic_results)
+    print(results_list[2])
+    assert isinstance(kwic_results, Iterable)
+    assert len(results_list) == 3
+    assert results_list[0] == ("This is the first", "sentence", ". This is a second")
+    assert results_list[1] == (". This is a second", "sentence", ". This third sentence has")
+    assert results_list[2] == ("second sentence. This third", "sentence", "has keyword in it.")
