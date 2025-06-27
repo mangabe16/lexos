@@ -632,7 +632,8 @@ class ZTestComparison(BaseModel):
 
         def extract(label, ztest_result):
             if hasattr(ztest_result, "topwords"):
-                topwords = getattr(ztest_result, "topwords", [])
+                # Ensure topwords is always a list, even if None
+                topwords = getattr(ztest_result, "topwords", []) or []
             elif isinstance(ztest_result, dict) and "result" in ztest_result:
                 return extract(label, ztest_result["result"])
             else:
@@ -663,7 +664,8 @@ class ZTestComparison(BaseModel):
 
         def extract(label, ztest_result):
             if hasattr(ztest_result, "topwords"):
-                topwords = getattr(ztest_result, "topwords", [])
+                # Ensure topwords is always a list, even if None
+                topwords = getattr(ztest_result, "topwords", []) or []
             elif isinstance(ztest_result, dict) and "result" in ztest_result:
                 return extract(label, ztest_result["result"])
             else:
