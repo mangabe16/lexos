@@ -596,7 +596,7 @@ class ZTestComparison(BaseModel):
         def extract_rows(label, ztest_result):
             # ztest_result can be a ZTest instance or a dict with 'result'
             if hasattr(ztest_result, "topwords"):
-                topwords = getattr(ztest_result, "topwords", [])
+                topwords = getattr(ztest_result, "topwords", []) or []
             elif isinstance(ztest_result, dict) and "result" in ztest_result:
                 return extract_rows(label, ztest_result["result"])
             else:
@@ -627,8 +627,62 @@ class ZTestComparison(BaseModel):
 
     @staticmethod
     def to_list_of_dicts(results):
-        """Return results as a list of dicts"""
-        
-        @staticmethod
+        """Return results as a list of dicts with keys: label, term, z_score."""
+        output = []
+
+        def extract(label, ztest_result):
+            if hasattr(ztest_result, "topwords"):
+                topwords = getattr(ztest_result, "topwords", [])
+            elif isinstance(ztest_result, dict) and "result" in ztest_result:
+                return extract(label, ztest_result["result"])
+            else:
+                topwords = []
+            for term, z_score in topwords:
+                output.append({"label": label, "term": term, "z_score": z_score})
+
+        if isinstance(results, list):
+            for item in results:
+                label = item.get("label", None)
+                result = item.get("result", None)
+                if label is not None and result is not None:
+                    extract(label, result)
+        elif isinstance(results, dict):
+            for group, comparison_result in results.items():
+                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                    extract(group, comparison_result["result"])
+                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                    extract(comparison_result["label"], comparison_result["result"])
+                elif hasattr(comparison_result, "topwords"):
+                    extract(group, comparison_result)
+        return output
+
+    @staticmethod
     def to_list_of_tuples(results):
-        """Return results as a list of tuples"""
+        """Return results as a list of (label, term, z_score) tuples."""
+        output = []
+
+        def extract(label, ztest_result):
+            if hasattr(ztest_result, "topwords"):
+                topwords = getattr(ztest_result, "topwords", [])
+            elif isinstance(ztest_result, dict) and "result" in ztest_result:
+                return extract(label, ztest_result["result"])
+            else:
+                topwords = []
+            for term, z_score in topwords:
+                output.append((label, term, z_score))
+
+        if isinstance(results, list):
+            for item in results:
+                label = item.get("label", None)
+                result = item.get("result", None)
+                if label is not None and result is not None:
+                    extract(label, result)
+        elif isinstance(results, dict):
+            for group, comparison_result in results.items():
+                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                    extract(group, comparison_result["result"])
+                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                    extract(comparison_result["label"], comparison_result["result"])
+                elif hasattr(comparison_result, "topwords"):
+                    extract(group, comparison_result)
+        return output

@@ -117,7 +117,9 @@ print(ztest.to_list())  # List of tuples
 
 ## ZTestComparison
 
-Methods:
+The `ZTestComparison` class provides advanced comparative analysis between documents or groups of documents (categories/classes) using Z-score statistics. It enables you to compare individual documents, categories, or all-vs-all groupings to identify distinguishing words.
+
+### Methods
 
 | Method Name                                              | Description                                                                                                   |
 |----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
@@ -135,6 +137,23 @@ Methods:
 | `to_df(results)` *(static)*                              | Converts results to a pandas DataFrame with columns: label, term, z_score.                                   |
 | `to_list_of_dicts(results)` *(static)*                   | Converts results to a list of dictionaries.                                                                  |
 | `to_list_of_tuples(results)` *(static)*                  | Converts results to a list of tuples.                                                                        |
+
+### Example Usage
+
+```python
+from lexos.topwords.ZTest import ZTestComparison
+
+# Suppose you have a list of documents and their categories
+docs = ["text of doc1", "text of doc2", "text of doc3"]
+categories = ["A", "B", "A"]
+
+zcomp = ZTestComparison(documents=docs, categories=categories, topn=5)
+results = zcomp.compare_all_cats_to_corpus()
+df = ZTestComparison.to_df(results)
+print(df)
+```
+
+You can use the various comparison methods to analyze differences between documents or groups, and output results as a DataFrame, list of dicts, or list of tuples using the static methods.
 
 ## Comparison Handler
 
