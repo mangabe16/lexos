@@ -10,10 +10,25 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
+"""ZTest.py.
+
+Last Updated: June 25, 2025
+Last Tested: June 25, 2025
+"""
+
+from collections import Counter
+from typing import Any, Optional
+
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc
 
+from spacy.tokens import Doc
+
 from lexos.tokenizer import Tokenizer
+from lexos.topwords import TopWords
 from lexos.topwords import TopWords
 from lexos.topwords.comparison_handler import ComparisonHandler
 
@@ -116,9 +131,11 @@ class ZTest(TopWords):
         return tokens
 
     def __call__(self) -> dict | list | pd.DataFrame | list[dict] | list[tuple]:
+    def __call__(self) -> dict | list | pd.DataFrame | list[dict] | list[tuple]:
         """Calculate top distinguishing words using Z-test for significance.
 
         Returns:
+            dict | list | pd.DataFrame | list[dict] | list[tuple]: Top words and their Z-scores.
             dict | list | pd.DataFrame | list[dict] | list[tuple]: Top words and their Z-scores.
         """
         # Use provided docs or create them from text

@@ -1,7 +1,9 @@
 """util.py.
 
 Utilities for the Milestones class.
-Refactor: 12/21/2024
+
+Last Updated: 12/21/2024
+Last Tested: 12/27/2024
 """
 from typing import Any
 

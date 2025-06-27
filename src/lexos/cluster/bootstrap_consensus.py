@@ -57,7 +57,7 @@ class BCT(BaseModel):
     showfig: Optional[bool] = Field(
         False, json_schema_extra={"description": "Whether to show the figure."}
     )
-    fig: Optional[plt.Figure] = Field(
+    fig: Optional[Figure] = Field(
         None, json_schema_extra={"description": "The figure for the dendrogram."}
     )
 
@@ -87,7 +87,7 @@ class BCT(BaseModel):
         return self.doc_term_matrix.to_df().T
 
     @property
-    def _document_label_map(self) -> dict[int, str] | None:
+    def _document_label_map(self) -> dict[int, str] | dict:
         """Return a dictionary of document label map.
 
         Returns:
@@ -98,7 +98,7 @@ class BCT(BaseModel):
                 return self.doc_labels
             else:
                 if isinstance(self.doc_labels[0], int):
-                    return {i: f"doc{i + 1}" for i in self.doc_labels}
+                    return {i: f"doc{i + 1}" for i, _ in enumerate(self.doc_labels)}
                 else:
                     return {i: label for i, label in enumerate(self.doc_labels)}
         return {}
