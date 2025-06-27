@@ -18,6 +18,7 @@ import pandas as pd
 from spacy.matcher import Matcher
 from spacy.language import Language
 import spacy
+from typing import Any
 
 from lexos.exceptions import LexosException
 from lexos.util import ensure_list
@@ -31,7 +32,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find(
-        doc: Doc | list[Doc],
+        doc: Any,
         keyword: str | Pattern,
         ignore_case: bool = True,
         window_size: int = 50,
@@ -53,8 +54,16 @@ class Kwic:
             pd.DataFrame: A DataFrame containing the left context, the keyword, and the right context if dataframe_format is True.
 
         """
+        # type check for doc
+        if isinstance(doc, Doc):
+            doc_list = [doc]
+        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
+            doc_list = doc
+        else:
+            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
+        
         ret = []
-        for eachDoc in ensure_list(doc):
+        for eachDoc in doc_list:
             ret.append(
                 list(
                     kwic.keyword_in_context(
@@ -77,7 +86,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_multiple_keywords(
-        doc: Doc | Iterable[Doc],
+        doc: Any,
         keywords: Iterable[str | Pattern],
         ignore_case: bool = True,
         window_size: int = 50,
@@ -98,8 +107,17 @@ class Kwic:
             Iterable[tuple[str, str, str, str]]: An iterable of tuples containing the left context, the keyword found, the right context, and the original keyword for each search.
             pd.DataFrame: A DataFrame containing the left context, the keyword found, the right context, and the original keyword if dataframe_format is True.
         """
+        # type check for doc
+        if isinstance(doc, Doc):
+            doc_list = [doc]
+        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
+            doc_list = doc
+        else:
+            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
+        
+        keywords = list(keywords)
         all_kwic_results = []
-        for doc in ensure_list(doc):
+        for doc in doc_list:
             for original_kw in keywords:
                 for left, found_keyword, right in kwic.keyword_in_context(
                     doc=doc,
@@ -121,7 +139,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_in_sentences(
-        doc: Doc | Iterable[Doc],
+        doc: Any,
         keyword: str | Pattern,
         ignore_case: bool = True,
         dataframe_format: bool = False,
@@ -139,7 +157,17 @@ class Kwic:
             pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
         all_sentence_kwic_results = []
-        for doc in ensure_list(doc):
+
+        # type check for doc
+        if isinstance(doc, Doc):
+            doc_list = [doc]
+        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
+            doc_list = doc
+        else:
+            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
+
+
+        for doc in doc_list:
             for sent_idx, sentence_span in enumerate(doc.sents):
                 for left, found_keyword, right in kwic.keyword_in_context(
                     doc=sentence_span.text,
@@ -159,7 +187,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_tokens(
-        doc: Doc | Iterable[Doc],
+        doc: Any,
         keyword: str | Pattern,
         token_window: int = 5,
         ignore_case: bool = True,
@@ -180,6 +208,13 @@ class Kwic:
             Iterable [tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
             pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
         """
+        # type check for doc
+        if isinstance(doc, Doc):
+            doc_list = [doc]
+        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
+            doc_list = doc
+        else:
+            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
         # Instantiate the Matcher with the Doc's vocabulary
         matcher = Matcher(nlp.vocab)
         # Add the keyword pattern to the matcher
@@ -192,9 +227,11 @@ class Kwic:
             pattern = [{"TEXT": {"REGEX": keyword.pattern}}]
             matcher.add("search", [pattern])
 
+
         # Get the matches in the document(s)
         all_matches = []
-        for doc in ensure_list(doc):
+        
+        for doc in doc_list:
             matches = matcher(doc)
             for match in matches:
                 all_matches.append((doc, match))
@@ -213,9 +250,9 @@ class Kwic:
             left = start - token_window
             right = end + token_window
             left = max(left, 0)  # Ensure we don't go out of bounds
-            right = min(right, len(doc))  # Ensure we don't go out of bounds
-            left_context = doc[left:start].text.strip()
-            right_context = doc[end:right].text.strip()
+            right = min(right, len(doc_of_match))  # Ensure we don't go out of bounds
+            left_context = doc_of_match[left:start].text.strip()
+            right_context = doc_of_match[end:right].text.strip()
             hits.append((left_context, span.text, right_context))
 
         if dataframe_format:

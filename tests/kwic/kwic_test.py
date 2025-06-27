@@ -194,6 +194,26 @@ def test_mixed_string_regex_keywords(tokenizer) -> None:
     assert results_list[2] == ("he ", "Kwic", " mo", "[Kk]wic")
     assert results_list[3] == ("ng ", "kwic", ".  ", "[Kk]wic")
 
+def test_multiple_keywords_multiple_docs(tokenizer) -> None:
+    """Test KWIC find method with multiple Doc objects and multiple keywords."""
+    text1 = "This is a test string to test the Kwic module for finding correct words in context."
+    text2 = "Another test string to check the Kwic functionality."
+    doc1 = tokenizer(text1)
+    doc2 = tokenizer(text2)
+    keywords = ["test", "Kwic"]
+    kwic_results = Kwic.find_multiple_keywords(
+        doc=[doc1, doc2], keywords=keywords, window_size=3, pad_context=True
+    )
+    results_list = list(kwic_results)
+    print(results_list)
+    assert isinstance(kwic_results, Iterable)
+    assert len(results_list) == 5
+    assert results_list[0] == (" a ", "test", " st", "test")
+    assert results_list[1] == ("to ", "test", " th", "test")
+    assert results_list[2] == ("he ", "Kwic", " mo", "Kwic")
+    assert results_list[3] == ("er ", "test", " st", "test")
+    assert results_list[4] == ("he ", "Kwic", " fu", "Kwic")
+
 
 def test_find_in_sentences(spacy_doc_sentences) -> None:
     """Test KWIC find method in sentences."""
@@ -207,7 +227,7 @@ def test_find_in_sentences(spacy_doc_sentences) -> None:
 
 def test_find_in_sentences_requires_doc_object() -> None:
     """Test that find_in_sentences raises TypeError if doc is not a Doc object."""
-    with pytest.raises(AttributeError):
+    with pytest.raises(TypeError):
         Kwic.find_in_sentences(
             doc="This is a string, not a Doc object.", keyword="keyword"
         )
@@ -227,6 +247,29 @@ def test_find_in_sentences_to_dataframe(spacy_doc_sentences) -> None:
         "keyword",
         " in it.",
     ]
+
+
+def test_find_in_sentences_multiple_docs() -> None:
+    """Test KWIC find method in sentences with multiple Doc objects."""
+    text1 = "This is the first sentence. This is a second sentence."
+    text2 = "This third sentence has keyword in it."
+    doc1 = Tokenizer()(text1)
+    doc2 = Tokenizer()(text2)
+    nlp = spacy.load("en_core_web_sm")
+    kwic_results = Kwic.find_in_sentences(
+        doc=[doc1, doc2], keyword="sentence", ignore_case=True
+    )
+    results_list = list(kwic_results)
+    assert isinstance(kwic_results, Iterable)
+    assert len(results_list) == 3
+    print(results_list[0])
+    assert results_list[0] == ("This is the first ", "sentence", ".")
+    assert results_list[1] == (
+        "This is a second ",
+        "sentence",
+        ".",
+    )
+    assert results_list[2] == ("This third ", "sentence", " has keyword in it.")
 
 
 def test_find_tokens() -> None:
@@ -336,12 +379,6 @@ def test_find_tokens_empty_string() -> None:
         Kwic.find_tokens(
             doc=doc, keyword="test", token_window=5, ignore_case=True, nlp=nlp
         )
-    # kwic_results = Kwic.find_tokens(
-    #     doc=doc, keyword="test", token_window=5, ignore_case=True, nlp=nlp
-    # )
-    # results_list = list(kwic_results)
-    # assert isinstance(kwic_results, Iterable)
-    # assert results_list == []  # No results expected for an empty string
 
 
 def test_find_tokens_invalid_keyword() -> None:
@@ -353,3 +390,25 @@ def test_find_tokens_invalid_keyword() -> None:
         Kwic.find_tokens(
             doc=doc, keyword=123, token_window=5, ignore_case=True, nlp=nlp
         )  # Keyword must be a string
+
+
+def test_find_tokens_multiple_docs() -> None:
+    """Test KWIC find_tokens method with multiple Doc objects."""
+    text1 = "This is a test string to test the Kwic module for finding correct words in context."
+    text2 = "Another test string to check the Kwic functionality."
+    doc1 = Tokenizer()(text1)
+    doc2 = Tokenizer()(text2)
+    nlp = spacy.load("en_core_web_sm")
+    kwic_results = Kwic.find_tokens(
+        doc=[doc1, doc2], keyword="test", token_window=5, ignore_case=True, nlp=nlp
+    )
+    results_list = list(kwic_results)
+    assert isinstance(kwic_results, Iterable)
+    assert len(results_list) == 3
+    assert results_list[0] == ("This is a", "test", "string to test the Kwic")
+    assert results_list[1] == (
+        "is a test string to",
+        "test",
+        "the Kwic module for finding",
+    )
+    assert results_list[2] == ("Another", "test", "string to check the Kwic")
