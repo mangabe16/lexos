@@ -17,8 +17,8 @@ Usage:
 To run the test for this module:
     uv run pytest tests/kwic/kwic_test.py
 
-Last Updated: 6/24/25
-Last Tested: 6/24/25
+Last Updated: 6/27/25
+Last Tested: 6/27/25
 """
 
 from src.lexos.kwic import Kwic
@@ -54,12 +54,15 @@ def test_kwic_find_with_doc(tokenizer) -> None:
     assert isinstance(kwic_results, Iterable)
     assert list(results_list) == [[(" a ", "test", " st"), ("to ", "test", " th")]]
 
+
 def test_kwic_find_with_string(tokenizer) -> None:
     """Test KWIC find method with a string input."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc1 = tokenizer(text)
     doc2 = tokenizer(text)
-    kwic_results = Kwic.find(doc=[doc1, doc2], keyword="test", window_size=3, pad_context=True)
+    kwic_results = Kwic.find(
+        doc=[doc1, doc2], keyword="test", window_size=3, pad_context=True
+    )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
     assert results_list[0] == [(" a ", "test", " st"), ("to ", "test", " th")]
@@ -87,14 +90,20 @@ def test_kwic_find_with_regex_keyword(tokenizer) -> None:
     )
     results_list = list(kwic_results)
     assert isinstance(kwic_results, Iterable)
-    assert results_list == [[
-        ("This is a ", "test", " string with multiple variations of the word Test,"),
-        (
-            " test string with multiple variations of the word ",
-            "Test",
-            ", which will be searched using a regex expression.",
-        ),
-    ]]
+    assert results_list == [
+        [
+            (
+                "This is a ",
+                "test",
+                " string with multiple variations of the word Test,",
+            ),
+            (
+                " test string with multiple variations of the word ",
+                "Test",
+                ", which will be searched using a regex expression.",
+            ),
+        ]
+    ]
 
 
 def test_kwic_find_to_dataframe(tokenizer) -> None:
@@ -238,6 +247,7 @@ def test_find_tokens() -> None:
         "the Kwic module for finding",
     )
 
+
 def test_find_tokens_no_ignore_case() -> None:
     """Test KWIC find_tokens method while not ignoring case."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
@@ -256,6 +266,7 @@ def test_find_tokens_no_ignore_case() -> None:
         "the Kwic module for finding",
     )
 
+
 def test_find_tokens_no_matches() -> None:
     """Test KWIC find_tokens method."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
@@ -273,7 +284,12 @@ def test_find_tokens_to_dataframe() -> None:
     doc = Tokenizer()(text)
     nlp = spacy.load("en_core_web_sm")
     kwic_df = Kwic.find_tokens(
-        doc=doc, keyword="test", token_window=5, ignore_case=True, dataframe_format=True, nlp=nlp
+        doc=doc,
+        keyword="test",
+        token_window=5,
+        ignore_case=True,
+        dataframe_format=True,
+        nlp=nlp,
     )
     assert isinstance(kwic_df, pd.DataFrame)
     assert len(kwic_df) == 2
@@ -284,7 +300,6 @@ def test_find_tokens_to_dataframe() -> None:
         "test",
         "the Kwic module for finding",
     ]
-
 
 
 def test_find_tokens_multiple_sentences() -> None:
@@ -300,5 +315,41 @@ def test_find_tokens_multiple_sentences() -> None:
     assert isinstance(kwic_results, Iterable)
     assert len(results_list) == 3
     assert results_list[0] == ("This is the first", "sentence", ". This is a second")
-    assert results_list[1] == (". This is a second", "sentence", ". This third sentence has")
-    assert results_list[2] == ("second sentence. This third", "sentence", "has keyword in it.")
+    assert results_list[1] == (
+        ". This is a second",
+        "sentence",
+        ". This third sentence has",
+    )
+    assert results_list[2] == (
+        "second sentence. This third",
+        "sentence",
+        "has keyword in it.",
+    )
+
+
+def test_find_tokens_empty_string() -> None:
+    """Test KWIC find_tokens method with an empty string."""
+    text = ""
+    doc = Tokenizer()(text)
+    nlp = spacy.load("en_core_web_sm")
+    with pytest.raises(LexosException):
+        Kwic.find_tokens(
+            doc=doc, keyword="test", token_window=5, ignore_case=True, nlp=nlp
+        )
+    # kwic_results = Kwic.find_tokens(
+    #     doc=doc, keyword="test", token_window=5, ignore_case=True, nlp=nlp
+    # )
+    # results_list = list(kwic_results)
+    # assert isinstance(kwic_results, Iterable)
+    # assert results_list == []  # No results expected for an empty string
+
+
+def test_find_tokens_invalid_keyword() -> None:
+    """Test KWIC find_tokens method with an invalid keyword."""
+    text = "This is a test string to test the Kwic module for finding correct words in context."
+    doc = Tokenizer()(text)
+    nlp = spacy.load("en_core_web_sm")
+    with pytest.raises(ValidationError):
+        Kwic.find_tokens(
+            doc=doc, keyword=123, token_window=5, ignore_case=True, nlp=nlp
+        )  # Keyword must be a string
