@@ -28,6 +28,8 @@ nav:
   #     - Index: development/index.md
   - API:
       - Overview: api/index.md
+      - cluster:
+          - Overview: api/cluster/index.md
       - cutter:
           - Cutter: api/cutter/index.md
           # - Filesplit: api/cutter/filesplit.md
@@ -36,12 +38,37 @@ nav:
           # - Merge: api/cutter/merge.md
           # - Milestones: api/cutter/milestones.md
           # - Registry: api/cutter/registry.md
+      - dtm: 
+          - Overview: api/dtm/index.md
+          - dtm: api/dtm/dtm.md
+      - filter:
+          - Overview: api/filters/index.md
+          - filters: api/filters/filters.md
       - io:
           - Overview: api/io/index.md
           - base_loader: api/io/base_loader.md
           - loader: api/io/loader.md
           - data_loader: api/io/dataloader.md
-      - milestones: api/milestones/index.md
+      - milestones: 
+          - Overview: api/milestones/overview.md
+          - span_milestones: api/milestones/span_milestones.md
+          - string_milestones: api/milestones/string_milestones.md
+          - token_milestones: api/milestones/token_milestones.md
+          - util: api/milestones/util.md
+      - rolling_windows:
+          - Overview: api/rolling_windows/index.md
+          - rolling_windows: api/rolling_windows/rolling_windows.md
+          - calculators:
+              - Overview: api/rolling_windows/calculators/index.md
+              - averages: api/rolling_windows/calculators/averages.md
+              - base_calculator: api/rolling_windows/calculators/base_calculator.md
+              - counts: api/rolling_windows/calculators/counts.md
+              - ratios: api/rolling_windows/calculators/ratios.md
+          - plotters:
+              - Overview: api/rolling_windows/plotters/index.md
+              - base_plotter: api/rolling_windows/plotters/base_plotter.md
+              - plotly_plotter: api/rolling_windows/plotters/plotly_plotter.md
+              - simple_plotter: api/rolling_windows/plotters/simple_plotter.md
   #     - Cluster:
   #         - Cluster: api/cluster/index.md
   #     - Corpus:
@@ -79,7 +106,21 @@ nav:
   #         - Plotly: api/visualization/plotly.md
   #         - Seaborn: api/visualization/seaborn.md
   #     - Utils: api/utils.md
-
+      - topic_modeling:
+          - Overview: api/topic_modeling/index.md
+          - dfr_browser:
+            - Overview: api/topic_modeling/dfr_browser/index.md
+            - dfr_browser: api/topic_modeling/dfr_browser/dfr_browser.md
+            - prepare_data: api/topic_modeling/dfr_browser/prepare_data.md
+            - scale_model: api/topic_modeling/dfr_browser/scale_model.md
+          - mallet: api/topic_modeling/mallet.md
+      - visualization:
+          - Overview: api/visualization/index.md
+          - bubbleviz: api/visualization/bubbleviz.md
+          - cloud: api/visualization/cloud.md
+          - plotly_wordcloud: api/visualization/plotly_wordcloud.md
+          - processors: api/visualization/processors.md
+   
 theme:
   name: material
   favicon: http://lexos.wheatoncollege.edu/static/favicon.png
