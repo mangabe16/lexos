@@ -115,6 +115,46 @@ print(ztest.to_list())  # List of tuples
 # Each doc in docs now has doc._.topwords set to the top words
 ```
 
+## ZTestComparison
+
+The `ZTestComparison` class provides advanced comparative analysis between documents or groups of documents (categories/classes) using Z-score statistics. It enables you to compare individual documents, categories, or all-vs-all groupings to identify distinguishing words.
+
+### Methods
+
+| Method Name                                              | Description                                                                                                   |
+|----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| `model_post_init(self, __context)`                       | Validates and initializes labels and categories after model initialization.                                   |
+| `compare_docs_to_corpus(self, docs, background_cats=None, **kwargs)` | Compares each document in `docs` to the rest of the corpus (optionally filtered by background categories).    |
+| `compare_cat_to_corpus(self, cat, background_cats=None, **kwargs)`   | Compares all documents in a given category to documents in specified background categories.                   |
+| `compare_all_cats_to_corpus(self, background_cats=None, **kwargs)`   | Compares each category to all other categories (or specified background categories).                          |
+| `compare_each_doc_to_other_classes(self, **kwargs)`                  | For each class, compares each document in that class to all documents in other classes.                       |
+| `compare_each_class_to_each_other_class(self, **kwargs)`             | For each class, compares it to every other class individually, returning a nested dictionary.                 |
+| `_get_doc_labels(self, docs)`                            | Helper: Gets labels for specific documents.                                                                  |
+| `_create_doc_mapping(self)`                              | Helper: Creates a mapping from document content to corpus indices.                                            |
+| `_determine_background_categories(self, cat, background_cats, available_cats)` | Helper: Determines which categories to use as background.                                                     |
+| `_separate_docs_by_category(self, target_cat, background_categories)`| Helper: Separates documents into target and background groups by category.                                    |
+| `_format_output(self, results)`                          | Helper: Formats the output according to the specified output format.                                          |
+| `to_df(results)` *(static)*                              | Converts results to a pandas DataFrame with columns: label, term, z_score.                                   |
+| `to_list_of_dicts(results)` *(static)*                   | Converts results to a list of dictionaries.                                                                  |
+| `to_list_of_tuples(results)` *(static)*                  | Converts results to a list of tuples.                                                                        |
+
+### Example Usage
+
+```python
+from lexos.topwords.ZTest import ZTestComparison
+
+# Suppose you have a list of documents and their categories
+docs = ["text of doc1", "text of doc2", "text of doc3"]
+categories = ["A", "B", "A"]
+
+zcomp = ZTestComparison(documents=docs, categories=categories, topn=5)
+results = zcomp.compare_all_cats_to_corpus()
+df = ZTestComparison.to_df(results)
+print(df)
+```
+
+You can use the various comparison methods to analyze differences between documents or groups, and output results as a DataFrame, list of dicts, or list of tuples using the static methods.
+
 ## Comparison Handler
 
 The `ComparisonHandler` class provides utilities for comparative analysis, allowing you to compare documents or groups of documents in various ways. This is useful for workflows where you want to:
