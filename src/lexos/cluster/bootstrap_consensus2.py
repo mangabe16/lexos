@@ -1,7 +1,7 @@
 """This is a model to produce bootstrap consensus tree of the dtm.
 
 Last update: June 27, 2025
-Last tested: March 6, 2025
+Last tested: June 29, 2025
 
 See https://github.com/koonimaru/omniplot/blob/962310436a153098b671ebd76cdd59f8a7b5e681/omniplot/plot.py#L38 for a method of getting round dendrograms.
 """
@@ -709,11 +709,11 @@ class BCT(BaseModel):
                 setattr(self, key, value)
 
     @validate_call(config=model_config)
-    def save(self, path: Path | str) -> None:
+    def save(self, path: Path | str | None) -> None:
         """Save the bootstrap consensus tree result to a file.
 
         Args:
-            path (Path | str): The path to save the file.
+            path (Path | str | None): The path to save the file.
         """
         if not path or path == "":
             raise LexosException("You must provide a valid path.")
