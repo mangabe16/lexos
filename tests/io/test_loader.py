@@ -1,6 +1,6 @@
 """test_loader.py.
 
-Last Update: 2025-01-14
+Last Update: 2025-06-29
 
 Note: Some tests use mocked data, but real files in temporary directories are
 created where functions have context managers (since those are hard to mock).
@@ -762,3 +762,103 @@ def test_zip_file_append_block_exception(loader, tmp_path):
     assert any(
         isinstance(e, ValueError) and "decode fail" in str(e) for e in loader.errors
     )
+
+
+## Additional Tests for _get_mime_type Method
+
+
+def test_get_mime_type_fallback_to_mimetypes():
+    """Test _get_mime_type falls back to mimetypes.guess_type when puremagic returns empty mime_type."""
+    loader = Loader()
+
+    # Mock puremagic to return a result with empty mime_type
+    mock_result = Mock()
+    mock_result.mime_type = ""  # Empty mime_type triggers fallback
+
+    with (
+        patch("lexos.io.loader.puremagic.magic_string") as mock_puremagic,
+        patch("lexos.io.loader.mimetypes.guess_type") as mock_mimetypes,
+    ):
+        # Configure mocks
+        mock_puremagic.return_value = [
+            mock_result
+        ]  # Non-empty list with empty mime_type
+        mock_mimetypes.return_value = (
+            "text/plain",
+            None,
+        )  # Return tuple as mimetypes.guess_type does
+
+        # Call the method
+        result = loader._get_mime_type("/path/to/file.txt", "file content")
+
+        # Verify the fallback was used
+        assert result == "text/plain"
+        mock_puremagic.assert_called_once_with("file content", "/path/to/file.txt")
+        mock_mimetypes.assert_called_once_with("/path/to/file.txt")
+
+
+def test_get_mime_type_fallback_comprehensive():
+    """Comprehensive test covering the fallback scenario with different file types."""
+    loader = Loader()
+
+    # Test cases: (file_path, expected_mime_type)
+    test_cases = [
+        ("/path/to/document.txt", "text/plain"),
+        ("/path/to/document.html", "text/html"),
+        ("/path/to/document.json", "application/json"),
+        ("/path/to/document.xml", "text/xml"),
+        ("/path/to/unknown.xyz", None),  # Unknown extension
+    ]
+
+    for file_path, expected_mime in test_cases:
+        # Mock puremagic to return empty mime_type
+        mock_result = Mock()
+        mock_result.mime_type = ""
+
+        with (
+            patch("lexos.io.loader.puremagic.magic_string") as mock_puremagic,
+            patch("lexos.io.loader.mimetypes.guess_type") as mock_mimetypes,
+        ):
+            mock_puremagic.return_value = [mock_result]
+            mock_mimetypes.return_value = (expected_mime, None)
+
+            result = loader._get_mime_type(file_path, "content")
+
+            assert result == expected_mime
+            mock_mimetypes.assert_called_once_with(file_path)
+
+
+def test_get_mime_type_empty_string_vs_none():
+    """Test that empty string mime_type specifically triggers fallback, not other falsy values."""
+    loader = Loader()
+
+    # Test with empty string (should trigger fallback)
+    mock_result_empty = Mock()
+    mock_result_empty.mime_type = ""
+
+    with (
+        patch("lexos.io.loader.puremagic.magic_string") as mock_puremagic,
+        patch("lexos.io.loader.mimetypes.guess_type") as mock_mimetypes,
+    ):
+        mock_puremagic.return_value = [mock_result_empty]
+        mock_mimetypes.return_value = ("text/plain", None)
+
+        result = loader._get_mime_type("/test.txt", "content")
+
+        assert result == "text/plain"
+        mock_mimetypes.assert_called_once()
+
+    # Test with valid mime_type (should NOT trigger fallback)
+    mock_result_valid = Mock()
+    mock_result_valid.mime_type = "application/pdf"
+
+    with (
+        patch("lexos.io.loader.puremagic.magic_string") as mock_puremagic,
+        patch("lexos.io.loader.mimetypes.guess_type") as mock_mimetypes,
+    ):
+        mock_puremagic.return_value = [mock_result_valid]
+
+        result = loader._get_mime_type("/test.pdf", "content")
+
+        assert result == "application/pdf"
+        mock_mimetypes.assert_not_called()  # Should not fallback

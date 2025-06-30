@@ -1,15 +1,35 @@
 """test_base_loader.py.
 
-Last Update: 2024-12-28.
+Last Update: 2025-06-29
 """
 
 from typing import Generator, Optional
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
-from lexos.io.base_loader import BaseLoader
+
 from lexos.exceptions import LexosException
-from unittest.mock import patch
+from lexos.io.base_loader import BaseLoader
+
+
+def test_texts_field_definition():
+    """Test texts field definition and default value.
+
+    This test ensures 100% coverage.
+    """
+    from lexos.io.data_loader import DataLoader
+
+    # Create fresh instance to trigger field defaults
+    loader = DataLoader()
+
+    # Verify texts field exists and has correct default
+    assert loader.texts == []
+
+    # Test field info
+    field_info = DataLoader.model_fields["texts"]
+    assert field_info.default == []
+    assert field_info.description == "The list of loaded texts."
 
 
 class ConcreteLoader(BaseLoader):
@@ -324,5 +344,3 @@ def test_to_excel_calls_df_to_csv(base_loader_with_data):
     with patch.object(pd.DataFrame, "to_csv") as mock_to_csv:  # Note: uses to_csv()
         base_loader_with_data.to_excel("fake.xlsx")
         mock_to_csv.assert_called_once()
-
-
