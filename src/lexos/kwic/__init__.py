@@ -1,6 +1,6 @@
 """__init__.py.
 
-Last Updated: 6/27/25
+Last Updated: 6/30/25
 Last Tested: 6/27/25
 
 Current Usage:
@@ -12,8 +12,8 @@ Current Usage:
 
 from textacy.extract import kwic
 from spacy.tokens import Doc
-from typing import Iterable, Pattern
-from pydantic import validate_call, ConfigDict
+from typing import Iterable, Pattern, Optional
+from pydantic import validate_call, ConfigDict, BaseModel, Field
 import pandas as pd
 from spacy.matcher import Matcher
 from spacy.language import Language
@@ -23,15 +23,41 @@ from typing import Any
 from lexos.exceptions import LexosException
 from lexos.util import ensure_list
 
+try:
+    default_model = spacy.load("xx_sent_ud_sm")
+except ImportError:
+    raise LexosException(
+        "The default model is not available. Please run `python -m spacy download xx_sent_ud_sm` from the command line."
+    )
 
-class Kwic:
+
+class Kwic(BaseModel):
     """A class for generating keyword-in-context (KWIC) results using textacy."""
 
+    model_name: Optional[str] = Field(
+        default="xx_sent_ud_sm",
+        description="The spaCy model to use for processing documents.",
+    )
+    nlp: Optional[Language] = Field(
+        default=default_model,
+        description="The spaCy language object.",
+    )
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    nlp = spacy.load("xx_sent_ud_sm")
+
+    def __init__(self, **data) -> None:
+        """Initialize the Kwic class with a spaCy model."""
+        super().__init__(**data)
+        try:
+            self.nlp = spacy.load(self.model_name)
+        except OSError:
+            raise LexosException(
+                f"Error loading model {self.model_name}. Please check the name and try again. You may need to install the model on your system."
+            )
 
     @validate_call(config=model_config)
     def find(
+        self,
         doc: Any,
         keyword: str | Pattern,
         ignore_case: bool = True,
@@ -61,7 +87,7 @@ class Kwic:
             doc_list = doc
         else:
             raise TypeError("Input must be a spaCy Doc or a list of Docs.")
-        
+
         ret = []
         for eachDoc in doc_list:
             ret.append(
@@ -86,6 +112,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_multiple_keywords(
+        self,
         doc: Any,
         keywords: Iterable[str | Pattern],
         ignore_case: bool = True,
@@ -114,7 +141,7 @@ class Kwic:
             doc_list = doc
         else:
             raise TypeError("Input must be a spaCy Doc or a list of Docs.")
-        
+
         keywords = list(keywords)
         all_kwic_results = []
         for doc in doc_list:
@@ -139,6 +166,7 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_in_sentences(
+        self,
         doc: Any,
         keyword: str | Pattern,
         ignore_case: bool = True,
@@ -166,7 +194,6 @@ class Kwic:
         else:
             raise TypeError("Input must be a spaCy Doc or a list of Docs.")
 
-
         for doc in doc_list:
             for sent_idx, sentence_span in enumerate(doc.sents):
                 for left, found_keyword, right in kwic.keyword_in_context(
@@ -187,12 +214,12 @@ class Kwic:
 
     @validate_call(config=model_config)
     def find_tokens(
+        self,
         doc: Any,
         keyword: str | Pattern,
         token_window: int = 5,
         ignore_case: bool = True,
         dataframe_format: bool = False,
-        nlp: Language = nlp,
     ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
         """Generate KWIC results for a keyword within documents, using a window of tokens as context.
 
@@ -216,7 +243,7 @@ class Kwic:
         else:
             raise TypeError("Input must be a spaCy Doc or a list of Docs.")
         # Instantiate the Matcher with the Doc's vocabulary
-        matcher = Matcher(nlp.vocab)
+        matcher = Matcher(self.nlp.vocab)
         # Add the keyword pattern to the matcher
         if isinstance(keyword, str):
             if ignore_case:
@@ -227,10 +254,9 @@ class Kwic:
             pattern = [{"TEXT": {"REGEX": keyword.pattern}}]
             matcher.add("search", [pattern])
 
-
         # Get the matches in the document(s)
         all_matches = []
-        
+
         for doc in doc_list:
             matches = matcher(doc)
             for match in matches:
