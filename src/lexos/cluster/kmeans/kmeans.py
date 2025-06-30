@@ -127,7 +127,7 @@ class KMeansCluster(BaseModel):
 
         return df.values
 
-    def plot_2d(self, show: bool = False, save_path: Optional[str] = None) -> go.Figure:
+    def plot_2d(self, show: bool = False, save_path: Optional[str] = None) -> Optional[go.Figure]:
         """Generate a 2D PCA scatter plot of the KMeans clusters.
 
         Args:
@@ -169,10 +169,11 @@ class KMeansCluster(BaseModel):
             fig.write_image(save_path)
         if show:
             fig.show()
+            return None
+        else:
+            return fig
 
-        return fig
-
-    def plot_3d(self, show: bool = False, save_path: Optional[str] = None) -> go.Figure:
+    def plot_3d(self, show: bool = False, save_path: Optional[str] = None) -> Optional[go.Figure]:
         """Generate a 3D PCA scatter plot of the KMeans clusters.
 
         Args:
@@ -216,10 +217,11 @@ class KMeansCluster(BaseModel):
             fig.write_image(save_path)
         if show:
             fig.show()
+            return None
+        else:
+            return fig
 
-        return fig
-
-    def plot_voronoi(self, show: bool = True, save_path: Optional[str | Path] = None, grid_step: Optional[float] = None, max_points: int = 200_000) -> go.Figure:
+    def plot_voronoi(self, show: bool = True, save_path: Optional[str | Path] = None, grid_step: Optional[float] = None, max_points: int = 200_000) -> Optional[go.Figure]:
         """Plot Voronoi-like decision regions for KMeans clustering using 2D PCA.
 
         Args:
@@ -304,8 +306,9 @@ class KMeansCluster(BaseModel):
             fig.write_image(save_path)
         if show:
             fig.show()
-    
-        return fig
+            return None
+        else:
+            return fig
 
     def elbow_plot(
         self,
