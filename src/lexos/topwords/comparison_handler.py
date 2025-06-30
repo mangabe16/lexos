@@ -1,3 +1,7 @@
+# --- ADDITION FOR ALL COMPARISON METHODS SUPPORT ---
+# Can be used in both keyterms.py and ztest.py
+
+import pandas as pd
 from collections import defaultdict
 from typing import Optional, Any
 
@@ -12,9 +16,9 @@ class ComparisonHandler:
         doc_content_to_label_map: Optional[
             dict[str, str]
         ] = None,  # Added new parameter
-        **kwargs,
+        output_format: str = "dict", **kwargs,
     ):
-        """Initialize the ComparisonHandler with a comparison class and optional keyword arguments.
+        """Initialize the ComparisonHandler with a comparison class, output format, and optional keyword arguments.
 
         Parameters
         ----------
@@ -34,6 +38,7 @@ class ComparisonHandler:
         self.labels = labels
         self.doc_content_to_label_map = doc_content_to_label_map  # Store the new map
         self.kwargs = kwargs
+        self.output_format = output_format
 
     def compare_each_doc_to_corpus(self, documents: list[str]) -> list[dict]:
         """Compare each document to the rest of the corpus (all other documents).
@@ -65,14 +70,20 @@ class ComparisonHandler:
             instance = self.cls(
                 target_documents=[doc], background_documents=background, **self.kwargs
             )
-
-            # Determine the label for the current document
-            # Use provided label if available, otherwise fall back to numbering
-            doc_label = self.labels[i] if self.labels else f"Doc {i + 1}"
-
-            # Append the result with its label
-            results.append({"label": doc_label, "result": instance()})
-        return results
+            # Use label if provided, else fallback
+            label = (
+                self.labels[i]
+                if self.labels is not None and i < len(self.labels)
+                else f"Doc {i+1}"
+            )
+            result = instance()
+            # Attach label to result dict
+            if isinstance(result, dict):
+                result = {"label": label, **result}
+            else:
+                result = {"label": label, "result": result}
+            results.append(result)
+        return self._format_output(results)
 
     def compare_each_doc_to_other_classes(
         self, class_docs: dict[str, list[str]]
@@ -117,7 +128,7 @@ class ComparisonHandler:
                     else f"{cls_name} Doc {i + 1}"
                 )
                 results[cls_name].append({"label": doc_label, "result": instance()})
-        return results
+        return self._format_output(dict(results))
 
     def compare_each_class_to_other_classes(
         self, class_docs: dict[str, list[str]]
@@ -150,4 +161,73 @@ class ComparisonHandler:
             )
             # The class name is the natural label for this comparison type
             results[cls_name] = instance()
-        return results
+        return self._format_output(results)
+    
+    def _format_output(self, results):
+        """Format the output according to the output_format."""
+        if self.output_format == "dict":
+            return results 
+        elif self.output_format == "dataframe":
+            return self.to_df(results)
+        elif self.output_format == "list_of_dicts":
+            return self.to_list_of_dicts(results)
+        else:
+            return results # fallback to raw results
+    
+    @staticmethod
+    def to_df(results):
+        """Return results as a pandas DataFrame, flattened so each row is a single topword."""
+        rows = []
+        # Handle list of dicts (e.g., from compare_each_doc_to_corpus)
+        if isinstance(results, list):
+            for i, res in enumerate(results):
+                label = res.get("label", f"Doc {i+1}") if isinstance(res, dict) else f"Doc {i+1}"
+                # Support both {'topwords': [...]} and just a list of dicts
+                topwords = res.get("topwords", []) if isinstance(res, dict) else []
+                for tw in topwords:
+                    row = {"label": label}
+                    row.update(tw)
+                    rows.append(row)
+        # Handle dict of dicts (e.g., from compare_each_class_to_other_classes)
+        elif isinstance(results, dict):
+            # Check if values are dicts (not lists)
+            if all(isinstance(v, dict) for v in results.values()):
+                for group, res in results.items():
+                    label = group
+                    topwords = res.get("topwords", []) if isinstance(res, dict) else []
+                    for tw in topwords:
+                        row = {"group": group, "label": label}
+                        row.update(tw)
+                        rows.append(row)
+            else:
+                # existing code for dict of lists
+                for group, group_results in results.items():
+                    for res in group_results:
+                        label = res.get("label", group) if isinstance(res, dict) else group
+                        topwords = res.get("result", {}).get("topwords", []) if isinstance(res, dict) else []
+                        for tw in topwords:
+                            row = {"group": group, "label": label}
+                            row.update(tw)
+                            rows.append(row)
+        else:
+            raise ValueError("Unsupported results format for DataFrame conversion.")
+        return pd.DataFrame(rows)
+        
+    @staticmethod
+    def to_list_of_dicts(results):
+        """Return results as a list of dicts."""
+        if isinstance(results,list):
+            return results
+        elif isinstance(results, dict):
+            all_dicts = []
+            for group, group_results in results.items():
+                for res in group_results:
+                    if isinstance(res, dict):
+                        d = {"group": group}
+                        d.update(res)
+                        all_dicts.append(d)
+                    elif isinstance(res, (list, tuple)) and len(res) == 2:
+                        all_dicts.append({"group": group, "term": res[0], "score": res[1]})
+            return all_dicts
+        else:
+            raise ValueError("Unsupported results format for list_of_dicts conversion.")

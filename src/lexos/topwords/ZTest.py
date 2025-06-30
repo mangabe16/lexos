@@ -10,10 +10,25 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
+"""ZTest.py.
+
+Last Updated: June 25, 2025
+Last Tested: June 25, 2025
+"""
+
+from collections import Counter
+from typing import Any, Optional
+
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc
 
+from spacy.tokens import Doc
+
 from lexos.tokenizer import Tokenizer
+from lexos.topwords import TopWords
 from lexos.topwords import TopWords
 from lexos.topwords.comparison_handler import ComparisonHandler
 
@@ -116,9 +131,11 @@ class ZTest(TopWords):
         return tokens
 
     def __call__(self) -> dict | list | pd.DataFrame | list[dict] | list[tuple]:
+    def __call__(self) -> dict | list | pd.DataFrame | list[dict] | list[tuple]:
         """Calculate top distinguishing words using Z-test for significance.
 
         Returns:
+            dict | list | pd.DataFrame | list[dict] | list[tuple]: Top words and their Z-scores.
             dict | list | pd.DataFrame | list[dict] | list[tuple]: Top words and their Z-scores.
         """
         # Use provided docs or create them from text
@@ -240,6 +257,9 @@ class ZTestComparison(BaseModel):
     cats: Optional[list[str]] = Field(None, description="Categories for each document")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    output_format: str = Field(
+        "dict", description = "Output format: 'dict, 'dataframe', 'list_of_dicts', 'list_of_tuples'"
+    )
 
     def model_post_init(self, __context):
         """Validate and initialize labels after model initialization."""
@@ -264,9 +284,9 @@ class ZTestComparison(BaseModel):
             )
 
     def compare_docs_to_corpus(
-        self, docs: list[Doc | str], **kwargs
+        self, docs: list[Doc | str], background_cats: Optional[list[str]] = None,  **kwargs
     ) -> list[dict[str, str | ZTest]]:
-        """Compare each document against the rest of the corpus using Z-test.
+        """Compare each document against a filtered background (by categories if specified).
 
         Args:
             docs: Documents to compare against the corpus. Must be a subset of corpus.
@@ -285,35 +305,28 @@ class ZTestComparison(BaseModel):
 
         # Get labels for the specified docs
         doc_labels = self._get_doc_labels(docs)
-
-        # Create mapping for efficient lookup
-        doc_to_indices = self._create_doc_mapping()
-
         results = []
 
-        # Process each document
-        for label, doc in zip(doc_labels, docs):
-            doc_str = str(doc)
-            doc_indices = doc_to_indices[doc_str]
-
-            # Create background corpus by excluding current document
-            background_corpus = [
-                self.corpus[i] for i in range(len(self.corpus)) if i not in doc_indices
-            ]
-
-            if not background_corpus:
-                raise ValueError(
-                    f"Document '{doc_str}' appears in entire corpus - no background documents available."
-                )
-
-            # Create ZTest instance
+        for label,doc in zip(doc_labels,docs):
+            # build background set
+            if background_cats is not None and self.cats is not None:
+                background_docs = [
+                    d for d, c in zip(self.corpus, self.cats)
+                    if c in background_cats and d != doc
+                ]
+            else:
+                background_docs = [d for d in self.corpus if d != doc]
+            
+            if not background_docs:
+                raise ValueError("No background documents available for comparison.")
+            
             ztest_instance = ZTest(
-                target_documents=[doc], background_documents=background_corpus, **kwargs
+                target_documents=[doc], background_documents=background_docs, **kwargs
             )
-
             results.append({"label": label, "result": ztest_instance})
-
+        
         return results
+    
 
     def compare_cat_to_corpus(
         self, cat: str, background_cats: Optional[list[str]] = None, **kwargs
@@ -412,6 +425,74 @@ class ZTestComparison(BaseModel):
                 continue
 
         return results
+  
+    def compare_each_doc_to_other_classes(self, **kwargs) -> dict[str,list[dict]]:
+        """For each class, compare each document in that class to all documentes in otehr classes.
+
+        Returns a dict mapping class name to a list of results for each document in that class.
+        """
+        if self.cats is None:
+            raise ValueError("Categories (cats) must be provided for this comparison")
+      
+        # Build mapping from class to docs
+        class_to_docs = {}
+        for doc, cat in zip(self.corpus, self.cats):
+            if cat not in class_to_docs:
+                class_to_docs[cat] = []
+            class_to_docs[cat].append(doc)
+
+        results = {}
+        for cat, docs_in_class in class_to_docs.items():
+            #Background: all docs not in this class
+            background_docs = [doc for doc, c in zip(self.corpus,self.cats) if c != cat]
+            results[cat] = []
+            for doc in docs_in_class:
+                ztest_instance = ZTest(
+                    target_documents=[doc],
+                    background_documents=background_docs,
+                    **kwargs
+                )
+                label = self._get_doc_labels([doc])[0]
+                results[cat].append({"label": label, "result": ztest_instance})
+        return results
+
+    def compare_each_class_to_each_other_class(self, **kwargs) -> dict[str,dict[str,dict]]:
+        """For each class, compare it to every other class individually.
+        
+        Returns a nested dict: {target_class: {background_class: result_dict}}
+        """
+        if self.cats is None:
+            raise ValueError("Categories (cats) must be provided for this comparison.")
+        
+        # build mapping from class to docs
+        class_to_docs = {}
+        for doc, cat in zip(self.corpus, self.cats):
+            if cat not in class_to_docs:
+                class_to_docs[cat] = []
+            class_to_docs[cat].append(doc)
+
+        results = {}
+        all_classes = list(class_to_docs.keys())
+        for target_class in all_classes:
+            results[target_class] = {}
+            target_docs = class_to_docs[target_class]
+            for background_class in all_classes:
+                if background_class == target_class:
+                    continue
+                background_docs = class_to_docs[background_class]
+                if not target_docs or not background_docs:
+                    continue
+                ztest_instance = ZTest(
+                    target_documents = target_docs,
+                    background_documents = background_docs,
+                    **kwargs
+                )
+                results[target_class][background_class] = {
+                    "target_category": target_class,
+                    "background_category": background_class,
+                    "result": ztest_instance
+                }
+        return results
 
     # Helper methods
     def _get_doc_labels(self, docs: list[Doc | str]) -> list[str]:
@@ -508,3 +589,119 @@ class ZTestComparison(BaseModel):
             )
 
         return target_documents, background_documents
+    
+    def _format_output(self, results):
+        """Format the output according to the output_format"""
+        if self.output_format == "dict":
+            return results
+        elif self.output_format == "dataframe":
+            return self.to_df(results)
+        elif self.output_format == "list_of_dicts":
+            return self.to_list_of_dicts(results)
+        elif self.output_format == "list_of_tuples":
+            return self.to_list_of_tuples(results)
+        else:
+            return results # fallback to raw results
+
+    @staticmethod
+    def to_df(results):
+        """Return results as a pandas DataFrame with columns: label, term, z_score."""
+        import pandas as pd
+
+        rows = []
+
+        def extract_rows(label, ztest_result):
+            # ztest_result can be a ZTest instance or a dict with 'result'
+            if hasattr(ztest_result, "topwords"):
+                topwords = getattr(ztest_result, "topwords", []) or []
+            elif isinstance(ztest_result, dict) and "result" in ztest_result:
+                return extract_rows(label, ztest_result["result"])
+            else:
+                topwords = []
+            for term, z_score in topwords:
+                rows.append({"label": label, "term": term, "z_score": z_score})
+
+        if isinstance(results, list):
+            for item in results:
+                label = item.get("label", None)
+                result = item.get("result", None)
+                if label is not None and result is not None:
+                    extract_rows(label, result)
+        elif isinstance(results, dict):
+            # Try to handle dicts of the form {cat: {category, background_categories, result}}
+            for group, comparison_result in results.items():
+                # If nested dict with 'result', use group as label
+                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                    extract_rows(group, comparison_result["result"])
+                # If dict with 'label' and 'result'
+                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                    extract_rows(comparison_result["label"], comparison_result["result"])
+                # If already a ZTest instance
+                elif hasattr(comparison_result, "topwords"):
+                    extract_rows(group, comparison_result)
+        # Return DataFrame
+        return pd.DataFrame(rows, columns=["label", "term", "z_score"])
+
+    @staticmethod
+    def to_list_of_dicts(results):
+        """Return results as a list of dicts with keys: label, term, z_score."""
+        output = []
+
+        def extract(label, ztest_result):
+            if hasattr(ztest_result, "topwords"):
+                # Ensure topwords is always a list, even if None
+                topwords = getattr(ztest_result, "topwords", []) or []
+            elif isinstance(ztest_result, dict) and "result" in ztest_result:
+                return extract(label, ztest_result["result"])
+            else:
+                topwords = []
+            for term, z_score in topwords:
+                output.append({"label": label, "term": term, "z_score": z_score})
+
+        if isinstance(results, list):
+            for item in results:
+                label = item.get("label", None)
+                result = item.get("result", None)
+                if label is not None and result is not None:
+                    extract(label, result)
+        elif isinstance(results, dict):
+            for group, comparison_result in results.items():
+                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                    extract(group, comparison_result["result"])
+                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                    extract(comparison_result["label"], comparison_result["result"])
+                elif hasattr(comparison_result, "topwords"):
+                    extract(group, comparison_result)
+        return output
+
+    @staticmethod
+    def to_list_of_tuples(results):
+        """Return results as a list of (label, term, z_score) tuples."""
+        output = []
+
+        def extract(label, ztest_result):
+            if hasattr(ztest_result, "topwords"):
+                # Ensure topwords is always a list, even if None
+                topwords = getattr(ztest_result, "topwords", []) or []
+            elif isinstance(ztest_result, dict) and "result" in ztest_result:
+                return extract(label, ztest_result["result"])
+            else:
+                topwords = []
+            for term, z_score in topwords:
+                output.append((label, term, z_score))
+
+        if isinstance(results, list):
+            for item in results:
+                label = item.get("label", None)
+                result = item.get("result", None)
+                if label is not None and result is not None:
+                    extract(label, result)
+        elif isinstance(results, dict):
+            for group, comparison_result in results.items():
+                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                    extract(group, comparison_result["result"])
+                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                    extract(comparison_result["label"], comparison_result["result"])
+                elif hasattr(comparison_result, "topwords"):
+                    extract(group, comparison_result)
+        return output
