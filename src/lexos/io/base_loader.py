@@ -1,7 +1,7 @@
 """base_loader.py.
 
-Last Update: 2024-12-28
-Tested: 2024-12-28
+Last Update: 2025-06-29
+Tested: 2025-06-29
 """
 
 from abc import ABC, abstractmethod
@@ -17,25 +17,15 @@ from lexos.exceptions import LexosException
 class BaseLoader(BaseModel, ABC):
     """BaseLoader."""
 
-    paths: list = Field(
-        default=[], json_schema_extra={"description": "The list of paths."}
-    )
-    mime_types: list = Field(
-        default=[], json_schema_extra={"description": "The list of text mime types."}
-    )
-    names: list = Field(
-        default=[], json_schema_extra={"description": "The list of text namess."}
-    )
-    texts: list = Field(
-        default=[], json_schema_extra={"description": "The list of loaded texts."}
-    )
-    errors: list = Field(
-        default=[], json_schema_extra={"description": "The list of loading errors."}
-    )
+    paths: list = Field(default=[], description="The list of paths.")
+    mime_types: list = Field(default=[], description="The list of text mime types.")
+    names: list = Field(default=[], description="The list of text names.")
+    texts: list = Field(default=[], description="The list of loaded texts.")
+    errors: list = Field(default=[], description="The list of loading errors.")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __iter__(self) -> Generator:
+    def __iter__(self) -> Generator[dict, None, None]:
         """Iterate through the records."""
         return (record for record in self.records)
 
