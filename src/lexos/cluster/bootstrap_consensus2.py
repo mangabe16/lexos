@@ -26,6 +26,8 @@ from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 from lexos.util import is_valid_colour
 
+PRECISION = 1  # Precision for branch length formatting in dendrogram labels
+
 
 class BCT(BaseModel):
     """The Bootstrap Consensus Tree Class."""
@@ -258,7 +260,9 @@ class BCT(BaseModel):
             tree,
             axes=ax,
             do_show=False,
-            branch_labels=lambda clade: "{0:.1f}\n".format(clade.branch_length)
+            branch_labels=lambda clade: "{0:.{PRECISION}f}\n".format(
+                clade.branch_length
+            )
             if clade.branch_length is not None
             else "",
         )
