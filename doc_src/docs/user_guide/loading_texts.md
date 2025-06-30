@@ -14,6 +14,8 @@ When you use a `Loader`, all your data is stored in memory for use in a Lexos wo
 !!! note "Note for Developers"
     Both of `Loader` and `DataLoader` inherit from an abstract [`BaseLoader`](../../api/io/base_loader) abstract class, which defines the common features and methods that all loaders should implement. This allows for a consistent interface if you decide to build a custom loader for a data format not currently handled by the existing loaders.
 
+    Both loaders also inherit from Pydantic's `BaseModel`, which provides additional functionality. The most important is the `model_dump()` method, which returns the model's attributes in the form of a dictionary. For other useful methods, see Pydantic's <a href="https://docs.pydantic.dev/latest/concepts/serialization/" target="_blank">Serialization documentation</a>.
+
 For practice using the Lexos `io` module, see the <a href="https://scottkleinman.github.io/lexos/tutorials/loading_texts.ipynb" target="_blank">Loading Texts tutorial</a>.
 
 ## Using the `Loader` Class
@@ -112,9 +114,9 @@ new_data_loader1.load_dataset(existing_data_loader2)
 ```
 
 !!! note
-    The `Loader` class also has a `load_dataset()` method for merging data sets into an existing `Loader` instance. It takes a `DataLoader` instance as an argument and merges it into the given `Loader` object.
+    The `Loader` class also has a `load_dataset()` method for merging data sets into an existing `Loader` instance. It takes a `DataLoader` instance as an argument and merges it into an existing `Loader` object.
 
-The `DatasetLoader.load()` method accepts files, urls, and directories of files in `.txt`, `.csv`, `.tsv`, `.xlsx`, `json`, and `jsonl` format, as well zip archives containing files in those formats. As shown above, `.txt` files must be line-delimited, without a header, and must be accompanied by a list of `labels`.
+The `DataLoader.load()` method accepts files, urls, and directories of files in `.txt`, `.csv`, `.tsv`, `.xlsx`, `json`, and `jsonl` format, as well zip archives containing files in those formats. As shown above, `.txt` files must be line-delimited, without a header, and must be accompanied by a list of `labels`.
 
 `.csv`, `.tsv`, and `.xlsx` files must have a header line containing the values `title` and `text`. Lexos will use these columns to assign your documents' `name` and `text` values. If your source file has a different header, you can tell Lexos which headers to use, as in the following example:
 
@@ -131,68 +133,27 @@ The example above also tells Lexos to use a tab as the separator between columns
 
 For JSON-formatted files, use `title_field` and `text_field` to assign which columns should be read by Lexos. If your file is in newline-delimited JSON (JSONL) format, add the parameter `lines=True`.
 
-Once loaded, texts and their metadata can be accessed with the `DatasetLoader.data` property. This is a list of dicts where each document dict has keywords for `title` and `text`. To access the first document's title, you would use `Dataset.data[0]["title"]`. When iterating through the dataset, the `data` property is optional:
+Once loaded, texts and their metadata can be accessed with the `DataLoader.data` property. This a dictionary with the keywords `paths`, `mime_types`, `names`, `texts`, and `errors`. The values for each keyword are the individual dataset items in the order in which they were added. You can access individual items with `DataLoader.data["texts"][0]` (to get the first text). However, it may be easier to iterate through the DatasetLoader, which retrieves `Dataset` objects that can be accessed by attribute:
 
 ```python
 for item in dataset:
-    print(item["title"])
+    print(item.text)
 ```
 
-produces the same result as
+This produces the same result as the more complicated
 
 ```python
-for item in dataset.data:
-    print(item["title"])
+for item in dataset.data["texts"]:
+    print(item)
 ```
 
-!!! warning
-    Notice that iterating through the `DatasetLoader` requires that you reference keywords of a dict `item["text"]`, where as the `smart` loader yields an object, allowing you to reference `item.text`. We hope to make this behaviour more consistent in the future.
+!!! note "Developer's Note"
+    When iterating through a `DataLoader` object, Lexos constructs a `Dataset` object for each item in the data. This is what allows you to access item attributes. If you just print the item, you will get a representation of the `Dataset` instance, which can be useful in its own right.
 
-## The `Dataset` Class
-
-Internally, the `DatasetLoader` detects the format of the input data and then calls the appropriate method of the `Dataset` class. For instance, if the file is a CSV file, the `Dataset.parse_csv()` method will be used. In most case, it makes sense to take advantage of the `DatasetLoader`'s format detection so that you can use the same syntax for all inputs, but in some circumstances, it may be useful to call `Dataset` directly. Here is an example of how you would do it:
-
-```python
-from lexos.io.dataset import Dataset
-
-dataset = Dataset.parse_csv("myfile.csv")
-
-for item in dataset:
-    print(item["title"])
-```
-
-`Dataset.parse_csv()` takes the same `text_col` and `title_col` arguments that you would pass to the `DatasetLoader`. Here is a list of the main `Dataset` methods and the arguments they take:
-
-- `parse_string()`: Parses line-delimited text files. Requires `labels`.
-- `parse_csv()`: Parses a CSV file. Requires `text_col` and `title_col` if there are no `text` and `title` headers. Requires `sep="\t"` is the file is a tab-separated value file.
-- `parse_excel()`: Parses an Excel file. Requires `text_col` and `title_col` if there are no `text` and `title` headers.
-- `parse_json()`: Parses a JSON file. Requires `text_field` and `title_field` if there are no `text` and `title` fields.
-- `parse_jsonl()`: Parses a JSONL file. Requires `text_field` and `title_field` if there are no `text` and `title` fields.
-
-## Adding Datasets to a Standard Lexos Loader
-
-If you already have a Loader, it is easy to add datasets to it.
-
-```python
-# Import the loaders
-from lexos.io.smart import Loader
-from lexos.io.dataset import Dataset, DatasetLoader
-
-# Create and empty `Loader`
-loader = Loader()
-
-# Create a `DatasetLoader` and load a dataset
-dataset_loader = DatasetLoader("myfile1.csv")
-
-# Load a dataset with `Dataset`
-dataset = Dataset.parse_csv("myfile1.csv")
-
-# Add the text and names for each dataset to the standard loader
-for item in [dataset_loader, dataset]:
-    loader.names.extend(item.names)
-    loader.texts.extend(item.texts)
-```
+You can also call `DataLoader.records` to output the data as a list of dictionaries, where each dictionary contains the keys `paths`, `mime_types`, `names`, `texts`, and `errors`, or as a Pandas DataFrame (tabular format) with `DataLoader.df`
 
 ## What Next?
 
-Once you have all your data in a `Loader`, you can manipulate the text. Almost inevitably, some of the text you have loaded will be "dirty" &mdash; meaning that it is not quite in the shape you want it in for further analysis. This may be a moment to do some preprocessing with the [Scrubber module](scrubbing_texts.md).
+Once you have all your data in a loader, you can manipulate the texts. Almost inevitably, some of the texts you have loaded will be "dirty" &mdash; meaning that it is not quite in the shape you want it in for further analysis. This may be a moment to do some preprocessing with the [Scrubber module](scrubbing_texts.md).
+
+If you need to add metadata, generate statisics, or otherwise manage your data, you may want to create a corpus and add your texts to it from the loader. This can be done with the `corpus` module. See [Managing a Corpus](managing_a_corpus.md).

@@ -21,7 +21,7 @@ nav:
       - Cutting Bracken: user_guide/cutting_bracken.md
   #     - The Document-Term Matrix: user_guide/the_document_term_matrix.md
   #     - Visualization: user_guide/visualization.md
-  #     - Managing a Corpus: user_guide/managing_a_corpus.md
+      - Managing a Corpus: user_guide/managing_a_corpus.md
   #     - Training a Language Model: user_guide/training_a_language_model.md
   #     - Topic Modelling with MALLET: user_guide/mallet_topic_models.md
   # - Development:
@@ -40,7 +40,7 @@ nav:
           # - Merge: api/cutter/merge.md
           # - Milestones: api/cutter/milestones.md
           # - Registry: api/cutter/registry.md
-      - dtm: 
+      - dtm:
           - Overview: api/dtm/index.md
           - dtm: api/dtm/dtm.md
       - filter:
@@ -51,7 +51,7 @@ nav:
           - base_loader: api/io/base_loader.md
           - loader: api/io/loader.md
           - data_loader: api/io/dataloader.md
-      - milestones: 
+      - milestones:
           - Overview: api/milestones/overview.md
           - span_milestones: api/milestones/span_milestones.md
           - string_milestones: api/milestones/string_milestones.md
@@ -122,7 +122,7 @@ nav:
           - cloud: api/visualization/cloud.md
           - plotly_wordcloud: api/visualization/plotly_wordcloud.md
           - processors: api/visualization/processors.md
-   
+
 theme:
   name: material
   favicon: http://lexos.wheatoncollege.edu/static/favicon.png

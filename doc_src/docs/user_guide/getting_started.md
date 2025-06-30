@@ -22,16 +22,15 @@ flowchart LR
 
 Before you get started, make sure that you have [installed Lexos](../installation.md).
 
-
 ## Basic Usage
 
 Lexos workflows can be run conveniently in Jupyter notebooks simply by importing the relevant module (or the required functions and classes from the module). For instance, you can import the `Loader` with
 
 ```python
-# Import the Lexos smart loader
-from lexos.io.smart import Loader
+# Import the Lexos Loader class
+from lexos.io.loader import Loader
 
-# Instantiate the Loader object
+# Instantiate a Loader object
 loader = Loader()
 
 # Load a text file
@@ -40,17 +39,18 @@ loader.load("myfile.txt")
 
 This will work in a standalone script as well. Any errors will be printed to your notebook or console.
 
-If you are designing an app that uses Lexos "under the hood", it is good practice to import the `LexosException` class and re-write the last line above in a `try...except` clause:
+!!! note "Note for Developers"
+    If you are designing an app that uses Lexos "under the hood", it is good practice to import the `LexosException` class and re-write the last line above in a `try...except` clause:
 
-```python
-from lexos.exceptions import LexosException
+    ```python
+    from lexos.exceptions import LexosException
 
-try:
-    loader.load("myfile.txt")
-except LexosException as e:
-    print(e)
-```
+    try:
+        loader.load("myfile.txt")
+    except LexosException as e:
+        print(e)
+    ```
 
-This will enable your application to handle errors without stopping the program.
+    This will enable your application to handle errors without stopping the program.
 
-To learn about each of the individual modules in the Lexos API, browse through the pages in this tutorial, which take you through the modules and their applications one by one.
+To learn about each of the individual Lexos modules, browse through the pages in this guide. More examples of the use of Lexos functions can be found in the [Tutorial notebooks](../../tutorials), and a full descriptions can be found in the [API documentation](../../api).
