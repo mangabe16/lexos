@@ -130,6 +130,20 @@ class KMeansCluster(BaseModel):
             fig.show()
         else:
             return fig
+        
+    def export_html(self, path: str) -> None:
+        """Export the plotly figure to an HTML file."""
+        if self.plotly_fig is None:
+            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
+        self.plotly_fig.write_html(path)
+
+    def export_image(self, path: str, format: str = "png") -> None:
+        """Export the plotly figure to an image."""
+        if self.plotly_fig is None:
+            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
+        self.plotly_fig.write_image(path, format=format)
+
+
 
     def plot_3d(self, show: bool = False, save_path: Optional[str] = None) -> go.Figure:
         """Generate a 3D PCA scatter plot of the clusters."""

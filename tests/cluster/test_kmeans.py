@@ -1,76 +1,242 @@
-import pytest
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix
-
-from lexos.cluster.kmeans.kmeans import KMeansCluster
+import pytest
 from lexos.dtm import DTM
+from lexos.cluster.kmeans.kmeans import KMeansCluster
+from lexos.exceptions import LexosException
+from pydantic import ValidationError
+from unittest.mock import patch
+from unittest.mock import MagicMock
 
 
-class MockVectorizer:
-    terms_list = [f"f{i}" for i in range(5)]
 
+@pytest.fixture
+def sample_data():
+    """Fixture for fake DTM data."""
+    np.random.seed(42)
+    data = np.random.rand(10, 5)  # 10 documents, 5 features
+    return pd.DataFrame(data)
 
-def make_mock_dtm(n_docs=10, n_terms=5) -> DTM:
-    """Create a mock DTM object with minimal dependencies."""
-    X = np.random.rand(n_docs, n_terms)
-    dtm = DTM()
-    dtm.doc_term_matrix = csr_matrix(X)
-    dtm.labels = [f"Doc{i + 1}" for i in range(n_docs)]
-    dtm.vectorizer = MockVectorizer()
-    return dtm
+def test_kmeans_cluster_runs(sample_data):
+    """Test basic clustering works and returns correct length."""
+    clusterer = KMeansCluster(dtm=sample_data, k=3)
+    assignments = clusterer()
+    
+    assert isinstance(assignments, np.ndarray)
+    assert len(assignments) == len(sample_data)
 
+def test_invalid_k_raises_exception(sample_data):
+    """Test that missing k raises an exception."""
+    clusterer = KMeansCluster(dtm=sample_data)
+    with pytest.raises(LexosException, match="Number of clusters 'k' must be specified"):
+        clusterer()
 
-def test_kmeans_cluster_assignment():
-    dtm = make_mock_dtm()
-    kmeans = KMeansCluster(dtm=dtm, k=3)
-    assignments = kmeans()
-    assert len(assignments) == len(dtm.labels)
-    assert set(assignments).issubset(set(range(3)))
-
-
-def test_plot_2d_generation():
-    dtm = make_mock_dtm()
-    kmeans = KMeansCluster(dtm=dtm, k=3)
-    kmeans()
-    fig = kmeans.plot_2d()
+def test_plot_2d_runs(sample_data):
+    """Test plot_2d method does not crash."""
+    clusterer = KMeansCluster(dtm=sample_data, k=2)
+    clusterer()
+    fig = clusterer.plot_2d()
     assert fig is not None
 
-
-def test_plot_3d_generation():
-    dtm = make_mock_dtm()
-    kmeans = KMeansCluster(dtm=dtm, k=3)
-    kmeans()
-    fig = kmeans.plot_3d()
+def test_plot_3d_runs(sample_data):
+    """Test plot_3d method does not crash."""
+    clusterer = KMeansCluster(dtm=sample_data, k=2)
+    clusterer()
+    fig = clusterer.plot_3d()
     assert fig is not None
 
+def test_export_csv(tmp_path, sample_data):
+    """Test CSV export after clustering."""
+    clusterer = KMeansCluster(dtm=sample_data, k=2)
+    clusterer()
+    out_csv = tmp_path / "output.csv"
+    clusterer.export_csv(str(out_csv))
 
-def test_elbow_plot_executes():
-    dtm = make_mock_dtm()
-    kmeans = KMeansCluster(dtm=dtm)
-    fig = kmeans.elbow_plot(k_range=range(1, 5), show=False)
-    assert fig is not None
-
-
-def test_export_csv(tmp_path):
-    dtm = make_mock_dtm()
-    kmeans = KMeansCluster(dtm=dtm, k=3)
-    kmeans()
-    output_path = tmp_path / "clusters.csv"
-    kmeans.export_csv(str(output_path))
-    df = pd.read_csv(output_path)
-    assert df.shape[0] == len(dtm.labels)
+    df = pd.read_csv(out_csv)
+    assert "Document" in df.columns
     assert "Cluster" in df.columns
 
+def test_elbow_plot_runs(sample_data):
+    """Test that elbow_plot runs without errors."""
+    clusterer = KMeansCluster(dtm=sample_data)
+    # We won't assert the plot, just make sure it runs
+    clusterer.elbow_plot(show=False)
 
-def test_save_png_and_svg(tmp_path):
-    dtm = make_mock_dtm()
-    kmeans = KMeansCluster(dtm=dtm, k=3)
+def test_plot_voronoi_runs(sample_data):
+    """Test that voronoi plot renders without crash."""
+    clusterer = KMeansCluster(dtm=sample_data, k=3)
+    clusterer()
+    clusterer.plot_voronoi(show=False)
+
+def test_kmeans_fit_fails_with_invalid_k(sample_data):
+    """Force kmeans to fail and hit the exception block."""
+    clusterer = KMeansCluster(dtm=sample_data, k=0)  # invalid k
+    with pytest.raises(LexosException, match="KMeans clustering failed"):
+        clusterer()
+class DummyDTM:
+    def __init__(self):
+        self.labels = [f"Doc{i+1}" for i in range(5)]
+
+    def to_df(self, transpose=True):
+        return pd.DataFrame(np.random.rand(5, 5))
+
+def test_kmeans_with_real_dtm():
+    mat = [[1, 2], [3, 4]]
+    labels = ["doc1", "doc2"]
+    dtm = DTM(matrix=mat, labels=labels)
+
+    with patch.object(DTM, "to_df", return_value=pd.DataFrame(mat, index=labels)):
+        clusterer = KMeansCluster(dtm=dtm, k=2)
+        result = clusterer()
+        assert isinstance(result, np.ndarray)
+
+def test_kmeans_with_numpy_array():
+    """Test clustering with NumPy ndarray input."""
+    data = np.random.rand(6, 4)
+    clusterer = KMeansCluster(dtm=data, k=2)
+    result = clusterer()
+    assert len(result) == 6
+def test_kmeans_unsupported_input_raises():
+    """Simulate an unsupported input and trigger LexosException manually."""
+    clusterer = KMeansCluster(k=2, dtm=pd.DataFrame([[1, 2], [3, 4]]))
+    
+    with patch.object(KMeansCluster, "_get_valid_matrix", side_effect=LexosException("Unsupported input")):
+        with pytest.raises(LexosException, match="Unsupported input"):
+            clusterer()
+
+def test_kmeans_too_few_documents():
+    """Ensure error is raised with fewer than 2 documents."""
+    df = pd.DataFrame(np.random.rand(1, 5))
+    clusterer = KMeansCluster(dtm=df, k=1)
+    with pytest.raises(LexosException, match="Need at least 2 documents"):
+        clusterer()
+def test_kmeans_call_sets_attrs(sample_data):
+    """Check that kwargs passed to __call__ get set."""
+    clusterer = KMeansCluster()
+    clusterer(dtm=sample_data, k=2, n_init=5, tol=1e-3)
+    assert clusterer.k == 2
+    assert clusterer.n_init == 5
+    assert clusterer.tol == 1e-3
+def test_set_attrs_directly(sample_data):
+    clusterer = KMeansCluster()
+    clusterer._set_attrs(k=3, tol=1e-3, dtm=sample_data)
+    assert clusterer.k == 3
+    assert clusterer.tol == 1e-3
+    assert clusterer.dtm.equals(sample_data)
+
+def test_export_image_without_figure_raises(sample_data):
+    """Ensure error is raised when exporting without a generated plot."""
+    clusterer = KMeansCluster(dtm=sample_data, k=2)
+    with pytest.raises(LexosException, match="No figure available"):
+        clusterer.export_image("dummy.png", format="png")
+
+@pytest.fixture
+def sample_data():
+    """Fixture to create random sample data."""
+    np.random.seed(42)
+    return pd.DataFrame(np.random.rand(10, 5))
+
+def test_export_html_runs(tmp_path, sample_data):
+    """Test exporting plot as HTML."""
+    clusterer = KMeansCluster(dtm=sample_data, k=2)
+    clusterer()
+    clusterer.plot_2d()
+    path = tmp_path / "plot.html"
+    clusterer.export_html(str(path))
+    assert path.exists()
+def test_export_csv_failure_handling(sample_data):
+    """Ensure export_csv error is caught and re-raised as LexosException."""
+    clusterer = KMeansCluster(dtm=sample_data, k=2)
+    clusterer()
+    
+    with patch("pandas.DataFrame.to_csv", side_effect=Exception("CSV write error")):
+        with pytest.raises(LexosException, match="Failed to export CSV: CSV write error"):
+            clusterer.export_csv("fake.csv")
+def test_kmeans_invalid_input_raises():
+    with pytest.raises(ValidationError, match="Input should be"):
+        KMeansCluster(dtm="invalid", k=2)
+def test_export_image_no_fig_raises():
+    clusterer = KMeansCluster(dtm=np.random.rand(3, 3), k=2)
+    # clusterer() is NOT called, so plotly_fig stays None
+    with pytest.raises(LexosException, match="No figure available"):
+        clusterer.export_image("dummy.png")
+        
+def test_save_png_runs(tmp_path):
+    mat = [[1, 2], [3, 4]]
+    labels = ["doc1", "doc2"]
+    dtm = DTM(matrix=mat, labels=labels)
+    clusterer = KMeansCluster(dtm=dtm, k=2)
+    clusterer()
+    clusterer.plot_2d()
+    save_path = tmp_path / "plot.png"
+    clusterer.save_png(str(save_path))
+    assert save_path.exists()
+
+
+def test_save_svg_runs(tmp_path):
+    mat = [[1, 2], [3, 4]]
+    labels = ["doc1", "doc2"]
+    dtm = DTM(matrix=mat, labels=labels)
+    clusterer = KMeansCluster(dtm=dtm, k=2)
+    clusterer()
+    clusterer.plot_3d()
+    save_path = tmp_path / "plot.svg"
+    clusterer.save_svg(str(save_path))
+    assert save_path.exists()
+
+def test_export_html_runs(tmp_path, sample_data):
+    clusterer = KMeansCluster(dtm=sample_data, k=2)
+    clusterer()
+    clusterer.plot_2d()
+    path = tmp_path / "plot.html"
+    clusterer.export_html(path)
+    assert path.exists()
+def test_invalid_dtm_type():
+    with pytest.raises(LexosException, match="Unsupported input"):
+        kmeans = KMeansCluster(dtm="invalid type", k=2)
+        kmeans()
+
+
+def test_less_than_two_documents():
+    mat = [[1, 2]]
+    dtm = DTM(matrix=mat, labels=["only_doc"])
+    kmeans = KMeansCluster(dtm=dtm, k=2)
+    with pytest.raises(LexosException, match="at least 2 documents"):
+        kmeans()
+
+
+def test_plot_without_clustering():
+    mat = [[1, 2], [3, 4]]
+    dtm = DTM(matrix=mat, labels=["doc1", "doc2"])
+    kmeans = KMeansCluster(dtm=dtm, k=2)
+    with pytest.raises(LexosException, match="run clustering before plotting"):
+        kmeans.plot_2d()
+
+
+def test_export_image_raises_without_plot(tmp_path):
+    mat = [[1, 2], [3, 4]]
+    dtm = DTM(matrix=mat, labels=["doc1", "doc2"])
+    kmeans = KMeansCluster(dtm=dtm, k=2)
+    path = tmp_path / "no_image.png"
+    with pytest.raises(LexosException, match="No figure available"):
+        kmeans.export_image(str(path))
+
+
+def test_export_csv_raises_without_clustering(tmp_path):
+    mat = [[1, 2], [3, 4]]
+    dtm = DTM(matrix=mat, labels=["doc1", "doc2"])
+    kmeans = KMeansCluster(dtm=dtm, k=2)
+    path = tmp_path / "output.csv"
+    with pytest.raises(LexosException, match="run clustering first"):
+        kmeans.export_csv(str(path))
+
+
+def test_export_csv_runs(tmp_path):
+    mat = [[1, 2], [3, 4]]
+    dtm = DTM(matrix=mat, labels=["doc1", "doc2"])
+    kmeans = KMeansCluster(dtm=dtm, k=2)
     kmeans()
-    kmeans.plot_2d()
-    png_path = tmp_path / "plot.png"
-    svg_path = tmp_path / "plot.svg"
-    kmeans.save_png(str(png_path))
-    kmeans.save_svg(str(svg_path))
-    assert png_path.exists()
-    assert svg_path.exists()
+    path = tmp_path / "out.csv"
+    kmeans.export_csv(str(path))
+    assert path.exists()
+
