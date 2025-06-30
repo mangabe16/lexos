@@ -258,7 +258,7 @@ class BCT(BaseModel):
             tree,
             axes=ax,
             do_show=False,
-            branch_labels=lambda clade: "{0:.4f}\n".format(clade.branch_length)
+            branch_labels=lambda clade: "{0:.1f}\n".format(clade.branch_length)
             if clade.branch_length is not None
             else "",
         )
