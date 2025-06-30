@@ -1,77 +1,76 @@
+"""utils.py.
+
+Last Updated: June 30, 2025
+Last Tested: TBD.
+"""
+
+import csv
+from typing import List, Union
+
 import pandas as pd
 from spacy.tokens import Doc
-from lexos.corpus.record import Record
-from typing import List, Optional
+
+# from lexos.corpus import Record
 
 
-class PredictionSaver:
+def save_predictions(filenames: list, predictions: list, output_file: str) -> None:
+    """Save a list of filenames and their corresponding predicted labels to a CSV file.
+
+    Args:
+        filenames (list): list of filenames
+        predictions (list): predicted labels for each file
+        output_file (str): output CSV file path/name
     """
-    Utility class for saving classification predictions in different formats.
-    """
+    # combine filenames and predictions into a pandas DataFrame
+    df = pd.DataFrame({"filename": filenames, "prediction": predictions})
+    # save the DataFrame to a CSV file
+    df.to_csv(output_file, index=False)
+    print(f"Predictions saved to {output_file}")
 
-    @staticmethod
-    def save_to_csv(filenames: List[str], predictions: List[str], output_file: str):
-        """
-        Save filenames and predicted labels to a CSV file.
 
-        Parameters:
-            filenames: List of document filenames or identifiers
-            predictions: List of predicted labels
-            output_file: Path to the output CSV file
-        """
-        # create dataframe from the two lists: filenames and predictions
-        df = pd.DataFrame({
-            'filename': filenames,
-            'prediction': predictions
-        })
+# def save_predictions(
+#     labels: List[str],
+#     predictions: List[str],
+#     output_path: str,
+#     docs: List[Doc] = None,
+#     output_format: str = "csv"
+# ):
+#     """
+#     Save predictions to a CSV or attach them to spaCy Docs and return Records.
 
-        # save the dataframe to a CSV file
-        df.to_csv(output_file, index=False)
-        print(f"Predictions saved to {output_file}")
+#     Parameters:
+#         labels: List of document names or labels
+#         predictions: List of predicted category strings
+#         output_path: File path for CSV, ignored for 'record' output
+#         docs: List of spaCy Docs (required if output_format is 'record')
+#         output_format: 'csv' or 'record'
 
-    @staticmethod
-    def save_to_records(
-        docs: List[Doc],
-        labels: List[str],
-        predictions: List[str],
-        confidences: Optional[List[float]] = None
-    ) -> List[Record]:
-        """
-        Attach classification results to spaCy Docs and return wrapped Lexos Record objects.
+#     Returns:
+#         List of Records if output_format is 'record'; None otherwise
+#     """
+#     if output_format == "csv":
+#         with open(output_path, mode='w', newline='', encoding='utf-8') as f:
+#             writer = csv.writer(f)
+#             writer.writerow(["Label", "Prediction"])
+#             writer.writerows(zip(labels, predictions))
+#         print(f"Predictions saved to {output_path}")
+#         return None
 
-        Parameters:
-            docs: List of spaCy Doc objects
-            labels: Corresponding filenames or document names
-            predictions: Predicted class labels
-            confidences: Optional confidence scores
+#     elif output_format == "record":
+#         if docs is None:
+#             raise ValueError("spaCy Docs are required for 'record' output")
 
-        Returns:
-            List of Lexos Record objects with classification metadata attached
-        """
-        # Holds the of lexos record objects
-        records = []
+#         from lexos.corpus import Record
 
-        # loop through the documents and their corresponding labels and predictions
-        for i, (doc, label, pred) in enumerate(zip(docs, labels, predictions)):
-            # so that it is stored in spacys standard classification format
-            # says the doc belongs to the predicted category with confidence 1.0
-            doc.cats = {pred: 1.0}
+#         records = []
+#         for label, prediction, doc in zip(labels, predictions, docs):
+#             doc.cats = {prediction: 1.0}  # mark predicted class
+#             doc.user_data["classification_label"] = prediction  # general storage
+#             record = Record(name=label, content=doc, meta={"classification": prediction})
+#             records.append(record)
 
-            # add custom label for the prediction inside the spacy docs user data
-            # This is just a plain string for easy access later
-            doc.user_data["classification_label"] = pred
+#         print(f"{len(records)} Records created with classification metadata.")
+#         return records
 
-            #create a metadata dictionary with the predicted class
-            #this will be stored in the Lexos Record object
-            meta = {"predicted_class": pred}
-
-            # wrap the document and its metadata in a lexos record object
-            # The Record class expects a name, content, and meta information
-            # The content is the spaCy Doc object, which can be processed later
-            # The name is the label (filename or identifier) for the document
-            # The meta dictionary contains the predicted class label
-            record = Record(name=label, content=doc, meta={"classification": meta})
-            records.append(record)
-
-        print(f"{len(records)} records created with classification metadata.")
-        return records
+#     else:
+#         raise ValueError(f"Unsupported output_format: {output_format}")
