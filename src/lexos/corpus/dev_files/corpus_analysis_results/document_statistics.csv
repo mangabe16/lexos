@@ -1,0 +1,11 @@
+Documents,hapax_legomena,total_tokens,total_terms,vocabulary_density,hapax_dislegomena
+sample_literature,33,52,41,78.85,7
+sample_academic,32,38,35,92.11,3
+sample_news,35,39,37,94.87,2
+sample_dialogue,29,33,31,93.94,2
+sample_technical,30,36,33,91.67,3
+sample_literature_processed,32,64,43,67.19,8
+sample_academic_processed,34,47,39,82.98,4
+sample_news_processed,35,44,39,88.64,3
+sample_dialogue_processed,27,53,35,66.04,5
+sample_technical_processed,30,38,34,89.47,4

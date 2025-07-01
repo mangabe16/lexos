@@ -1,14 +1,22 @@
 """utils.py.
 
 This file contains helper functions used by multiple modules.
+
+Last Updated: June 24, 2025
+Lasty Tested: June 24, 2025
 """
 
 from pathlib import Path
 from typing import Any, Collection, TypeVar
 
 import chardet
-from bs4 import UnicodeDammit
-from pydantic_extra_types.color import Color, PydanticCustomError
+import spacy
+from bs4 import (
+    UnicodeDammit,  # type: ignore - this import is correct, but Pylance fails to recognize it
+)
+from pydantic_core import PydanticCustomError
+from pydantic_extra_types.color import Color
+from spacy.language import Language
 from spacy.tokens import Doc
 
 import lexos.constants as constants
@@ -69,7 +77,10 @@ def get_encoding(input_string: bytes) -> str:
     """
     encoding_detect = chardet.detect(input_string[: constants.MIN_ENCODING_DETECT])
     encoding_type = encoding_detect["encoding"]
+    if encoding_type is None:
+        encoding_type = "utf-8"
     return encoding_type
+
 
 def is_valid_colour(color: str) -> bool:
     """Check if a string is a valid colour.
@@ -88,6 +99,33 @@ def is_valid_colour(color: str) -> bool:
     except PydanticCustomError:
         return False
     return True
+
+
+def load_spacy_model(model: Language | str) -> Language:
+    """Load a spaCy language model.
+
+    Args:
+        model (Language | str): The spaCy model to load, either as a Language object or a string representing the model name.
+
+    Returns:
+        Language: The loaded spaCy language model.
+
+    Raises:
+        LexosException: If the model cannot be loaded or if the model type is incorrect.
+    """
+    if not isinstance(model, (Language, str)):
+        raise LexosException("Model must be a string or a spaCy Language object.")
+
+    if isinstance(model, Language):
+        return model
+    else:
+        try:
+            return spacy.load(model)
+        except OSError:
+            raise LexosException(
+                f"Error loading model '{model}'. Please check the name and try again. You may need to install the model on your system."
+            )
+
 
 def normalize(raw_bytes: bytes | str) -> str:
     """Normalise a string to LexosFile format.
@@ -169,6 +207,9 @@ def _try_decode_bytes_(raw_bytes: bytes) -> str:
         encoding_detect = chardet.detect(raw_bytes)
         encoding_type = encoding_detect["encoding"]
 
+    if encoding_type is None:
+        encoding_type = "utf-8"
+
     try:
         # Try to decode the string using the original encoding
         decoded_string = raw_bytes.decode(encoding_type)
@@ -208,16 +249,16 @@ def _decode_bytes(raw_bytes: bytes | str) -> str:
     else:
         decoded_str = raw_bytes
 
-    # Normalize line breaks
-    # "\r\n" -> "\n"
-    if "\r\n" in decoded_str[: constants.MIN_NEWLINE_DETECT]:
-        decoded_str = decoded_str.replace("\r", "")
+    # Normalize line breaks - NB. Pylance fails in these lines
+    # First handle "\r\n" -> "\n" (Windows line endings)
+    if "\r\n" in decoded_str[: constants.MIN_NEWLINE_DETECT]:  # type: ignore
+        decoded_str = decoded_str.replace("\r\n", "\n")  # type: ignore
 
-    # "\r" -> "\n"
-    if "\r" in decoded_str[: constants.MIN_NEWLINE_DETECT]:
-        decoded_str = decoded_str.replace("\r", "\n")
+    # Then handle remaining "\r" -> "\n" (Mac classic line endings)
+    if "\r" in decoded_str[: constants.MIN_NEWLINE_DETECT]:  # type: ignore
+        decoded_str = decoded_str.replace("\r", "\n")  # type: ignore
 
-    return decoded_str
+    return decoded_str  # type: ignore
 
 
 def strip_doc(doc: Doc) -> Doc:
@@ -256,12 +297,13 @@ def strip_doc(doc: Doc) -> Doc:
 
     # Find last non-whitespace token
     end_idx = len(doc) - 1
-    for i in range(len(doc) - 1, -1, -1): # list(doc)[::-1]
+    for i in range(len(doc) - 1, -1, -1):  # list(doc)[::-1]
         if not doc[i].is_space:
             end_idx = i
             break
 
     return doc[start_idx : end_idx + 1].as_doc()
+
 
 def get_token_extension_names(doc: Doc) -> list[str]:
     """Get the names of token extensions from a spaCy Doc.
@@ -272,7 +314,7 @@ def get_token_extension_names(doc: Doc) -> list[str]:
     Returns:
         list[str]: a list of token extensions.
     """
-    return [ext for ext in doc[0]._.__dict__['_extensions'].keys()]
+    return [ext for ext in doc[0]._.__dict__["_extensions"].keys()]
 
 
 def to_collection(

@@ -7,9 +7,10 @@ Span milestones differ from normal milestones in that milestones are "invisible"
 structural boundaries between spans or groups of spans (e.g. sentence or line breaks).
 Thus, instead of storing a list of patterns representing milestones, span milestones
 store the groups of spans themselves.
+
+Last Update: 12/27/2024
+Last Tested: 12/27/2024
 """
-# TODO:
-# - Test.
 
 from itertools import zip_longest
 from string import punctuation

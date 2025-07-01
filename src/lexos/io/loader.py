@@ -1,7 +1,7 @@
 """loader.py.
 
-Last Update: 2025-05-26
-Tested: 2025-01-14
+Last Update: 2025-06-29
+Tested: 2025-06-29
 """
 
 import mimetypes

@@ -1,13 +1,14 @@
 """data_loader.py.
 
-Last Update: 2025-01-14
-Tested: 2025-01-14
+Last Update: 2025-06-29
+Tested: 2025-06-29
 """
 
 import io
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Self
+from typing import Generator, Optional, Self
 
 import pandas as pd
 from pydantic import ConfigDict, validate_call
@@ -18,6 +19,16 @@ from lexos.io.base_loader import BaseLoader
 from lexos.util import _decode_bytes as decode
 
 
+@dataclass
+class Dataset:
+    """Dataset class."""
+
+    name: str
+    path: str
+    mime_type: str
+    text: str
+
+
 class DataLoader(BaseLoader):
     """DataLoader."""
 
@@ -26,6 +37,22 @@ class DataLoader(BaseLoader):
     def __init__(self):
         """Initialize the DataLoader."""
         super().__init__()
+
+    def __iter__(self) -> Generator[Dataset, None, None]:
+        """Make the class iterable.
+
+        Yields:
+            Dataset: A Dataset object containing the name, path, mime_type, and text of each dataset item.
+
+        Note: Overrides the BaseLoader's __iter__ method to yield Dataset objects.
+        """
+        for i in range(len(self.data["paths"])):
+            yield Dataset(
+                name=self.data["names"][i],
+                path=self.data["paths"][i],
+                mime_type=self.data["mime_types"][i],
+                text=self.data["texts"][i],
+            )
 
     def _update_data(
         self, path: Path | str, df: pd.DataFrame, mime_type: str = "text/plain"
