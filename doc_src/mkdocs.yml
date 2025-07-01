@@ -9,16 +9,18 @@ nav:
       - Overview: user_guide/index.md
       - Getting Started: user_guide/getting_started.md
       - Loading Texts: user_guide/loading_texts.md
-      - Scrubbing Texts:
-        - Scrubber Overview: user_guide/scrubbing_texts.md
-        - Normalize: user_guide/scrubber/normalize.md
-        - Remove: user_guide/scrubber/remove.md
-        - Replace: user_guide/scrubber/replace.md
-        - Tags: user_guide/scrubber/tags.md
-        - Internal Components: user_guide/scrubber/internal_components.md
-      - Tokenizing Texts: user_guide/tokenizing_texts.md
-      - Cutting Documents: user_guide/cutting_documents.md
-      - Cutting Bracken: user_guide/cutting_bracken.md
+      - Proprocessing Steps:
+        - Overview: user_guide/preprocessing_steps.md
+        - Scrubbing Texts:
+          - Scrubber Overview: user_guide/scrubbing_texts.md
+          - Normalize: user_guide/scrubber/normalize.md
+          - Remove: user_guide/scrubber/remove.md
+          - Replace: user_guide/scrubber/replace.md
+          - Tags: user_guide/scrubber/tags.md
+          - Internal Components: user_guide/scrubber/internal_components.md
+        - Tokenizing Texts: user_guide/tokenizing_texts.md
+        - Cutting Documents: user_guide/cutting_documents.md
+        - Cutting Bracken: user_guide/cutting_bracken.md
       - The Document-Term Matrix: user_guide/the_document_term_matrix.md
       - Visualization: user_guide/visualization.md
       - Managing a Corpus: user_guide/managing_a_corpus.md
@@ -30,8 +32,6 @@ nav:
         - Keywords in Context (KWIC): user_guide/kwic.md
   #     - Training a Language Model: user_guide/training_a_language_model.md
   #     - Topic Modelling with MALLET: user_guide/mallet_topic_models.md
-  # - Development:
-  #     - Index: development/index.md
   - Tutorials:
       - Overview: tutorials/index.md
   - API:
@@ -128,6 +128,8 @@ nav:
           - cloud: api/visualization/cloud.md
           - plotly_wordcloud: api/visualization/plotly_wordcloud.md
           - processors: api/visualization/processors.md
+  - Development:
+      - Overview: development/index.md
 
 theme:
   name: material
