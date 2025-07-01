@@ -9,3 +9,4 @@ If you are just starting, it is best to read through the guide in the following 
 4. [A Short Primer on Pydantic](pydantic_primer.md)
 5. [Documenting Your Code](documenting_your_code.md)
 6. [Creating a Module](creating_a_module.md)
+7. [Running the Documentation Website](running_the_docs.md)
