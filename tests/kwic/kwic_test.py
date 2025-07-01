@@ -17,24 +17,28 @@ Usage:
 To run the test for this module:
     uv run pytest tests/kwic/kwic_test.py
 
-Last Updated: 6/30/25
-Last Tested: 6/30/25
+Last Updated: 7/1/25
 """
 
-from src.lexos.kwic import Kwic
-from src.lexos.tokenizer import Tokenizer
+import importlib
 from typing import Iterable
-from lexos.exceptions import LexosException
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
 import pytest
-from pydantic import ValidationError
 import spacy
+from pydantic import ValidationError
+
+from lexos.exceptions import LexosException
+from src.lexos.kwic import Kwic
+from src.lexos.tokenizer import Tokenizer
 
 
 @pytest.fixture
 def tokenizer() -> Tokenizer:
     """Fixture of a tokenizer object."""
     return Tokenizer()
+
 
 @pytest.fixture
 def kwic() -> Kwic:
@@ -50,6 +54,19 @@ def spacy_doc_sentences(tokenizer) -> str:
     return doc
 
 
+def test_kwic_init_sucess() -> None:
+    """Test Kwic class initialization."""
+    kwic = Kwic(model_name="en_core_web_sm")
+    assert isinstance(kwic, Kwic)
+    assert kwic.model_name == "en_core_web_sm"
+
+
+def test_kwic_init_invalid_model() -> None:
+    """Test Kwic class initialization with an invalid model name."""
+    with pytest.raises(LexosException):
+        Kwic(model_name="invalid_model_name")
+
+
 def test_kwic_find_with_doc(tokenizer, kwic) -> None:
     """Test KWIC find method with a Doc object."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
@@ -60,8 +77,8 @@ def test_kwic_find_with_doc(tokenizer, kwic) -> None:
     assert list(results_list) == [[(" a ", "test", " st"), ("to ", "test", " th")]]
 
 
-def test_kwic_find_with_string(tokenizer, kwic) -> None:
-    """Test KWIC find method with a string input."""
+def test_kwic_find_with_inputs(tokenizer, kwic) -> None:
+    """Test KWIC find method with multiple inputs."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc1 = tokenizer(text)
     doc2 = tokenizer(text)
@@ -72,6 +89,12 @@ def test_kwic_find_with_string(tokenizer, kwic) -> None:
     assert isinstance(kwic_results, Iterable)
     assert results_list[0] == [(" a ", "test", " st"), ("to ", "test", " th")]
     assert results_list[1] == [(" a ", "test", " st"), ("to ", "test", " th")]
+
+
+def test_kwic_not_doc_throws_error(kwic) -> None:
+    """Test that KWIC find method raises TypeError if doc is not a Doc object."""
+    with pytest.raises(TypeError):
+        kwic.find(doc="This is a string, not a Doc object.", keyword="test")
 
 
 def test_kwic_word_not_found(tokenizer, kwic) -> None:
@@ -151,6 +174,17 @@ def test_multiple_keywords(tokenizer, kwic) -> None:
     assert results_list[2] == ("he ", "Kwic", " mo", "Kwic")
 
 
+def test_multiple_keywords_not_doc_inputs(kwic) -> None:
+    """Test that KWIC find_multiple_keywords raises TypeError if doc is not a Doc object."""
+    with pytest.raises(TypeError):
+        kwic.find_multiple_keywords(
+            doc="This is a string, not a Doc object.",
+            keywords=["test", "Kwic"],
+            window_size=3,
+            pad_context=True,
+        )
+
+
 def test_multiple_keywords_none_provided(tokenizer, kwic) -> None:
     """Test KWIC find method with no keywords provided."""
     text = "This is a test string to test the Kwic module for finding correct words in context."
@@ -198,6 +232,7 @@ def test_mixed_string_regex_keywords(tokenizer, kwic) -> None:
     assert results_list[1] == ("to ", "test", " th", "test")
     assert results_list[2] == ("he ", "Kwic", " mo", "[Kk]wic")
     assert results_list[3] == ("ng ", "kwic", ".  ", "[Kk]wic")
+
 
 def test_multiple_keywords_multiple_docs(tokenizer, kwic) -> None:
     """Test KWIC find method with multiple Doc objects and multiple keywords."""
@@ -317,8 +352,17 @@ def test_find_tokens_no_matches(tokenizer, kwic) -> None:
     text = "This is a test string to test the Kwic module for finding correct words in context."
     doc = tokenizer(text)
     with pytest.raises(LexosException):
+        kwic.find_tokens(doc=doc, keyword="bingo", token_window=5, ignore_case=True)
+
+
+def test_find_tokens_not_doc_input(kwic) -> None:
+    """Test that KWIC find_tokens raises TypeError if doc is not a Doc object."""
+    with pytest.raises(TypeError):
         kwic.find_tokens(
-            doc=doc, keyword="bingo", token_window=5, ignore_case=True
+            doc="This is a string, not a Doc object.",
+            keyword="test",
+            token_window=5,
+            ignore_case=True,
         )
 
 
@@ -373,9 +417,7 @@ def test_find_tokens_empty_string(tokenizer, kwic) -> None:
     text = ""
     doc = tokenizer(text)
     with pytest.raises(LexosException):
-        kwic.find_tokens(
-            doc=doc, keyword="test", token_window=5, ignore_case=True
-        )
+        kwic.find_tokens(doc=doc, keyword="test", token_window=5, ignore_case=True)
 
 
 def test_find_tokens_invalid_keyword(tokenizer, kwic) -> None:

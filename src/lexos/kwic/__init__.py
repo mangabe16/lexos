@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Updated: 6/30/25
-Last Tested: 6/30/25
+Last Updated: 7/1/25
+Last Tested: 7/1/25
 
 Current Usage:
 - Find keywords and their surrounding context in spaCy docs
@@ -10,25 +10,24 @@ Current Usage:
 - Find keywords in sentences of a spaCy doc
 """
 
-from textacy.extract import kwic
-from spacy.tokens import Doc
-from typing import Iterable, Pattern, Optional
-from pydantic import validate_call, ConfigDict, BaseModel, Field
+from typing import Any, Iterable, Optional, Pattern
+
 import pandas as pd
-from spacy.matcher import Matcher
-from spacy.language import Language
 import spacy
-from typing import Any
+from pydantic import BaseModel, ConfigDict, Field, validate_call
+from spacy.language import Language
+from spacy.matcher import Matcher
+from spacy.tokens import Doc
+from textacy.extract import kwic
 
 from lexos.exceptions import LexosException
-from lexos.util import ensure_list
 
 try:
     default_model = spacy.load("xx_sent_ud_sm")
-except ImportError:
+except ImportError:  # pragma: no cover
     raise LexosException(
         "The default model is not available. Please run `python -m spacy download xx_sent_ud_sm` from the command line."
-    )
+    )  # pragma: no cover
 
 
 class Kwic(BaseModel):
@@ -244,6 +243,7 @@ class Kwic(BaseModel):
             raise TypeError("Input must be a spaCy Doc or a list of Docs.")
         # Instantiate the Matcher with the Doc's vocabulary
         matcher = Matcher(self.nlp.vocab)
+
         # Add the keyword pattern to the matcher
         if isinstance(keyword, str):
             if ignore_case:
