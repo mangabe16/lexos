@@ -6,22 +6,22 @@ This module is designed to provide tools for tokenizing texts using natural lang
 
 ## Tokenizers
 
-The tokenizer module includes 4 classes across 2 files. 
+The tokenizer module includes 4 classes across 2 files.
 
 - [lexos.tokenizer](tokenizer.md)
-    - [`SliceTokenizer`](tokenizer/#lexos.tokenizer.SliceTokenizer)
-        - Simple slice tokenizer
-        - Can be used to generate character tokens/ngrams
-    - [`Tokenizer`](tokenizer/#lexos.tokenizer.Tokenizer)
-        - Tokenizes texts using spaCy NLPs
-        - Takes in raw text as input
-        - Returns spaCy docs that contains the tokens of the given input text
-        - Includes filtering of digits, punctuation, stopwords, etc.
-        - Supports all spaCy NLP models
-    - [`WhitespaceTokenizer`](tokenizer/#lexos.tokenizer.WhitespaceTokenizer)
-        - Tokenizes on whitespace
+  - [`SliceTokenizer`](tokenizer/#lexos.tokenizer.SliceTokenizer)
+    - Simple slice tokenizer
+    - Can be used to generate character tokens/ngrams
+  - [`Tokenizer`](tokenizer/#lexos.tokenizer.Tokenizer)
+    - Tokenizes texts using spaCy NLPs
+    - Takes in raw text as input
+    - Returns spaCy docs that contains the tokens of the given input text
+    - Includes filtering of digits, punctuation, stopwords, etc.
+    - Supports all spaCy NLP models
+  - [`WhitespaceTokenizer`](tokenizer/#lexos.tokenizer.WhitespaceTokenizer)
+    - Tokenizes on whitespace
 - [lexos.tokenizer.ngrams](ngrams.md)
-    - [`Ngrams`](ngrams/#lexos.tokenizer.ngrams.Ngrams)
-        - Returns ngrams from a text, spaCy doc, or list of tokens
-        - Includes filtering of digits, punctuation, stopwords, whitespace, etc.
-        - User selected size of ngrams
+  - [`Ngrams`](ngrams/#lexos.tokenizer.ngrams.Ngrams)
+    - Returns ngrams from a text, spaCy doc, or list of tokens
+    - Includes filtering of digits, punctuation, stopwords, whitespace, etc.
+    - User selected size of ngrams

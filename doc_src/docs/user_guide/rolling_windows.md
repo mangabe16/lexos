@@ -1,24 +1,9 @@
-# Rolling Windows Module
-
-## Table of Contents
-1. [Overview](#overview)
-2. [Key Components](#key-components)
-   - [The Windows Class](#1-the-windows-class)
-   - [Calculator Classes](#2-calculator-classes)
-   - [Plotter Classes](#3-plotter-classes)
-3. [Choosing Your Analysis Type](#choosing-your-analysis-type)
-4. [Search Modes](#search-modes)
-5. [Window Size Guidelines](#window-size-guidelines)
-6. [How It Works](#how-it-works)
-7. [Quick Start Example](#quick-start-example)
-8. [Complete Workflow Example](#complete-workflow-example)
-9. [Practical Applications](#practical-applications)
-10. [Advanced Features](#advanced-features)
-11. [Troubleshooting Common Issues](#troubleshooting-common-issues)
-12. [Dependencies](#dependencies)
-13. [Testing](#testing)
+# Rolling Windows
 
 ## Overview
+
+!!! important
+    This page is currently under construction.
 
 The Rolling Windows module is a powerful text analysis tool that tracks how patterns change throughout documents. It creates a "moving spotlight" that slides through your text, counting specific words or patterns in each section to reveal temporal dynamics and narrative structures.
 
@@ -27,7 +12,7 @@ The Rolling Windows module is a powerful text analysis tool that tracks how patt
 Imagine reading a novel and tracking how often "love" appears versus "conflict" as the story progresses. Rolling Windows automates this process, creating visual timelines that show:
 
 - **Thematic Evolution**: How central themes rise and fall throughout a text
-- **Character Arcs**: When characters appear most prominently in narratives  
+- **Character Arcs**: When characters appear most prominently in narratives
 - **Stylistic Patterns**: Changes in writing style, punctuation usage, or linguistic features
 - **Emotional Journeys**: Tracking sentiment-related words to map emotional trajectories
 - **Structural Analysis**: Identifying patterns in document organization
@@ -48,20 +33,22 @@ rw = windows(input=doc, n=100, window_type="tokens", output="strings")
 ```
 
 **Key Parameters:**
+
 - `n`: Size of each window (e.g., 100 tokens)
 - `window_type`: How to measure windows ("tokens", "characters", or "lines")
 - `output`: Format of results ("strings" or "tokens")
 
-> **Developer Note:**  
-> The `Windows` class yields a generator for efficient memory usage. Convert it to a list only if needed.  
-> 
-> **Accepted input types:**  
-> - `str` (plain text)  
-> - spaCy `Doc` objects  
-> - `list` of strings or tokens  
+!!! note "Developer's Note"
+    The `Windows` class yields a generator for efficient memory usage. Convert it to a list only if needed.
 
-> **Important: Windows Are Consumed!**  
-> After using a windows object once (like converting to a list), you need to create fresh windows for each calculator. This is why you'll need to create new windows for each analysis.
+    **Accepted input types:**
+
+    - `str` (plain text)
+    - spaCy `Doc` objects
+    - `list` of strings or tokens
+
+    **Important: Windows Are Consumed!**
+    After using a windows object once (like converting to a list), you need to create fresh windows for each calculator. This is why you'll need to create new windows for each analysis.
 
 ### 2. Calculator Classes
 
@@ -75,7 +62,8 @@ Calculators analyze the patterns within each window. The module includes several
 | `Averages` | Comparing texts of different lengths or standardizing | Matches per unit (normalized) | Frequency rates |
 | `Ratios` | Comparing balance between exactly 2 patterns | Relative proportion | Values from 0.0 to 1.0 |
 
-#### `Counts` Calculator
+### `Counts` Calculator
+
 Provides raw occurrence counts without normalization.
 
 ```python
@@ -90,7 +78,8 @@ counter(
 )
 ```
 
-#### `Averages` Calculator
+### `Averages` Calculator
+
 Calculates the average frequency of patterns across windows, normalizing for window size.
 
 ```python
@@ -106,12 +95,14 @@ averages(
 ```
 
 **When to use Averages instead of Counts:**
+
 - Comparing texts of different lengths
 - Comparing different window sizes
 - Creating standardized measurements
 - Academic/scientific analysis
 
-#### `Ratios` Calculator
+### `Ratios` Calculator
+
 Computes the ratio between two patterns (e.g., positive vs. negative words).
 
 ```python
@@ -127,6 +118,7 @@ ratio_calc(
 ```
 
 **Understanding Ratios:**
+
 - **0.0** = Only the second pattern appears
 - **0.5** = Both patterns appear equally
 - **1.0** = Only the first pattern appears
@@ -141,7 +133,7 @@ A search mode determines how the Rolling Windows module matches your specified p
 
 - `"exact"`: Precise string matching
 - `"regex"`: Regular expression patterns
-- `"spacy_rule"`: Advanced linguistic pattern matching  
+- `"spacy_rule"`: Advanced linguistic pattern matching
 - `"multi_token"`: Phrase detection
 
 ### Pattern Matching Examples
@@ -157,19 +149,20 @@ A search mode determines how the Rolling Windows module matches your specified p
 | All proper nouns | `[[{"POS": "PROPN"}]]` | `"spacy_rule"` | Linguistic analysis |
 | All verbs | `[[{"POS": "VERB"}]]` | `"spacy_rule"` | Grammatical patterns |
 
-> **IMPORTANT TIP:**  
-> After creating a calculator, use the `.to_df()` method to convert results into a pandas DataFrame for further analysis or plotting.
+!!! important "Important Tip"
+    After creating a calculator, use the `.to_df()` method to convert results into a pandas DataFrame for further analysis or plotting.
 
-> **SpaCy Requirements:**  
-> - spaCy patterns require `window_type="tokens"` and `output="tokens"`
-> - Regex patterns use raw strings (e.g., `r"\bsh\w*"`)
-> - Use `case_sensitive=False` for case-insensitive matching
+    **SpaCy Requirements:**
+    - spaCy patterns require `window_type="tokens"` and `output="tokens"`
+    - Regex patterns use raw strings (e.g., `r"\bsh\w*"`)
+    - Use `case_sensitive=False` for case-insensitive matching
 
 ### 3. Plotter Classes
 
 Visualize your results with two plotting options:
 
 #### `SimplePlotter`
+
 Generates high-quality static plots suitable for publications using Matplotlib.
 
 **Best for:** Reports, publications, presentations
@@ -182,6 +175,7 @@ plotter.plot(averages.to_df())
 ```
 
 #### `PlotlyPlotter`
+
 Generates interactive web-based visualizations with hover tooltips and zoom capabilities.
 
 **Best for:** Exploration, web presentation, detailed analysis with hover information
@@ -194,6 +188,7 @@ interactive_plotter.plot(averages.to_df(), show_plot=True)
 ```
 
 **Interactive Features:**
+
 - **Hover** over points to see exact values
 - **Zoom** in/out with mouse wheel or zoom controls
 - **Pan** by clicking and dragging
@@ -218,8 +213,8 @@ interactive_plotter.plot(averages.to_df(), show_plot=True)
 4. **Calculation**: Compute averages, counts, or ratios based on your needs
 5. **Visualization**: Generate plots showing pattern frequencies across the document
 
-> **TIP:**  
-> For a detailed, step-by-step walkthrough—including code examples and explanations—see the accompanying tutorial Jupyter notebook.
+!!! note "Tip"
+    For a detailed, step-by-step walkthrough—including code examples and explanations—see the accompanying tutorial Jupyter notebook.
 
 ## Quick Start Example
 
@@ -283,28 +278,36 @@ results.to_csv("analysis_data.csv")
 ## Practical Applications
 
 ### Literary Analysis
+
 Track character mentions, themes, or stylistic elements throughout novels:
+
 ```python
 # Track protagonist vs antagonist presence
 patterns = ["elizabeth", "wickham"]
 ```
 
 ### Historical Documents
+
 Analyze changing terminology or concepts over time:
+
 ```python
 # Track evolution of political terms
 patterns = ["liberty", "freedom", "rights"]
 ```
 
 ### Linguistic Research
+
 Study language features and their distribution:
+
 ```python
 # Analyze punctuation patterns
 patterns = ["!", "?", "..."]
 ```
 
 ### Content Analysis
+
 Examine emotional or thematic content in texts:
+
 ```python
 # Sentiment tracking
 patterns = ["happy", "sad", "angry", "peaceful"]
@@ -313,6 +316,7 @@ patterns = ["happy", "sad", "angry", "peaceful"]
 ## Advanced Features
 
 ### Milestone Markers
+
 Add vertical lines to mark important sections (chapters, scenes, etc.):
 
 ```python
@@ -321,53 +325,57 @@ plotter = SimplePlotter(show_milestones=True, milestone_labels=milestones)
 ```
 
 ### Custom Window Alignment
+
 Control how character-based windows snap to token boundaries:
 
 ```python
 windows = Windows()
-rw = windows(input=doc, n=500, window_type="characters", 
+rw = windows(input=doc, n=500, window_type="characters",
              alignment_mode="contract")  # or "expand", "strict"
 ```
 
 ### Export Options
+
 Save results in various formats:
+
 - PNG/SVG (static plots)
 - HTML (interactive plots)
 - CSV (raw data)
 
 ## Troubleshooting Common Issues
 
-**Problem:** "Windows are consumed" error  
+**Problem:** "Windows are consumed" error
 **Solution:** Create fresh windows for each calculator call
 
-**Problem:** spaCy patterns don't work  
+**Problem:** spaCy patterns don't work
 **Solution:** Ensure `window_type="tokens"` and `output="tokens"` for spaCy rules
 
-**Problem:** No matches found  
+**Problem:** No matches found
 **Solution:** Check case sensitivity, try `case_sensitive=False`
 
-**Problem:** Regex not working  
+**Problem:** Regex not working
 **Solution:** Use raw strings (`r"pattern"`) and escape special characters
 
-**Problem:** Memory issues with large texts  
+**Problem:** Memory issues with large texts
 **Solution:** Reduce window size or limit text length (e.g., `text[:1000000]`)
 
 ## Dependencies
 
 The Rolling Windows module requires:
+
 - `spacy` (with language model, e.g., `en_core_web_sm`)
-- `pandas` 
+- `pandas`
 - `numpy`
 - `matplotlib` (for static plots)
 - `plotly` (for interactive plots)
 - `pydantic` (for data validation)
 
-> **Developer Note:**  
-> Install the spaCy language model separately:  
-> 
-> ```bash
-> python -m spacy download en_core_web_sm
-> ```
+!!! note "Developer's Note"
+    Install the spaCy language model separately:
+
+    ```bash
+    python -m spacy download en_core_web_sm
+    ```
 
 ## Testing
 

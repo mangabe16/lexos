@@ -1,9 +1,9 @@
-
----
-
-# README for Lexos Visualization Suite
+# Visualization
 
 ## Overview
+
+!!! important
+    This page is currently under construction.
 
 The Lexos Visualization Suite provides a set of modular tools for analyzing and visualizing textual data. These tools are built to support humanities scholars, linguists, and data scientists in exploring patterns across documents using both traditional and interactive visual methods.
 

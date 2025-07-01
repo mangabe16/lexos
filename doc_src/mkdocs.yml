@@ -17,11 +17,17 @@ nav:
         - Tags: user_guide/scrubber/tags.md
         - Internal Components: user_guide/scrubber/internal_components.md
       - Tokenizing Texts: user_guide/tokenizing_texts.md
-      - Cutting Documents: user_guide/cutting_docs.md
+      - Cutting Documents: user_guide/cutting_documents.md
       - Cutting Bracken: user_guide/cutting_bracken.md
-  #     - The Document-Term Matrix: user_guide/the_document_term_matrix.md
-  #     - Visualization: user_guide/visualization.md
+      - The Document-Term Matrix: user_guide/the_document_term_matrix.md
+      - Visualization: user_guide/visualization.md
       - Managing a Corpus: user_guide/managing_a_corpus.md
+      - Analyzing Documents:
+        - Overview: user_guide/analyzing_documents.md
+        - Clustering: user_guide/clustering.md
+        - Rolling Windows: user_guide/rolling_windows.md
+        - Topwords: user_guide/topwords.md
+        - Keywords in Context (KWIC): user_guide/kwic.md
   #     - Training a Language Model: user_guide/training_a_language_model.md
   #     - Topic Modelling with MALLET: user_guide/mallet_topic_models.md
   # - Development:

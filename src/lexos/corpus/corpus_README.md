@@ -1,5 +1,10 @@
 # Lexos Corpus Module: Centralized Document Management and Analysis
 
+## Overview
+
+!!! important
+    This page is currently under construction.
+
 The `lexos.corpus` module serves as the core foundation for document management and statistical analysis in the Lexos ecosystem. It provides centralized storage, metadata management, and inter-module communication capabilities that enable seamless integration with analysis modules like clustering, topic modeling, classification, and content analysis.
 
 ---
@@ -18,9 +23,11 @@ The Corpus module acts as a **central hub** for document management across the L
 ## Core Classes
 
 ### `Corpus` (`corpus.py`)
+
 The main container for managing collections of documents. Provides document storage, metadata management, and inter-module communication capabilities.
 
 **Key Features:**
+
 - **Document Storage**: File-based storage with msgpack serialization for portability
 - **Metadata Management**: Comprehensive metadata handling at corpus and document levels
 - **Statistical Analysis**: Integration with `CorpusStats` for advanced corpus analysis
@@ -28,6 +35,7 @@ The main container for managing collections of documents. Provides document stor
 - **Serialization Robustness**: Enhanced spaCy document handling with automatic fallback mechanisms
 
 **Inter-Module Integration Points:**
+
 ```python
 # For other module developers - attach analysis results
 corpus.import_analysis_results('kmeans', {
@@ -43,15 +51,18 @@ if not compatibility['compatible']:
 ```
 
 ### `Record` (`record.py`)
+
 Individual document container with robust metadata and serialization capabilities.
 
 **Key Features:**
+
 - **Content Storage**: Supports raw text and spaCy `Doc` objects
 - **Metadata Management**: Flexible `meta` attribute for arbitrary data storage
 - **Serialization**: msgpack-based with SHA256 integrity verification
 - **spaCy Integration**: Robust handling of linguistic annotations and custom extensions
 
 **Metadata Attachment Strategies for Module Developers:**
+
 ```python
 # Strategy 1: Use Record.meta for module-specific results
 record.meta['classification'] = {
@@ -74,15 +85,18 @@ if record.is_parsed:
 ```
 
 ### `CorpusStats` (`corpus_stats.py`)
+
 Advanced statistical analysis engine with **cached IQR properties** for performance optimization.
 
 **Key Features:**
+
 - **Cached Properties**: IQR calculations cached for improved performance (new in v1.5)
 - **Statistical Boundaries**: Clear boundaries between corpus-level and document-level statistics
 - **Advanced Metrics**: Lexical diversity, Zipf analysis, quality metrics, group comparisons
 - **Visualization**: Integrated plotting capabilities for statistical distributions
 
 **Performance Improvements (Recent Updates):**
+
 ```python
 # Cached IQR properties eliminate redundant calculations
 stats = corpus.get_stats()
@@ -97,6 +111,7 @@ outliers_again = stats.get_iqr_outliers()  # Uses cached IQR calculations
 ```
 
 ### `LexosModelCache` and `RecordsDict` (`utils.py`)
+
 Utility classes for efficient model management and type-safe record storage.
 
 ---
@@ -115,6 +130,7 @@ Utility classes for efficient model management and type-safe record storage.
 ### Recommended Patterns for Module Integration
 
 #### Pattern 1: Store Analysis Configuration and Results
+
 ```python
 # When your module processes a corpus
 def analyze_corpus(corpus, **params):
@@ -125,68 +141,70 @@ def analyze_corpus(corpus, **params):
         'parameters': params,
         'timestamp': datetime.now().isoformat()
     }
-    
+
     # Process each document
     results = []
     for record_id, record in corpus.records.items():
         # Your analysis logic here
         result = your_analysis_function(record.content)
-        
+
         # Store result in record metadata
         record.meta['your_module'] = {
             'result': result,
             'config': analysis_config
         }
         results.append(result)
-    
+
     # Store corpus-level results
     corpus.import_analysis_results('your_module', {
         'individual_results': results,
         'summary_statistics': calculate_summary(results),
         'configuration': analysis_config
     })
-    
+
     return results
 ```
 
 #### Pattern 2: Handle spaCy Document Annotations
+
 ```python
 # When working with linguistic annotations
 def add_linguistic_features(record):
     if not record.is_parsed:
         print(f"Warning: {record.name} not parsed with spaCy")
         return
-    
+
     doc = record.content
-    
+
     # Add document-level scores to user_data
     doc.user_data['linguistic_complexity'] = calculate_complexity(doc)
     doc.user_data['readability_score'] = calculate_readability(doc)
-    
+
     # Add classification scores to cats
     doc.cats = {
         'FORMAL': 0.7,
         'INFORMAL': 0.3
     }
-    
+
     # Note: Changes are automatically saved when record is serialized
 ```
 
 #### Pattern 3: Validate Corpus State Before Analysis
+
 ```python
 # When your module depends on corpus state
 def safe_analysis(corpus, module_name):
     # Check if previous analysis exists and is still valid
     if module_name in corpus.analysis_results:
         compatibility = corpus.validate_analysis_compatibility(module_name)
-        
+
         if compatibility['compatible']:
             print("Using cached analysis results")
             return corpus.get_analysis_results(module_name)
         else:
             print(f"Corpus changed: {compatibility['reason']}")
             print(f"Recommendation: {compatibility['recommendation']}")
-    
+
     # Proceed with fresh analysis
     return run_new_analysis(corpus)
 ```
@@ -210,7 +228,7 @@ corpus.import_analysis_results('topic_modeling', {
 try:
     topic_results = corpus.get_analysis_results('topic_modeling')
     topics = topic_results['results']['topics']
-    
+
     # Use topic assignments for further analysis
     cluster_with_topics(corpus, topics)
 except ValueError:
@@ -234,8 +252,6 @@ if not compatibility['compatible']:
     run_clustering_analysis(corpus)
 ```
 
-
-
 ## Installation and Dependencies
 
 ```bash
@@ -254,6 +270,7 @@ pip install pytest pytest-cov
 ## Integration Examples
 
 ### Example 1: Classification Module Integration
+
 ```python
 from lexos.corpus import Corpus
 import spacy
@@ -271,19 +288,19 @@ for i, text in enumerate(texts):
 # Classification module workflow
 def classify_documents(corpus, model):
     results = []
-    
+
     for record_id, record in corpus.records.items():
         if record.is_parsed:
             # Classify document
             prediction = model.predict(record.content.text)
             confidence = model.predict_proba(record.content.text).max()
-            
+
             # Store in spaCy cats (standard approach)
             record.content.cats = {
                 'POSITIVE': confidence if prediction == 1 else 1-confidence,
                 'NEGATIVE': confidence if prediction == 0 else 1-confidence
             }
-            
+
             # Store detailed results in record metadata
             record.meta['classification'] = {
                 'predicted_class': 'positive' if prediction == 1 else 'negative',
@@ -291,13 +308,13 @@ def classify_documents(corpus, model):
                 'model_name': model.__class__.__name__,
                 'features_used': 'text_content'
             }
-            
+
             results.append({
                 'record_id': record_id,
                 'prediction': prediction,
                 'confidence': confidence
             })
-    
+
     # Store corpus-level results
     corpus.import_analysis_results('text_classification', {
         'predictions': results,
@@ -312,35 +329,36 @@ def classify_documents(corpus, model):
             'avg_confidence': sum(r['confidence'] for r in results) / len(results)
         }
     })
-    
+
     return results
 ```
 
 ### Example 2: Topic Modeling Integration
+
 ```python
 def topic_modeling_integration(corpus, n_topics=5):
     # Get corpus statistics for analysis
     stats = corpus.get_stats()
-    
+
     # Check corpus quality
     quality_metrics = stats.corpus_quality_metrics
     if quality_metrics['vocabulary_richness']['sampling_adequacy'] == 'insufficient':
         print("Warning: Corpus may be too small for reliable topic modeling")
-    
+
     # Run topic modeling (pseudocode)
     topic_model = fit_topic_model(corpus, n_topics=n_topics)
-    
+
     # Store results in documents
     for record_id, record in corpus.records.items():
         if record.is_parsed:
             # Get topic distribution for document
             topic_dist = topic_model.transform([record.content.text])[0]
-            
+
             # Store in user_data
             record.content.user_data['topic_distribution'] = {
                 f'topic_{i}': float(prob) for i, prob in enumerate(topic_dist)
             }
-            
+
             # Store dominant topic in metadata
             dominant_topic = topic_dist.argmax()
             record.meta['topic_modeling'] = {
@@ -348,7 +366,7 @@ def topic_modeling_integration(corpus, n_topics=5):
                 'topic_probability': float(topic_dist[dominant_topic]),
                 'entropy': float(calculate_entropy(topic_dist))
             }
-    
+
     # Store model-level results
     corpus.import_analysis_results('topic_modeling', {
         'model_type': 'LDA',
@@ -376,6 +394,7 @@ uv run pytest tests/corpus/test_corpus.py       # Core corpus functionality
 ```
 
 **Recent Testing Improvements:**
+
 - **210+ passing tests** with comprehensive edge case coverage
 - **Performance benchmarking** for cached properties
 - **Serialization robustness testing** with various spaCy configurations
@@ -405,14 +424,14 @@ def process_record(record):
         else:
             # Fallback to text processing
             result = analyze_raw_text(record.content)
-        
+
         # Store result safely
         record.meta['your_module'] = {
             'result': result,
             'processing_type': 'spacy' if record.is_parsed else 'text',
             'timestamp': datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         # Log error and store failure information
         record.meta['your_module'] = {
@@ -430,17 +449,17 @@ def process_record(record):
 def efficient_corpus_analysis(corpus):
     # Get statistics once and reuse
     stats = corpus.get_stats()
-    
+
     # Use cached properties
     outliers = stats.iqr_outliers  # Uses cached IQR calculations
     quality = stats.corpus_quality_metrics  # Uses cached document stats
-    
+
     # Batch process documents
     for record_id, record in corpus.records.items():
         # Skip outliers if needed
         if any(record_id == outlier[0] for outlier in outliers):
             continue
-        
+
         # Process record efficiently
         process_record_efficiently(record)
 ```
@@ -450,12 +469,14 @@ def efficient_corpus_analysis(corpus):
 ## Future Development
 
 ### Planned Enhancements
+
 - **Database integration options** for large-scale deployments
 - **Distributed corpus processing** capabilities
 - **Enhanced inter-module APIs** with schema validation
 - **Real-time collaboration features** for multi-user scenarios
 
 ### Contributing
+
 For developers adding new analysis modules to Lexos:
 
 1. **Review this README** for integration patterns

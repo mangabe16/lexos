@@ -1,6 +1,9 @@
-# README for DTM module
+# The Document-Term Matrix
 
 ## Overview
+
+!!! important
+    This page is currently under construction.
 
 This module provides tools for working with Document-Term Matrices (DTM) in Python. It is part of the Lexos project and is designed to facilitate text analysis workflows.
 
@@ -33,12 +36,3 @@ For a comprehensive, interactive guide on how to use the DTM module, including d
 - **`tutorial.ipynb`**
 
 This tutorial covers document preparation, advanced `Vectorizer` configurations, DTM rebuilding workflows, detailed `to_df()` usage, and how to verify code coverage.
-
-## Running Tests
-
-This repository also contains a comprehensive test suite which was found to have 100% coverage. To execute the pytest suite to validate functionality:
-
-```bash
-# Run all tests in the DTM module
-uv run pytest tests/dtm/test_dtm.py
-```
