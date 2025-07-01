@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from lexos.dtm import DTM
 from pydantic import ValidationError
-from lexos.cluster.kmeans.kmeans import KMeansCluster
+from lexos.cluster.kmeans import KMeansCluster
 from lexos.exceptions import LexosException
 from pydantic import ValidationError
 from unittest.mock import patch
@@ -156,6 +156,7 @@ def test_export_csv_failure_handling(sample_data):
 def test_kmeans_invalid_input_raises():
     with pytest.raises(ValidationError, match="Input should be"):
         KMeansCluster(dtm="invalid", k=2)
+        
 def test_export_image_no_fig_raises():
     clusterer = KMeansCluster(dtm=np.random.rand(3, 3), k=2)
     # clusterer() is NOT called, so plotly_fig stays None

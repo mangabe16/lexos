@@ -1,5 +1,4 @@
-"""
-Lexos Package
+"""Lexos Package.
 
 This file makes core modules and classes available at the package level,
 so you can do imports like:
