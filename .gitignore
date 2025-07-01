@@ -31,7 +31,7 @@ profile_default/
 ipython_config.py
 
 # mkdocs documentation
-docs/
+/docs
 
 # Vscode config files
 .vscode.json
