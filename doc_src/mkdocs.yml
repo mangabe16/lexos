@@ -218,6 +218,7 @@ extra:
 
 plugins:
   - search
+  - git-revision-date-localized # For GitHub Actions, see https://github.com/timvink/mkdocs-git-revision-date-localized-plugin?tab=readme-ov-file#note-when-using-build-systems-like-github-actions
   - autorefs
   - section-index
   - macros
