@@ -2,8 +2,8 @@
 
 Lexos KMeans clustering module for document-term matrices.
 
-Last Updated: June 27, 2025
-Last Tested: 
+Last Updated: 2025-07-01
+Last Tested: 2025-07-01
 
 This module defines the KMeansCluster class, which supports:
 - Running KMeans clustering on a DTM, DataFrame, or NumPy array
@@ -172,20 +172,6 @@ class KMeansCluster(BaseModel):
             return None
         else:
             return fig
-        
-    def export_html(self, path: str) -> None:
-        """Export the plotly figure to an HTML file."""
-        if self.plotly_fig is None:
-            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
-        self.plotly_fig.write_html(path)
-
-    def export_image(self, path: str, format: str = "png") -> None:
-        """Export the plotly figure to an image."""
-        if self.plotly_fig is None:
-            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
-        self.plotly_fig.write_image(path, format=format)
-
-
 
     def plot_3d(self, show: bool = False, save_path: Optional[str] = None) -> Optional[go.Figure]:
         """Generate a 3D PCA scatter plot of the KMeans clusters.
@@ -406,6 +392,18 @@ class KMeansCluster(BaseModel):
 
         if return_knee:
             return optimal_k
+
+    def export_html(self, path: str) -> None:
+        """Export the plotly figure to an HTML file."""
+        if self.plotly_fig is None:
+            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
+        self.plotly_fig.write_html(path)
+
+    def export_image(self, path: str, format: str = "png") -> None:
+        """Export the plotly figure to an image."""
+        if self.plotly_fig is None:
+            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
+        self.plotly_fig.write_image(path, format=format)
 
     def save_png(self, path: str) -> None:
         """Save the most recent Plotly figure to a PNG file.
