@@ -40,6 +40,7 @@ nav:
       - Overview: api/index.md
       - cluster:
           - Overview: api/cluster/index.md
+          - kmeans: api/cluster/kmeans.md
       - cutter:
           - Cutter: api/cutter/index.md
           # - Filesplit: api/cutter/filesplit.md
