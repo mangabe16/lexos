@@ -2,57 +2,57 @@
 
 Lexos KMeans clustering module for document-term matrices.
 
-Last Updated: 2025-07-01
-Last Tested: 2025-07-01
+Last Updated: 2025-07-02
+Last Tested: 2025-07-02
 
-This module defines the KMeansCluster class, which supports:
-- Running KMeans clustering on a DTM, DataFrame, or NumPy array
-- 2D and 3D PCA visualizations of clusters using Plotly
-- Exporting clustering results to CSV or image formats
-- Interactive Voronoi-style cluster visualization
-- Elbow method for detecting the optimal number of clusters
-
-Notes:
-- PCA is used for dimensionality reduction prior to plotting.
-- Input must be 2D; labels are optional but improve visualization.
+# TODO:
+- Implement silhouette score? See https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_silhouette_analysis.html
 """
 
-from typing import Optional, Literal
 from pathlib import Path
+from typing import Literal, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
 from pydantic import BaseModel, ConfigDict, Field, validate_call
+
+# Import with a different name to avoid conflicts
+from sklearn.cluster import (
+    KMeans as sklearn_KMeans,
+)
+from sklearn.decomposition import PCA
 
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 
-class KMeansCluster(BaseModel):
+
+class KMeans(BaseModel):
     """Perform and visualize KMeans clustering with optional dimensionality reduction."""
 
     # Configurable parameters for clustering
     dtm: Optional[DTM | pd.DataFrame | np.ndarray] = Field(
-        default=None, description="Input document-term matrix.")
-    k: Optional[int] = Field(
-        default=None, description="Number of clusters to use.")
-    init: Literal['k-means++', 'random'] = Field(
-        default="k-means++", description="Initialization method for centroids.")
+        default=None, description="Input document-term matrix."
+    )
+    k: Optional[int] = Field(default=None, description="Number of clusters to use.")
+    init: Literal["k-means++", "random"] = Field(
+        default="k-means++", description="Initialization method for centroids."
+    )
     max_iter: int = Field(
-        default=300, description="Maximum number of iterations for the algorithm.")
-    n_init: int = Field(
-        default=10, description="Number of initializations to perform.")
-    tol: float = Field(
-        default=1e-4, description="Relative tolerance for convergence.")
+        default=300, description="Maximum number of iterations for the algorithm."
+    )
+    n_init: int = Field(default=10, description="Number of initializations to perform.")
+    tol: float = Field(default=1e-4, description="Relative tolerance for convergence.")
+    random_state: Optional[int] = Field(
+        default=42, description="Random seed for reproducibility."
+    )
 
     # Attributes populated after clustering
     labels: Optional[list[str]] = None
     cluster_assignments: Optional[np.ndarray] = None
-    plotly_fig: Optional[go.Figure] = None
+    fig: Optional[go.Figure] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -61,10 +61,11 @@ class KMeansCluster(BaseModel):
         self,
         dtm: Optional[DTM | pd.DataFrame | np.ndarray] = None,
         k: Optional[int] = None,
-        init: Optional[Literal['k-means++', 'random']] = None,
+        init: Optional[Literal["k-means++", "random"]] = "k-means++",
         max_iter: Optional[int] = None,
         n_init: Optional[int] = None,
         tol: Optional[float] = None,
+        random_state: Optional[int] = None,
     ) -> np.ndarray:
         """Run KMeans clustering on the input matrix.
 
@@ -79,24 +80,34 @@ class KMeansCluster(BaseModel):
         Returns:
             np.ndarray: Array of cluster labels for each document.
         """
-        self._set_attrs(dtm=dtm, k=k, init=init, max_iter=max_iter, n_init=n_init, tol=tol)
+        self._set_attrs(
+            dtm=dtm,
+            k=k,
+            init=init,
+            max_iter=max_iter,
+            n_init=n_init,
+            tol=tol,
+            random_state=random_state,
+        )
         matrix = self._get_valid_matrix()
 
         if self.k is None:
-            raise LexosException("Number of clusters 'k' must be specified for KMeans clustering.")
+            raise LexosException(
+                "Number of clusters 'k' must be specified for KMeans clustering."
+            )
         try:
-            kmeans = KMeans(
+            _kmeans = sklearn_KMeans(
                 n_clusters=self.k,
                 init=self.init,
                 max_iter=self.max_iter,
                 n_init=self.n_init,
                 tol=self.tol,
-                random_state=42,
+                random_state=self.random_state,
             )
-            self.cluster_assignments = kmeans.fit_predict(matrix)
+            self.cluster_assignments = _kmeans.fit_predict(matrix)
         except Exception as e:
             raise LexosException(f"KMeans clustering failed: {e}")
-        
+
         return self.cluster_assignments
 
     def _set_attrs(self, **kwargs) -> None:
@@ -104,7 +115,7 @@ class KMeansCluster(BaseModel):
         for key, value in kwargs.items():
             if value is not None:
                 setattr(self, key, value)
-    
+
     def _get_valid_matrix(self) -> np.ndarray:
         """Convert the input into a valid NumPy matrix format.
 
@@ -113,202 +124,21 @@ class KMeansCluster(BaseModel):
         """
         if isinstance(self.dtm, DTM):
             df = self.dtm.to_df(transpose=True)
-            self.labels = self.dtm.labels # Save labels for plotting
+            self.labels = self.dtm.labels  # Save labels for plotting
         elif isinstance(self.dtm, pd.DataFrame):
             df = self.dtm
         elif isinstance(self.dtm, np.ndarray):
             df = pd.DataFrame(self.dtm)
         else:
-            raise LexosException("Unsupported input: must be DTM, DataFrame, or ndarray.")
+            raise LexosException(
+                "Unsupported input: must be DTM, DataFrame, or ndarray."
+            )
 
         # Must have more than 1 document to cluster
         if df.shape[0] < 2:
             raise LexosException("Need at least 2 documents for clustering.")
 
         return df.values
-
-    def plot_2d(self, show: bool = False, save_path: Optional[str] = None) -> Optional[go.Figure]:
-        """Generate a 2D PCA scatter plot of the KMeans clusters.
-
-        Args:
-            show (bool): Whether to display the plot.
-            save_path (Optional[str]): Optional file path to save the plot.
-
-        Returns:
-            go.Figure: The Plotly 2D scatter plot.
-        """
-        if self.cluster_assignments is None:
-            raise LexosException("You must run clustering before plotting.")
-        
-        # Perform PCA for 2D projection
-        matrix = self._get_valid_matrix()
-        pca = PCA(n_components=2)
-        reduced = pca.fit_transform(matrix)
-
-        # Build DataFrame for plotting
-        df = pd.DataFrame({
-            "x": reduced[:, 0],
-            "y": reduced[:, 1],
-            "Cluster": self.cluster_assignments.astype(str),
-            "Document": self.labels or [f"Doc{i+1}" for i in range(len(matrix))]
-        })
-
-        # Create scatter plot
-        fig = px.scatter(
-            df,
-            x="x",
-            y="y",
-            color="Cluster",
-            hover_name="Document",
-            title="KMeans Clustering 2D Plot",
-        )
-        fig.update_layout(margin=dict(l=12, r=10, t=40, b=10))
-
-        self.plotly_fig = fig
-        if save_path:
-            fig.write_image(save_path)
-        if show:
-            fig.show()
-            return None
-        else:
-            return fig
-
-    def plot_3d(self, show: bool = False, save_path: Optional[str] = None) -> Optional[go.Figure]:
-        """Generate a 3D PCA scatter plot of the KMeans clusters.
-
-        Args:
-            show (bool): Whether to display the plot.
-            save_path (Optional[str]): Optional file path to save the plot.
-
-        Returns:
-            go.Figure: The Plotly 3D scatter plot.
-        """
-        if self.cluster_assignments is None:
-            raise LexosException("You must run clustering before plotting.")
-
-        # Reduce dimensions to 3 for 3D plot
-        matrix = self._get_valid_matrix()
-        pca = PCA(n_components=3)
-        reduced = pca.fit_transform(matrix)
-
-        # Build DataFrame for plotting
-        df = pd.DataFrame({
-            "x": reduced[:, 0],
-            "y": reduced[:, 1],
-            "z": reduced[:, 2],
-            "Cluster": self.cluster_assignments.astype(str),
-            "Document": self.labels or [f"Doc{i+1}" for i in range(len(matrix))]
-        })
-
-        # Create 3D scatter plot
-        fig = px.scatter_3d(
-            df,
-            x="x",
-            y="y",
-            z="z",
-            color="Cluster",
-            hover_name="Document",
-            title="KMeans Clustering 3D Plot",
-        )
-        fig.update_layout(margin=dict(l=12, r=10, t=40, b=10))
-
-        self.plotly_fig = fig
-        if save_path:
-            fig.write_image(save_path)
-        if show:
-            fig.show()
-            return None
-        else:
-            return fig
-
-    def plot_voronoi(self, show: bool = True, save_path: Optional[str | Path] = None, grid_step: Optional[float] = None, max_points: int = 200_000) -> Optional[go.Figure]:
-        """Plot Voronoi-like decision regions for KMeans clustering using 2D PCA.
-
-        Args:
-            show (bool): Whether to display the plot interactively.
-            save_path (Optional[str | Path]): File path to save the plot.
-            grid_step (Optional[float]): Grid step size; estimated if None.
-            max_points (int): Maximum grid points for memory efficiency.
-        """
-        # Reduce dimensions for 2D Voronoi visualization
-        matrix = self._get_valid_matrix()
-        pca = PCA(n_components=2)
-        reduced = pca.fit_transform(matrix)
-
-        if self.k is None:
-            raise LexosException("Number of clusters 'k' must be specified for KMeans clustering.")
-
-        # Fit KMeans on reduced data for plotting
-        kmeans = KMeans(
-            n_clusters=self.k,
-            init=self.init,
-            max_iter=self.max_iter,
-            n_init=self.n_init,
-            tol=self.tol,
-            random_state=42,
-        ).fit(reduced)
-
-        centroids = kmeans.cluster_centers_
-
-        # Define grid boundaries with buffer
-        x_min, x_max = reduced[:, 0].min() - 1, reduced[:, 0].max() + 1
-        y_min, y_max = reduced[:, 1].min() - 1, reduced[:, 1].max() + 1
-
-        # Estimate grid resolution to avoid memory overload
-        if grid_step is None:
-            range_area = (x_max - x_min) * (y_max - y_min)
-            grid_step = (range_area / max_points) ** 0.5
-            print(f"Grid step auto-adjusted to {grid_step:.2f} to avoid memory overload.")
-
-        # Create mesh grid and predict cluster for each point
-        xx, yy = np.meshgrid(np.arange(x_min, x_max, grid_step), np.arange(y_min, y_max, grid_step))
-        grid = np.c_[xx.ravel(), yy.ravel()]
-        z = kmeans.predict(grid).reshape(xx.shape)
-
-        fig = go.Figure()
-
-        # Add background colored Voronoi regions
-        fig.add_trace(go.Heatmap(
-            x=xx[0], y=yy[:, 0], z=z,
-            colorscale='YlGnBu', showscale=False, opacity=0.4
-        ))
-
-        # Overlay documents per cluster
-        doc_labels = np.array(self.labels or [f"Doc{i+1}" for i in range(len(reduced))])
-        for i in range(self.k):
-            cluster_mask = self.cluster_assignments == i
-            fig.add_trace(go.Scatter(
-                x=reduced[cluster_mask, 0],
-                y=reduced[cluster_mask, 1],
-                mode='markers',
-                name=f"Cluster {i+1}",
-                text=doc_labels[cluster_mask],
-                hovertemplate='%{text}<extra></extra>',
-                marker=dict(size=8)
-            ))
-
-        # Add centroid markers
-        fig.add_trace(go.Scatter(
-            x=centroids[:, 0], y=centroids[:, 1],
-            mode='markers+text', name='Centroids',
-            text=[f"C{i+1}" for i in range(self.k)],
-            hoverinfo='text', textposition="top center",
-            marker=dict(symbol='x', size=14, color='black')
-        ))
-
-        fig.update_layout(
-            title="Interactive KMeans Voronoi Plot (PCA Reduced)",
-            xaxis_title="PC1", yaxis_title="PC2"
-        )
-
-        self.plotly_fig = fig
-        if save_path:
-            fig.write_image(save_path)
-        if show:
-            fig.show()
-            return None
-        else:
-            return fig
 
     def elbow_plot(
         self,
@@ -340,13 +170,15 @@ class KMeansCluster(BaseModel):
             )
 
         adjusted_range = range(min_k, max_k + 1)
-        print(f"Running elbow plot for k = {min_k} to {max_k} (limited to document count)")
+        print(
+            f"Running elbow plot for k = {min_k} to {max_k} (limited to document count)"
+        )
 
         # Run KMeans for each k in the specified range and record inertia
         inertias = []
         for k in adjusted_range:
             try:
-                model = KMeans(
+                model = sklearn_KMeans(
                     n_clusters=k,
                     init=self.init,
                     max_iter=self.max_iter,
@@ -364,7 +196,9 @@ class KMeansCluster(BaseModel):
         point2 = np.array([adjusted_range[-1], inertias[-1]])
 
         def distance_to_line(p):
-            return np.linalg.norm(np.cross(point2 - point1, point1 - p)) / np.linalg.norm(point2 - point1)
+            return np.linalg.norm(
+                np.cross(point2 - point1, point1 - p)
+            ) / np.linalg.norm(point2 - point1)
 
         distances = [
             distance_to_line(np.array([k, inertia]))
@@ -375,7 +209,9 @@ class KMeansCluster(BaseModel):
         # Plot inertia vs. number of clusters and show elbow with vertical line
         plt.figure(figsize=(8, 5))
         plt.plot(list(adjusted_range), inertias, marker="o", label="Inertia")
-        plt.axvline(optimal_k, color="red", linestyle="--", label=f"Elbow at k={optimal_k}")
+        plt.axvline(
+            optimal_k, color="red", linestyle="--", label=f"Elbow at k={optimal_k}"
+        )
         plt.xlabel("Number of Clusters (k)")
         plt.ylabel("Inertia (Within-cluster Sum of Squares)")
         plt.title("Elbow Method for Optimal k")
@@ -393,45 +229,128 @@ class KMeansCluster(BaseModel):
         if return_knee:
             return optimal_k
 
-    def export_html(self, path: str) -> None:
-        """Export the plotly figure to an HTML file."""
-        if self.plotly_fig is None:
-            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
-        self.plotly_fig.write_html(path)
-
-    def export_image(self, path: str, format: str = "png") -> None:
-        """Export the plotly figure to an image."""
-        if self.plotly_fig is None:
-            raise LexosException("No figure available: run plot_2d or plot_voronoi first.")
-        self.plotly_fig.write_image(path, format=format)
-
-    def save_png(self, path: str) -> None:
-        """Save the most recent Plotly figure to a PNG file.
+    def save(self, path: str | Path, html: bool = False, **kwargs) -> None:
+        """Save the most recent Plotly figure to an image or HTML file.
 
         Args:
-            path (str): Path to the output PNG file.
+            path (str | Path): Path to the output image file.
+            html (bool): If True, save as HTML; otherwise, save as image.
+            **kwargs: Additional parameters for saving the figure.
+            See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html and
+            https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_html.html.
         """
-        if self.plotly_fig is None:
+        if self.fig is None:
             raise LexosException("No figure available: run a plot method first.")
-        # Save as PNG
-        self.plotly_fig.write_image(path, format="png")
+        if html:
+            self.fig.write_html(path, **kwargs)
+        else:
+            self.fig.write_image(path, **kwargs)
 
-    def save_svg(self, path: str) -> None:
-        """Save the most recent Plotly figure to an SVG file.
+    def scatter(
+        self,
+        dim: int = 2,
+        title: Optional[str] = None,
+        show: bool = False,
+        save_path: Optional[str | Path] = None,
+        **kwargs,
+    ) -> Optional[go.Figure]:
+        """Generate a 2D or 3D PCA scatter plot of the KMeans clusters.
 
         Args:
-            path (str): Path to the output SVG file.
-        """
-        if self.plotly_fig is None:
-            raise LexosException("No figure available: run a plot method first.")
-        # Save as SVG
-        self.plotly_fig.write_image(path, format="svg")
+            show (bool): Whether to display the plot.
+            dim: (int): The number of dimensions.
+            title (Optional[str]): Optional title for the plot.
+            save_path (Optional[str | Path]): Optional file path to save the plot.
+            **kwargs: Additional parameters for saving the figure. See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html.
 
-    def export_csv(self, path: str) -> None:
+        Returns:
+            go.Figure: The Plotly 3D scatter plot.
+        """
+        if self.cluster_assignments is None:
+            raise LexosException("You must run clustering before plotting.")
+
+        if dim not in [2, 3]:
+            raise LexosException("The number of dimensions must be either 2 or 3.")
+
+        # Reduce dimensions for plot
+        matrix = self._get_valid_matrix()
+        pca = PCA(n_components=dim)
+        reduced = pca.fit_transform(matrix)
+
+        # Build DataFrame for plotting
+        if dim == 2:
+            df = pd.DataFrame(
+                {
+                    "x": reduced[:, 0],
+                    "y": reduced[:, 1],
+                    "Cluster": self.cluster_assignments.astype(str),
+                    "Document": self.labels
+                    or [f"Doc{i + 1}" for i in range(len(matrix))],
+                }
+            )
+        else:
+            df = pd.DataFrame(
+                {
+                    "x": reduced[:, 0],
+                    "y": reduced[:, 1],
+                    "z": reduced[:, 2],
+                    "Cluster": self.cluster_assignments.astype(str),
+                    "Document": self.labels
+                    or [f"Doc{i + 1}" for i in range(len(matrix))],
+                }
+            )
+
+        # Create scatter plot
+        if dim == 2:
+            fig = px.scatter(
+                df,
+                x="x",
+                y="y",
+                color="Cluster",
+                hover_name="Document",
+                title=title,
+            )
+        else:
+            fig = px.scatter_3d(
+                df,
+                x="x",
+                y="y",
+                z="z",
+                color="Cluster",
+                hover_name="Document",
+                title=title,
+            )
+
+        # Update the layout
+        fig.update_layout(margin=dict(l=12, r=10, t=40, b=10))
+
+        # Assign the figure to the instance attribute
+        self.fig = fig
+
+        # Save the figure if requested
+        if save_path:
+            fig.write_image(save_path, **kwargs)
+
+        # Show the figure if requested
+        if show:
+            config = dict(
+                displaylogo=False,
+                modeBarButtonsToRemove=["toggleSpikelines"],
+                scrollZoom=True,
+            )
+            fig.show(config=config)
+            return None
+
+        # Otherwise, return the figure
+        else:
+            return fig
+
+    def to_csv(self, path: str | Path, **kwargs) -> None:
         """Export a CSV of PCA coordinates and cluster labels.
 
         Args:
-            path (str): File path to save the CSV.
+            path (str | Path): File path to save the CSV.
+            **kwargs: Additional parameters for pandas DataFrame.to_csv().
         """
         if self.cluster_assignments is None:
             raise LexosException("No clustering results: run clustering first.")
@@ -442,15 +361,143 @@ class KMeansCluster(BaseModel):
         coords = pca.fit_transform(matrix)
 
         # Create output DataFrame
-        df = pd.DataFrame({
-            "Document": self.labels or [f"Doc{i+1}" for i in range(len(coords))],
-            "Cluster": self.cluster_assignments.astype(str),
-            "PC1": coords[:, 0],
-            "PC2": coords[:, 1],
-        })
+        df = pd.DataFrame(
+            {
+                "Document": self.labels or [f"Doc{i + 1}" for i in range(len(coords))],
+                "Cluster": self.cluster_assignments.astype(str),
+                "PC1": coords[:, 0],
+                "PC2": coords[:, 1],
+            }
+        )
 
         # Export to CSV
         try:
             df.to_csv(path, index=False)
         except Exception as e:
             raise LexosException(f"Failed to export CSV: {e}")
+
+    def voronoi(
+        self,
+        title: Optional[str] = None,
+        show: bool = True,
+        save_path: Optional[str | Path] = None,
+        grid_step: Optional[float] = None,
+        max_points: int = 200_000,
+        **kwargs,
+    ) -> Optional[go.Figure]:
+        """Plot Voronoi-like decision regions for KMeans clustering using 2D PCA.
+
+        Args:
+            title (Optional[str]): Optional title for the plot.
+            show (bool): Whether to display the plot interactively.
+            save_path (Optional[str | Path]): File path to save the plot.
+            grid_step (Optional[float]): Grid step size; estimated if None.
+            max_points (int): Maximum grid points for memory efficiency.
+            **kwargs: Additional parameters for saving the figure. See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html.
+        """
+        # Reduce dimensions for 2D Voronoi visualization
+        matrix = self._get_valid_matrix()
+        pca = PCA(n_components=2)
+        reduced = pca.fit_transform(matrix)
+
+        if self.k is None:
+            raise LexosException(
+                "Number of clusters 'k' must be specified for KMeans clustering."
+            )
+
+        # Fit KMeans on reduced data for plotting
+        kmeans = sklearn_KMeans(
+            n_clusters=self.k,
+            init=self.init,
+            max_iter=self.max_iter,
+            n_init=self.n_init,
+            tol=self.tol,
+            random_state=42,
+        ).fit(reduced)
+
+        centroids = kmeans.cluster_centers_
+
+        # Define grid boundaries with buffer
+        x_min, x_max = reduced[:, 0].min() - 1, reduced[:, 0].max() + 1
+        y_min, y_max = reduced[:, 1].min() - 1, reduced[:, 1].max() + 1
+
+        # Estimate grid resolution to avoid memory overload
+        if grid_step is None:
+            range_area = (x_max - x_min) * (y_max - y_min)
+            grid_step = (range_area / max_points) ** 0.5
+            print(
+                f"Grid step auto-adjusted to {grid_step:.2f} to avoid memory overload."
+            )
+
+        # Create mesh grid and predict cluster for each point
+        xx, yy = np.meshgrid(
+            np.arange(x_min, x_max, grid_step), np.arange(y_min, y_max, grid_step)
+        )
+        grid = np.c_[xx.ravel(), yy.ravel()]
+        z = kmeans.predict(grid).reshape(xx.shape)
+
+        fig = go.Figure()
+
+        # Add background colored Voronoi regions
+        fig.add_trace(
+            go.Heatmap(
+                x=xx[0],
+                y=yy[:, 0],
+                z=z,
+                colorscale="YlGnBu",
+                showscale=False,
+                opacity=0.4,
+            )
+        )
+
+        # Overlay documents per cluster
+        doc_labels = np.array(
+            self.labels or [f"Doc{i + 1}" for i in range(len(reduced))]
+        )
+        for i in range(self.k):
+            cluster_mask = self.cluster_assignments == i
+            fig.add_trace(
+                go.Scatter(
+                    x=reduced[cluster_mask, 0],
+                    y=reduced[cluster_mask, 1],
+                    mode="markers",
+                    name=f"Cluster {i + 1}",
+                    text=doc_labels[cluster_mask],
+                    hovertemplate="%{text}<extra></extra>",
+                    marker=dict(size=8),
+                )
+            )
+
+        # Add centroid markers
+        fig.add_trace(
+            go.Scatter(
+                x=centroids[:, 0],
+                y=centroids[:, 1],
+                mode="markers+text",
+                name="Centroids",
+                text=[f"C{i + 1}" for i in range(self.k)],
+                hoverinfo="text",
+                textposition="top center",
+                marker=dict(symbol="x", size=14, color="black"),
+            )
+        )
+
+        fig.update_layout(
+            title=title,
+            xaxis_title="PC1",
+            yaxis_title="PC2",
+        )
+
+        self.fig = fig
+        if save_path:
+            fig.write_image(save_path, **kwargs)
+        if show:
+            config = dict(
+                displaylogo=False,
+                modeBarButtonsToRemove=["toggleSpikelines"],
+                scrollZoom=True,
+            )
+            fig.show(config=config)
+            return None
+        else:
+            return fig

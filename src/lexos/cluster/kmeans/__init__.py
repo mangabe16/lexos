@@ -1,19 +1,13 @@
 """Lexos Package.
 
-This file makes core modules and classes available at the package level,
-so you can do imports like:
+This file makes core modules and classes available at the package level, so you can do imports like:
 
     from lexos import KMeansCluster
+
+Last Updated: July 2, 2025
+Last Tested: July 2, 2025
 """
 
-from .kmeans import KMeansCluster
+from .kmeans import KMeans
 
-# If you have other core components, you can expose them here too:
-# from .dtm import DTM
-# from .exceptions import LexosException
-
-__all__ = [
-    "KMeansCluster",
-    # "DTM",
-    # "LexosException",
-]
+__all__ = ["KMeans"]

@@ -26,7 +26,9 @@ nav:
       - Managing a Corpus: user_guide/managing_a_corpus.md
       - Analyzing Documents:
         - Overview: user_guide/analyzing_documents.md
-        - Clustering: user_guide/clustering.md
+        - Clustering:
+          - Overview: user_guide/clustering.md
+          - K-Means Cluster Analysis: user_guide/cluster/k-means.md
         - Rolling Windows: user_guide/rolling_windows.md
         - Topwords: user_guide/topwords.md
         - Keywords in Context (KWIC): user_guide/kwic.md

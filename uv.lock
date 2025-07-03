@@ -943,7 +943,7 @@ requires-dist = [
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipywidgets", specifier = ">=8.1.6" },
     { name = "javaobj-py3", specifier = ">=0.4.4" },
-    { name = "kaleido", specifier = ">=0.2.1" },
+    { name = "kaleido", specifier = ">=1.0.0" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "msgpack", specifier = ">=1.1.0" },
     { name = "natsort", specifier = ">=8.4.0" },
