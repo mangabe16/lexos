@@ -2,6 +2,8 @@
 
 The `kmeans` module performs k-means clustering.
 
+## The `KMeans` Class
+
 ### ::: lexos.cluster.kmeans.KMeans
 
     rendering:
