@@ -59,6 +59,16 @@ class BCT(BaseModel):
     text_color: Optional[str] = Field(
         "rgb(0, 0, 0)", json_schema_extra={"description": "The text colour."}
     )
+    title: Optional[str] = Field(
+        "Bootstrap Consensus Tree Result",
+        json_schema_extra={"description": "The title of the dendrogram."},
+    )
+    layout: Optional[str] = Field(
+        "rectangular",
+        json_schema_extra={
+            "description": "Tree visualization layout: 'rectangular' or 'fan'."
+        },
+    )
     showfig: Optional[bool] = Field(
         False, json_schema_extra={"description": "Whether to show the figure."}
     )
@@ -224,11 +234,11 @@ class BCT(BaseModel):
         # Find the consensus of all the Newick trees
         return majority_consensus(trees=self._get_bootstrap_trees(), cutoff=self.cutoff)
 
-    def _get_bootstrap_consensus_tree_fig(self, style: str = "rectangular") -> Figure:
+    def _get_bootstrap_consensus_tree_fig(self, layout: str = "rectangular") -> Figure:
         """Generate a bootstrap consensus tree figure.
 
         Args:
-            style: Tree visualization style. Options:
+            layout: Tree visualization style. Options:
                 - "rectangular": Traditional rectangular tree layout
                 - "fan": Circular fan-style tree layout
 
@@ -243,14 +253,12 @@ class BCT(BaseModel):
         tree = self._get_bootstrap_consensus_tree()
         tree.root.color = color
 
-        if style == "rectangular":
+        if layout == "rectangular":
             return self._draw_rectangular_tree(tree, normalized_color)
-        elif style in ["fan"]:
-            return self._draw_fan_tree(tree, normalized_color, style)
+        elif layout in ["fan"]:
+            return self._draw_fan_tree(tree, normalized_color, layout)
         else:
-            raise ValueError(
-                f"Unknown style: {style}. Use 'rectangular', 'fan', or 'circular'."
-            )
+            raise ValueError(f"Unknown layout: {layout}. Use 'rectangular' or 'fan'.")
 
     def _draw_rectangular_tree(self, tree, normalized_color) -> Figure:
         """Draw traditional rectangular tree layout."""
@@ -260,9 +268,7 @@ class BCT(BaseModel):
             tree,
             axes=ax,
             do_show=False,
-            branch_labels=lambda clade: "{0:.{PRECISION}f}\n".format(
-                clade.branch_length
-            )
+            branch_labels=lambda clade: f"{clade.branch_length:.{PRECISION}f}\n"
             if clade.branch_length is not None
             else "",
         )
@@ -286,7 +292,7 @@ class BCT(BaseModel):
 
         # Set the graph size, title, and tight layout
         plt.gcf().set_size_inches(w=9.5, h=(len(self._document_label_map) * 0.3 + 1))
-        plt.title("Bootstrap Consensus Tree Result", color=normalized_color)
+        plt.title(self.title, color=normalized_color)
         plt.gcf().tight_layout()
 
         # Change the line spacing
@@ -621,7 +627,7 @@ class BCT(BaseModel):
 
         # Add title
         plt.title(
-            f"Bootstrap Consensus Tree (Fan Layout)",
+            self.title,
             color=normalized_color,
             pad=30,
             fontsize=16,
@@ -635,7 +641,6 @@ class BCT(BaseModel):
 
         return fig
 
-    # Update the __call__ method to include the style parameter
     @validate_call(config=model_config)
     def __call__(
         self,
@@ -666,14 +671,18 @@ class BCT(BaseModel):
         text_color: Optional[str] = Field(
             "rgb(0, 0, 0)", json_schema_extra={"description": "The text colour."}
         ),
-        showfig: Optional[bool] = Field(
-            False, json_schema_extra={"description": "Whether to show the figure."}
+        title: Optional[str] = Field(
+            "Bootstrap Consensus Tree Result",
+            json_schema_extra={"description": "The title of the dendrogram."},
         ),
-        style: Optional[str] = Field(
+        layout: Optional[str] = Field(
             "rectangular",
             json_schema_extra={
-                "description": "Tree visualization style: 'rectangular', 'fan', or 'circular'."
+                "description": "Tree visualization layout: 'rectangular' or 'fan'."
             },
+        ),
+        showfig: Optional[bool] = Field(
+            False, json_schema_extra={"description": "Whether to show the figure."}
         ),
     ) -> Figure:
         """Render the bootstrap consensus tree result and save it to images.
@@ -691,6 +700,7 @@ class BCT(BaseModel):
             replace=replace,
             doc_labels=doc_labels,
             text_color=text_color,
+            title=title,
             showfig=showfig,
         )
 
@@ -699,7 +709,7 @@ class BCT(BaseModel):
             plt.ioff()
 
         # Get the matplotlib figure for bootstrap consensus tree result
-        fig = self._get_bootstrap_consensus_tree_fig(style=style)
+        fig = self._get_bootstrap_consensus_tree_fig(layout=layout)
 
         # Save the figure to the instance and show or close the plot
         self.fig = fig

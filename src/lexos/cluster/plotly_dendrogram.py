@@ -1,6 +1,6 @@
 """plotly_dendrogram.py.
 
-Last Updated: June 5, 2025
+Last Updated: July 4, 2025
 Last Tested: June 5, 2025
 
 Information here about how to add truncate mode: https://stackoverflow.com/questions/70801281/how-can-i-plot-a-truncated-dendrogram-plot-using-plotly
@@ -9,11 +9,10 @@ Information here about how to add truncate mode: https://stackoverflow.com/quest
 from pathlib import Path
 from typing import Optional
 
-
 import matplotlib.pyplot as plt
+import numpy as np  # Added numpy import
 import pandas as pd
 import scipy.cluster.hierarchy as sch
-import numpy as np  # Added numpy import
 from numpy.typing import ArrayLike
 from plotly.figure_factory import create_dendrogram
 from plotly.graph_objs.graph_objs import Scatter
@@ -97,7 +96,7 @@ class PlotlyDendrogram(BaseModel):
     config: Optional[dict] = Field(
         dict(
             displaylogo=False,
-            modeBarButtonsToRemove=["toImage", "toggleSpikelines"],
+            modeBarButtonsToRemove=["toggleSpikelines"],
             scrollZoom=True,
         ),
         json_schema_extra={"description": "The config for the dendrogram."},
@@ -138,7 +137,7 @@ class PlotlyDendrogram(BaseModel):
         color_threshold: Optional[float] = None,
         config: Optional[dict] = dict(
             displaylogo=False,
-            modeBarButtonsToRemove=["toImage", "toggleSpikelines"],
+            modeBarButtonsToRemove=["toggleSpikelines"],
             scrollZoom=True,
         ),
         x_tickangle: Optional[int] = 0,

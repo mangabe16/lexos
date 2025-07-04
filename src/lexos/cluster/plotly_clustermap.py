@@ -1,6 +1,6 @@
 """plotly_clustermap.py.
 
-Last Updated: February 25, 2025
+Last Updated: July 4, 2025
 Last Tested: February 25, 2025
 
 Typical usage:
@@ -71,7 +71,7 @@ class PlotlyClustermap(BaseModel):
     )
     config: dict = dict(
         displaylogo=False,
-        modeBarButtonsToRemove=["toImage", "toggleSpikelines"],
+        modeBarButtonsToRemove=["toggleSpikelines"],
         scrollZoom=True,
     )
     fig: Optional[plt.Figure] = Field(
