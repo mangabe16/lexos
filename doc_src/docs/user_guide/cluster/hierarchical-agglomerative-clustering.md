@@ -215,7 +215,7 @@ Generating bootrap consensus dendrograms involves submitting the same distance m
 - `replace`: This relates to how the terms are sampled during each iteration. Setting the value to "with" means a term column can be selected multiple times within a single 80% sample (allows for more randomness). The value "without" means each term column can only be selected once per 80% sample (more stable). This setting is generally suitable for DTMs as it ensures each unique term contributes uniquely within a sample.
 - `doc_labels`: This is simply the list of descriptive names for your documents (e.g., "Poe", "Lippard") that we defined earlier. These will appear as the leaves (endpoints) on your tree.
 - `text_color`: Sets the color for all text on the plot (axis labels, branch lengths, and document labels). You can use "rgb(R, G, B)" format. For example: `"rgb(0, 0, 0)"` (black) or `"rgb(255, 0, 0)"` (red).
-- `style`**: Sets the layout style of the dendrogram, either "rectangular" (the default) or "fan".
+- `layout`: Sets the layout of the dendrogram, either "rectangular" (the default) or "fan".
 
 !!! warning
     Although bootstrap consensus trees take the same parameters as normal dendrograms, the keyword arguments are not consistent between the two classes. This needs to be fixed.
