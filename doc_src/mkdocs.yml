@@ -28,6 +28,7 @@ nav:
         - Overview: user_guide/analyzing_documents.md
         - Clustering:
           - Overview: user_guide/clustering.md
+          - Hierarchical Agglomerative Clustering: user_guide/cluster/hierarchical-agglomerative-clustering.md
           - K-Means Cluster Analysis: user_guide/cluster/k-means.md
         - Rolling Windows: user_guide/rolling_windows.md
         - Topwords: user_guide/topwords.md
@@ -41,14 +42,10 @@ nav:
       - cluster:
           - Overview: api/cluster/index.md
           - kmeans: api/cluster/kmeans.md
+      - corpus:
+          - Corpus: api/corpus/index.md
       - cutter:
           - Cutter: api/cutter/index.md
-          # - Filesplit: api/cutter/filesplit.md
-          # - Ginsu: api/cutter/ginsu.md
-          # - Machete: api/cutter/machete.md
-          # - Merge: api/cutter/merge.md
-          # - Milestones: api/cutter/milestones.md
-          # - Registry: api/cutter/registry.md
       - dtm:
           - Overview: api/dtm/index.md
           - dtm: api/dtm/dtm.md
@@ -80,16 +77,6 @@ nav:
               - base_plotter: api/rolling_windows/plotters/base_plotter.md
               - plotly_plotter: api/rolling_windows/plotters/plotly_plotter.md
               - simple_plotter: api/rolling_windows/plotters/simple_plotter.md
-  #     - Cluster:
-  #         - Cluster: api/cluster/index.md
-  #     - Corpus:
-  #         - Corpus: api/corpus/index.md
-  #     - DTM:
-  #         - DTM: api/dtm/index.md
-  #     - IO:
-  #         - IO: api/io/index.md
-  #         - Smart: api/io/smart.md
-  #         - Dataset: api/io/dataset.md
   #     - Language_Model:
   #         - Language_Model: api/language_model/index.md
       - scrubber:

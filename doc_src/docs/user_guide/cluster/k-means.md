@@ -5,7 +5,7 @@
 !!! important
     This page is currently under construction.
 
-K-Means clustering partitions a set of documents into a number of groups or clusters in a way that minimizes the variation within clusters. The _k_ refers to the number of partitions, so for example, if you wish to see how your documents might cluster into three (3) groups, you would set `k=3`. In fact, k-means clustering differs from [hierarchical clustering](/dendrogram) because you must begin by choosing the number of clusters into which you group your documents.
+K-Means clustering partitions a set of documents into a number of groups or clusters in a way that minimizes the variation within clusters. The _k_ refers to the number of partitions, so for example, if you wish to see how your documents might cluster into three (3) groups, you would set `k=3`. In fact, k-means clustering differs from [hierarchical agglomerative clustering](../cluster/hierarchical-agglomerative-clustering.md) because you must begin by choosing the number of clusters into which you group your documents.
 
 The k-means algorithm works something like this:
 
@@ -81,7 +81,7 @@ In this example, the elbow occurs at `k=4`, meaning that 4 clusters is a good ba
 
 !!! import "Limitations of the Elbow Method"
 
-    Although the elbow method has a mathematical basis, the elbow point may not always be clear, and interpreting it is still subjective. For some datasets, it may not work well. It can be helpful to perform [hierarchical clustering](/dendrogram) before performing k-means clustering, as the resulting dendrogram may suggest a certain number of clusters that is likely to produce meaningful results. Mathematical metrics like the elbow method are not a substitute for human knowledge about the texts being considered.
+    Although the elbow method has a mathematical basis, the elbow point may not always be clear, and interpreting it is still subjective. For some datasets, it may not work well. It can be helpful to perform [hierarchical agglomerative clustering](../cluster/hierarchical-agglomerative-clustering.md) before performing k-means clustering, as the resulting dendrogram may suggest a certain number of clusters that is likely to produce meaningful results. Mathematical metrics like the elbow method are not a substitute for human knowledge about the texts being considered.
 
 ## Visualizing K-Means Clusters
 
