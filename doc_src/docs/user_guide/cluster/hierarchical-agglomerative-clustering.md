@@ -78,6 +78,9 @@ dendrogram(dtm=dtm, labels=labels, showfig=True)
 
 Note that the image above is a static representation and does not demonstrate Plotly's interactive features.
 
+!!! Note
+    Information on saving the dendrogram needs to be added here.
+
 ## Choosing a Distance Metric
 
 One of the most important (and least well-documented) aspects of the hierarchical clustering method is the distance metric. Since we are representing texts as document vectors, it makes sense to define document similarity by comparing the vectors. One way to do this is to measure the distance between each pair of vectors. For example, if two vectors are visualized as lines in a triangle, the hypotenuse between these lines can be used as a measure of the distance between the two documents. This method of measuring how far apart two documents are is known as **Euclidean distance**. This is the default setting used by Lexos. It is good for general comparisons but can be sensitive to the overall length of documents (longer documents might naturally have larger term counts, increasing their "distance").
@@ -171,7 +174,11 @@ The `ClusterMap` instance can be further customized with any  <code><a href="htt
 
 The clustermap plot is not shown by default. To display the plot, generate it with `show=True` or reference it with `ClusterMap.fig`.
 
-There is also a `savefig()` method which takes a filename or filepath to save the file. The image format is detected automatically from the extension type.
+!!! Note
+    Information on saving the clustermap needs to be added here.
+
+!!! warning
+  Once the clustermap plot has been generated, it is inadvisable to use the modebar zoom and pan buttons because this tends to separate the heatmap from the dendrogram leaves. In the future, these buttons may be removed.
 
 ### Using Plotly¤
 

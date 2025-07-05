@@ -306,7 +306,7 @@ class PlotlyDendrogram(BaseModel):
     def to_image(self, **kwargs):
         """Create a static image of the figure.
 
-        Wrapper from the Plotly Figure to_html method.
+        Wrapper from the Plotly Figure to_image method.
         See https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html.
         """  # End of to_image docstring
         if self.fig is None:

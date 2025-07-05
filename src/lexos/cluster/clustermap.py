@@ -1,6 +1,6 @@
 """clustermap.py.
 
-Last Updated: March 3, 2025
+Last Updated: July 5, 2025
 Last Tested: February 27, 2025
 """
 
@@ -27,102 +27,83 @@ class ClusterMap(BaseModel):
     """ClusterMap."""
 
     dtm: Optional[ArrayLike | DTM | pd.DataFrame] = Field(
-        None, json_schema_extra={"The document-term matrix."}
+        None, description="The document-term matrix."
     )
     labels: Optional[list[str]] = Field(
-        None, json_schema_extra={"description": "The labels for the clustermap."}
+        None, description="The labels for the clustermap."
     )
     metric: Optional[str] = Field(
         "euclidean",
-        json_schema_extra={"description": "The metric to use for the dendrograms."},
+        description="The metric to use for the dendrograms.",
     )
     method: Optional[str] = Field(
         "average",
-        json_schema_extra={"description": "The method to use for the dendrograms."},
+        description="The method to use for the dendrograms.",
     )
-    hide_upper: Optional[bool] = Field(
-        False, json_schema_extra={"Hide the upper dendrogram."}
-    )
-    hide_side: Optional[bool] = Field(
-        False, json_schema_extra={"Hide the side dendrogram."}
-    )
-    title: Optional[str] = Field(
-        None, json_schema_extra={"description": "The title for the dendrogram."}
-    )
+    hide_upper: Optional[bool] = Field(False, description="Hide the upper dendrogram.")
+    hide_side: Optional[bool] = Field(False, description="Hide the side dendrogram.")
+    title: Optional[str] = Field(None, description="The title for the dendrogram.")
     showfig: Optional[bool] = Field(
-        False,
-        json_schema_extra={
-            "description": "Whether to show the figure when the instance is called."
-        },
+        False, description="Whether to show the figure when the instance is called."
     )
     fig: Optional[matplotlib.figure.Figure] = Field(
-        None, json_schema_extra={"description": "The figure for the dendrogram."}
+        None, description="The figure for the dendrogram."
     )
-    z_score: Optional[int] = Field(
-        1, json_schema_extra={"description": "The z-score for the clustermap."}
-    )
+    z_score: Optional[int] = Field(1, description="The z-score for the clustermap.")
     pivot_kws: Optional[dict[str, str]] = Field(
-        None, json_schema_extra={"description": "The pivot kwargs for the clustermap."}
+        None, description="The pivot kwargs for the clustermap."
     )
     standard_scale: Optional[int] = Field(
         None,
-        json_schema_extra={"description": "The standard scale for the clustermap."},
+        description="The standard scale for the clustermap.",
     )
     figsize: Optional[tuple[int, int]] = Field(
-        (8, 8), json_schema_extra={"description": "The figure size for the clustermap."}
+        (8, 8), description="The figure size for the clustermap."
     )
     cbar_kws: Optional[dict] = Field(
-        None, json_schema_extra={"description": "The cbar kwargs for the clustermap."}
+        None, description="The cbar kwargs for the clustermap."
     )
     row_cluster: Optional[bool] = Field(
-        True, json_schema_extra={"description": "Whether to cluster the rows."}
+        True, description="Whether to cluster the rows."
     )
     col_cluster: Optional[bool] = Field(
-        True, json_schema_extra={"description": "Whether to cluster the columns."}
+        True, description="Whether to cluster the columns."
     )
     row_linkage: Optional[np.ndarray] = Field(
         None,
-        json_schema_extra={
-            "description": "Precomputed linkage matrix for the rows. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats."
-        },
+        description="Precomputed linkage matrix for the rows. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats.",
     )
     col_linkage: Optional[np.ndarray] = Field(
         None,
-        json_schema_extra={
-            "description": "Precomputed linkage matrix for the columns. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats."
-        },
+        description="Precomputed linkage matrix for the columns. See https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html#scipy.cluster.hierarchy.linkage for specific formats.",
     )
     row_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = (
-        Field(None, json_schema_extra={"description": "The row colors."})
+        Field(None, description="The row colors.")
     )
     col_colors: Optional[list | pd.DataFrame | pd.Series | str | ListedColormap] = (
-        Field(None, json_schema_extra={"description": "The column colors."})
+        Field(None, description="The column colors.")
     )
     mask: Optional[np.ndarray | pd.DataFrame] = Field(
-        None, json_schema_extra={"description": "The mask for the clustermap."}
+        None, description="The mask for the clustermap."
     )
     dendrogram_ratio: Optional[float | tuple[float, float]] = Field(
         (0.1, 0.2),
-        json_schema_extra={"description": "The dendrogram ratio for the clustermap."},
+        description="The dendrogram ratio for the clustermap.",
     )
     colors_ratio: Optional[float] = Field(
-        0.03, json_schema_extra={"description": "The colors ratio for the clustermap."}
+        0.03, description="The colors ratio for the clustermap."
     )
     cbar_pos: Optional[tuple[str]] = Field(
         (0.02, 0.32, 0.03, 0.2),
-        json_schema_extra={"description": "The cbar position for the clustermap."},
+        description="The cbar position for the clustermap.",
     )
     tree_kws: Optional[dict] = Field(
-        None, json_schema_extra={"description": "The tree kwargs for the dendrograms."}
+        None, description="The tree kwargs for the dendrograms."
     )
-    center: Optional[int] = Field(
-        0, json_schema_extra={"description": "The center for the clustermap."}
-    )
-    cmap: Optional[str] = Field(
-        "vlag", json_schema_extra={"description": "The cmap for the clustermap."}
-    )
+    center: Optional[int] = Field(0, description="The center for the clustermap.")
+    cmap: Optional[str] = Field("vlag", description="The cmap for the clustermap.")
     linewidths: Optional[float] = Field(
-        0.75, json_schema_extra={"description": "The linewidths for the dendrograms."}
+        0.75, description="The linewidths for the dendrograms."
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -162,6 +143,7 @@ class ClusterMap(BaseModel):
         cmap: Optional[str] = None,
         linewidths: Optional[float] = None,
     ):
+        """Call the ClusterMap instance."""
         # Set the attributes of the class
         self._set_attrs(
             dtm=dtm,
@@ -310,7 +292,6 @@ class ClusterMap(BaseModel):
         if isinstance(self.dtm, DTM):
             matrix = self.dtm.to_df()
             matrix.index.name = "terms"
-            matrix = matrix.T
         else:
             matrix = self.dtm
         if isinstance(matrix, list):
