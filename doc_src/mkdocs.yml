@@ -41,6 +41,7 @@ nav:
       - Overview: api/index.md
       - cluster:
           - Overview: api/cluster/index.md
+          - dendrogram: api/cluster/dendrogram.md
           - kmeans: api/cluster/kmeans.md
       - corpus:
           - Corpus: api/corpus/index.md
