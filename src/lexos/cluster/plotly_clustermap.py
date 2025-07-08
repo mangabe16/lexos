@@ -1,6 +1,6 @@
 """plotly_clustermap.py.
 
-Last Updated: July 4, 2025
+Last Updated: July 7, 2025
 Last Tested: February 25, 2025
 
 Typical usage:
@@ -32,42 +32,25 @@ class PlotlyClustermap(BaseModel):
         None, json_schema_extra={"The document-term matrix."}
     )
     labels: Optional[list[str]] = Field(
-        None, json_schema_extra={"description": "The labels for the clustermap."}
+        None, description="The labels for the clustermap."
     )
     metric: Optional[str] = Field(
-        "euclidean",
-        json_schema_extra={"description": "The metric to use for the dendrograms."},
+        "euclidean", description="The metric to use for the dendrograms."
     )
     method: Optional[str] = Field(
-        "average",
-        json_schema_extra={"description": "The method to use for the dendrograms."},
+        "average", description="The method to use for the dendrograms."
     )
-    hide_upper: Optional[bool] = Field(
-        False, json_schema_extra={"Hide the upper dendrogram."}
-    )
-    hide_side: Optional[bool] = Field(
-        False, json_schema_extra={"Hide the side dendrogram."}
-    )
-    width: Optional[int] = Field(
-        600, json_schema_extra={"The width for the clustermap."}
-    )
-    height: Optional[int] = Field(
-        600, json_schema_extra={"The height for the clustermap."}
-    )
-    title: Optional[str] = Field(
-        None, json_schema_extra={"description": "The title for the clustermap."}
-    )
+    hide_upper: Optional[bool] = Field(False, description="Hide the upper dendrogram.")
+    hide_side: Optional[bool] = Field(False, description="Hide the side dendrogram.")
+    width: Optional[int] = Field(600, description="The width for the clustermap.")
+    height: Optional[int] = Field(600, description="The height for the clustermap.")
+    title: Optional[str] = Field(None, description="The title for the clustermap.")
     showfig: Optional[bool] = Field(
-        False,
-        json_schema_extra={
-            "description": "Whether to show the figure when the instance is called."
-        },
+        False, description="Whether to show the figure when the instance is called."
     )
     colorscale: Optional[str] = Field(
         "Viridis",
-        json_schema_extra={
-            "description": "The colorscale for the heatmap portion of the clustermap. Can be a one of `Blackbody, Bluered, Blues, Cividis, Earth, Electric, Greens, Greys, Hot, Jet, Picnic, Portl and, Rainbow, RdBu, Reds, Viridis, YlGnBu, YlOrRd`."
-        },
+        description="The colorscale for the heatmap portion of the clustermap. Can be a one of `Blackbody, Bluered, Blues, Cividis, Earth, Electric, Greens, Greys, Hot, Jet, Picnic, Portl and, Rainbow, RdBu, Reds, Viridis, YlGnBu, YlOrRd`.",
     )
     config: dict = dict(
         displaylogo=False,
@@ -75,13 +58,11 @@ class PlotlyClustermap(BaseModel):
         scrollZoom=True,
     )
     fig: Optional[plt.Figure] = Field(
-        None, json_schema_extra={"description": "The figure for the clustermap."}
+        None, description="The figure for the clustermap."
     )
     layout: Optional[dict] = Field(
         {},
-        json_schema_extra={
-            "description": "The layout for the dendrogram. Keywords and values to be passed to plotly.graph_objects.Figure.update_layout()."
-        },
+        description="The layout for the dendrogram. Keywords and values to be passed to plotly.graph_objects.Figure.update_layout().",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

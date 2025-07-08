@@ -1,6 +1,6 @@
 """dendrogram.py.
 
-Last Updated: February 18, 2025
+Last Updated: July 7, 2025
 Last Tested: February 18, 2025
 """
 
@@ -43,91 +43,70 @@ class Dendrogram(BaseModel):
     """
 
     dtm: Optional[ArrayLike | DTM | pd.DataFrame] = Field(
-        None, json_schema_extra={"The document-term matrix."}
+        None, description="The document-term matrix."
     )
     labels: Optional[list[str]] = Field(
-        None, json_schema_extra={"description": "The labels for the dendrogram."}
+        None, description="The labels for the dendrogram."
     )
     metric: Optional[str] = Field(
-        "euclidean",
-        json_schema_extra={"description": "The metric to use for the dendrogram."},
+        "euclidean", description="The metric to use for the dendrogram."
     )
     method: Optional[str] = Field(
-        "average",
-        json_schema_extra={"description": "The method to use for the dendrogram."},
+        "average", description="The method to use for the dendrogram."
     )
     truncate_mode: Optional[str] = Field(
-        None, json_schema_extra={"description": "The truncate mode for the dendrogram."}
+        None, description="The truncate mode for the dendrogram."
     )
     color_threshold: Optional[str] = Field(
-        None,
-        json_schema_extra={"description": "The color threshold for the dendrogram."},
+        None, description="The color threshold for the dendrogram."
     )
     get_leaves: Optional[bool] = Field(
-        True, json_schema_extra={"description": "The get leaves for the dendrogram."}
+        True, description="The get leaves for the dendrogram."
     )
     orientation: Optional[str] = Field(
-        "top", json_schema_extra={"description": "The orientation for the dendrogram."}
+        "top", description="The orientation for the dendrogram."
     )
     count_sort: Optional[bool | str] = Field(
-        None, json_schema_extra={"description": "The count sort for the dendrogram."}
+        None, description="The count sort for the dendrogram."
     )
     distance_sort: Optional[bool | str] = Field(
-        None, json_schema_extra={"description": "The distance sort for the dendrogram."}
+        None, description="The distance sort for the dendrogram."
     )
     show_leaf_counts: Optional[bool] = Field(
-        False,
-        json_schema_extra={"description": "The show leaf counts for the dendrogram."},
+        False, description="The show leaf counts for the dendrogram."
     )
     no_plot: Optional[bool] = Field(
-        False, json_schema_extra={"description": "The no plot for the dendrogram."}
+        False, description="The no plot for the dendrogram."
     )
     no_labels: Optional[bool] = Field(
-        False, json_schema_extra={"description": "The no labels for the dendrogram."}
+        False, description="The no labels for the dendrogram."
     )
     leaf_rotation: Optional[int] = Field(
-        90, json_schema_extra={"description": "The leaf rotation for the dendrogram."}
+        90, description="The leaf rotation for the dendrogram."
     )
     leaf_font_size: Optional[int] = Field(
-        None,
-        json_schema_extra={"description": "The leaf font size for the dendrogram."},
+        None, description="The leaf font size for the dendrogram."
     )
     leaf_label_func: Optional[Callable] = Field(
-        None,
-        json_schema_extra={
-            "description": "The leaf label function for the dendrogram."
-        },
+        None, description="The leaf label function for the dendrogram."
     )
     show_contracted: Optional[bool] = Field(
-        False,
-        json_schema_extra={"description": "The show contracted for the dendrogram."},
+        False, description="The show contracted for the dendrogram."
     )
     link_color_func: Optional[Callable] = Field(
-        None,
-        json_schema_extra={
-            "description": "The link color function for the dendrogram."
-        },
+        None, description="The link color function for the dendrogram."
     )
-    ax: Optional[Axes] = Field(
-        None, json_schema_extra={"description": "The ax for the dendrogram."}
-    )
+    ax: Optional[Axes] = Field(None, description="The ax for the dendrogram.")
     above_threshold_color: Optional[str] = Field(
-        "C0",
-        json_schema_extra={
-            "description": "The above threshold color for the dendrogram."
-        },
+        "C0", description="The above threshold color for the dendrogram."
     )
-    title: Optional[str] = Field(
-        None, json_schema_extra={"description": "The title for the dendrogram."}
-    )
+    title: Optional[str] = Field(None, description="The title for the dendrogram.")
     figsize: Optional[tuple] = Field(
-        (10, 10), json_schema_extra={"description": "The figsize for the dendrogram."}
+        (10, 10), description="The figsize for the dendrogram."
     )
-    show: Optional[bool] = Field(
-        False, json_schema_extra={"description": "The show for the dendrogram."}
-    )
+    show: Optional[bool] = Field(False, description="The show for the dendrogram.")
     fig: Optional[plt.Figure] = Field(
-        None, json_schema_extra={"description": "The figure for the dendrogram."}
+        None, description="The figure for the dendrogram."
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

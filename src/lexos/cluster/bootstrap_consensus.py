@@ -1,9 +1,11 @@
 """This is a model to produce bootstrap consensus tree of the dtm.
 
-Last update: June 27, 2025
+Last update: July 7, 2025
 Last tested: June 29, 2025
 
-See https://github.com/koonimaru/omniplot/blob/962310436a153098b671ebd76cdd59f8a7b5e681/omniplot/plot.py#L38 for a method of getting round dendrograms.
+# TODO:
+- Datatype for `dtm` should match those allowable for the `Dendrogram` class.
+- See https://github.com/koonimaru/omniplot/blob/962310436a153098b671ebd76cdd59f8a7b5e681/omniplot/plot.py#L38 for a method of getting round dendrograms.
 """
 
 import colorsys
@@ -32,49 +34,26 @@ PRECISION = 1  # Precision for branch length formatting in dendrogram labels
 class BCT(BaseModel):
     """The Bootstrap Consensus Tree Class."""
 
-    doc_term_matrix: Optional[DTM] = Field(
-        None, json_schema_extra={"description": "The document term matrix."}
-    )
-    distance_metric: Optional[str] = Field(
-        "euclidean", json_schema_extra={"description": "The distance metric."}
-    )
-    linkage_method: Optional[str] = Field(
-        "average", json_schema_extra={"description": "The linkage method."}
-    )
-    cutoff: Optional[float] = Field(
-        0.5, json_schema_extra={"description": "The cutoff value."}
-    )
+    dtm: Optional[DTM] = Field(None, description="The document term matrix.")
+    metric: Optional[str] = Field("euclidean", description="The distance metric.")
+    method: Optional[str] = Field("average", description="The linkage method.")
+    cutoff: Optional[float] = Field(0.5, description="The cutoff value.")
     iterations: Optional[int] = Field(
-        100,
-        json_schema_extra={
-            "description": "The number of iterations to run the bootstrap."
-        },
+        100, description="The number of iterations to run the bootstrap."
     )
-    replace: Optional[str] = Field(
-        "without", json_schema_extra={"description": "The replacement method."}
+    replace: Optional[str] = Field("without", description="The replacement method.")
+    labels: Optional[list[int | str] | dict[int, str]] = Field(
+        None, description="The document labels."
     )
-    doc_labels: Optional[list[int | str] | dict[int, str]] = Field(
-        None, json_schema_extra={"description": "The document labels."}
-    )
-    text_color: Optional[str] = Field(
-        "rgb(0, 0, 0)", json_schema_extra={"description": "The text colour."}
-    )
+    text_color: Optional[str] = Field("rgb(0, 0, 0)", description="The text colour.")
     title: Optional[str] = Field(
-        "Bootstrap Consensus Tree Result",
-        json_schema_extra={"description": "The title of the dendrogram."},
+        "Bootstrap Consensus Tree Result", description="The title of the dendrogram."
     )
     layout: Optional[str] = Field(
-        "rectangular",
-        json_schema_extra={
-            "description": "Tree visualization layout: 'rectangular' or 'fan'."
-        },
+        "rectangular", description="Tree visualization layout: 'rectangular' or 'fan'."
     )
-    showfig: Optional[bool] = Field(
-        False, json_schema_extra={"description": "Whether to show the figure."}
-    )
-    fig: Optional[Figure] = Field(
-        None, json_schema_extra={"description": "The figure for the dendrogram."}
-    )
+    showfig: Optional[bool] = Field(False, description="Whether to show the figure.")
+    fig: Optional[Figure] = Field(None, description="The figure for the dendrogram.")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -97,9 +76,9 @@ class BCT(BaseModel):
 
         Note that the web app uses doc ids as the index.
         """
-        if self.doc_term_matrix is None:
+        if self.dtm is None:
             raise LexosException("No document term matrix found.")
-        return self.doc_term_matrix.to_df().T
+        return self.dtm.to_df().T
 
     @property
     def _document_label_map(self) -> dict[int, str] | dict:
@@ -108,14 +87,14 @@ class BCT(BaseModel):
         Returns:
             list[int | str] | dict[int, str]: A document label map or a list of indices or labels.
         """
-        if self.doc_labels is not None and len(self.doc_labels) > 0:
-            if isinstance(self.doc_labels, dict):
-                return self.doc_labels
+        if self.labels is not None and len(self.labels) > 0:
+            if isinstance(self.labels, dict):
+                return self.labels
             else:
-                if isinstance(self.doc_labels[0], int):
-                    return {i: f"doc{i + 1}" for i, _ in enumerate(self.doc_labels)}
+                if isinstance(self.labels[0], int):
+                    return {i: f"doc{i + 1}" for i, _ in enumerate(self.labels)}
                 else:
-                    return {i: label for i, label in enumerate(self.doc_labels)}
+                    return {i: label for i, label in enumerate(self.labels)}
         return {}
 
     @staticmethod
@@ -190,7 +169,7 @@ class BCT(BaseModel):
         """
         # Get the linkage matrix for the sample doc term matrix
         linkage_matrix = linkage(
-            sample_dtm.values, metric=self.distance_metric, method=self.linkage_method
+            sample_dtm.values, metric=self.metric, method=self.method
         )
 
         # Get the Newick representation of the tree
@@ -206,7 +185,7 @@ class BCT(BaseModel):
             list[str]: A list of Newick formatted tree where each tree was based on an 80% subset of the complete DTM.
         """
         # Save the DTM to avoid multiple calls
-        doc_term_matrix = self._doc_term_matrix
+        dtm = self._doc_term_matrix
 
         # Get doc names, since tree nodes need labels
         labels = [doc for doc in self._doc_term_matrix.index.values.tolist()]
@@ -214,7 +193,7 @@ class BCT(BaseModel):
         # The bootstrap process to get all the trees.
         return [
             self._get_newick_tree(
-                sample_dtm=doc_term_matrix.sample(
+                sample_dtm=dtm.sample(
                     axis=1,
                     frac=0.8,
                     replace=self.replace,
@@ -644,45 +623,32 @@ class BCT(BaseModel):
     @validate_call(config=model_config)
     def __call__(
         self,
-        doc_term_matrix: Optional[DTM] = Field(
-            None, json_schema_extra={"description": "The document term matrix."}
-        ),
-        distance_metric: Optional[str] = Field(
-            "euclidean", json_schema_extra={"description": "The distance metric."}
-        ),
-        linkage_method: Optional[str] = Field(
-            "average", json_schema_extra={"description": "The linkage method."}
-        ),
-        cutoff: Optional[float] = Field(
-            0.5, json_schema_extra={"description": "The cutoff value."}
-        ),
+        dtm: Optional[DTM] = Field(None, description="The document term matrix."),
+        metric: Optional[str] = Field("euclidean", description="The distance metric."),
+        method: Optional[str] = Field("average", description="The linkage method."),
+        cutoff: Optional[float] = Field(0.5, description="The cutoff value."),
         iterations: Optional[int] = Field(
-            100,
-            json_schema_extra={
-                "description": "The number of iterations to run the bootstrap."
-            },
+            100, description="The number of iterations to run the bootstrap."
         ),
         replace: Optional[str] = Field(
-            "without", json_schema_extra={"description": "The replacement method."}
+            "without", description="The replacement method."
         ),
-        doc_labels: Optional[list[int | str] | dict[int, str]] = Field(
-            None, json_schema_extra={"description": "The document labels."}
+        labels: Optional[list[int | str] | dict[int, str]] = Field(
+            None, description="The document labels."
         ),
         text_color: Optional[str] = Field(
-            "rgb(0, 0, 0)", json_schema_extra={"description": "The text colour."}
+            "rgb(0, 0, 0)", description="The text colour."
         ),
         title: Optional[str] = Field(
             "Bootstrap Consensus Tree Result",
-            json_schema_extra={"description": "The title of the dendrogram."},
+            description="The title of the dendrogram.",
         ),
         layout: Optional[str] = Field(
             "rectangular",
-            json_schema_extra={
-                "description": "Tree visualization layout: 'rectangular' or 'fan'."
-            },
+            description="Tree visualization layout: 'rectangular' or 'fan'.",
         ),
         showfig: Optional[bool] = Field(
-            False, json_schema_extra={"description": "Whether to show the figure."}
+            False, description="Whether to show the figure."
         ),
     ) -> Figure:
         """Render the bootstrap consensus tree result and save it to images.
@@ -692,13 +658,13 @@ class BCT(BaseModel):
         """
         # Set the attributes of the class
         self._set_attrs(
-            doc_term_matrix=doc_term_matrix,
-            distance_metric=distance_metric,
-            linkage_method=linkage_method,
+            dtm=dtm,
+            metric=metric,
+            method=method,
             cutoff=cutoff,
             iterations=iterations,
             replace=replace,
-            doc_labels=doc_labels,
+            labels=labels,
             text_color=text_color,
             title=title,
             showfig=showfig,

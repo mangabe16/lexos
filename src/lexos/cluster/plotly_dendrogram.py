@@ -1,6 +1,6 @@
 """plotly_dendrogram.py.
 
-Last Updated: July 4, 2025
+Last Updated: July 7, 2025
 Last Tested: June 5, 2025
 
 Information here about how to add truncate mode: https://stackoverflow.com/questions/70801281/how-can-i-plot-a-truncated-dendrogram-plot-using-plotly
@@ -54,44 +54,36 @@ class PlotlyDendrogram(BaseModel):
         None, json_schema_extra={"The document-term matrix."}
     )
     labels: Optional[list[str]] = Field(
-        None, json_schema_extra={"description": "The labels for the dendrogram."}
+        None, description="The labels for the dendrogram."
     )
     metric: Optional[str] = Field(
-        "euclidean",
-        json_schema_extra={"description": "The metric to use for the dendrogram."},
+        "euclidean", description="The metric to use for the dendrogram."
     )
     method: Optional[str] = Field(
-        "average",
-        json_schema_extra={"description": "The method to use for the dendrogram."},
+        "average", description="The method to use for the dendrogram."
     )
     truncate_mode: Optional[str] = Field(
-        None, json_schema_extra={"description": "The truncate mode for the dendrogram."}
+        None, description="The truncate mode for the dendrogram."
     )
     get_leaves: Optional[bool] = Field(
-        True, json_schema_extra={"description": "The get leaves for the dendrogram."}
+        True, description="The get leaves for the dendrogram."
     )
     orientation: Optional[str] = Field(
-        "bottom",
-        json_schema_extra={"description": "The orientation for the dendrogram."},
+        "bottom", description="The orientation for the dendrogram."
     )
-    title: Optional[str] = Field(
-        None, json_schema_extra={"description": "The title for the dendrogram."}
-    )
+    title: Optional[str] = Field(None, description="The title for the dendrogram.")
     figsize: Optional[tuple] = Field(
-        (10, 10), json_schema_extra={"description": "The figsize for the dendrogram."}
+        (10, 10), description="The figsize for the dendrogram."
     )
-    showfig: Optional[bool] = Field(
-        False, json_schema_extra={"description": "The show for the dendrogram."}
-    )
+    showfig: Optional[bool] = Field(False, description="The show for the dendrogram.")
     colorscale: Optional[list] = Field(
-        None, json_schema_extra={"description": "The colorscale for the dendrogram."}
+        None, description="The colorscale for the dendrogram."
     )
     hovertext: Optional[list] = Field(
-        None, json_schema_extra={"description": "The hovertext for the dendrogram."}
+        None, description="The hovertext for the dendrogram."
     )
     color_threshold: Optional[float] = Field(
-        None,
-        json_schema_extra={"description": "The color threshold for the dendrogram."},
+        None, description="The color threshold for the dendrogram."
     )
     config: Optional[dict] = Field(
         dict(
@@ -99,22 +91,20 @@ class PlotlyDendrogram(BaseModel):
             modeBarButtonsToRemove=["toggleSpikelines"],
             scrollZoom=True,
         ),
-        json_schema_extra={"description": "The config for the dendrogram."},
+        description="The config for the dendrogram.",
     )
     x_tickangle: Optional[int] = Field(
-        0, json_schema_extra={"description": "The x tickangle for the dendrogram."}
+        0, description="The x tickangle for the dendrogram."
     )
     y_tickangle: Optional[int] = Field(
-        0, json_schema_extra={"description": "The y tickangle for the dendrogram."}
+        0, description="The y tickangle for the dendrogram."
     )
     fig: Optional[plt.Figure] = Field(
-        None, json_schema_extra={"description": "The figure for the dendrogram."}
+        None, description="The figure for the dendrogram."
     )
     layout: Optional[dict] = Field(
         {},
-        json_schema_extra={
-            "description": "The layout for the dendrogram. Keywords and values to be passed to plotly.graph_objects.Figure.update_layout()."
-        },
+        description="The layout for the dendrogram. Keywords and values to be passed to plotly.graph_objects.Figure.update_layout().",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
