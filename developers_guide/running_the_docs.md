@@ -4,7 +4,7 @@ We use [MkDocs](https://www.mkdocs.org/) and Material for [MkDocs](https://squid
 
 ## Viewing the Website
 
-To do view the website, enter the following commands:
+To view the website, enter the following commands:
 
 ```bash
 cd uv_lexos/doc_src
