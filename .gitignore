@@ -45,3 +45,6 @@ src/lexos/cutter/token_chunks/*.txt
 
 # test coverage
 htmlcov/
+
+# Just File
+.justfile
