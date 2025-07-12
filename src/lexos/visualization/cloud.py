@@ -8,9 +8,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
-
 import matplotlib
-matplotlib.use("Agg")  # additional line
+
+# matplotlib.use("Agg")  # additional line
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -25,7 +25,18 @@ from lexos.visualization import processors
 
 # Valid input types
 single_doc_types = dict[str, int] | Doc | Span | str | list[str] | list[Token]
-multi_doc_types = str | list[str] | list[list[str]] | list[Doc] | list[Span] | list[list[Token]] | dict[str, int] | pd.DataFrame | DTM
+multi_doc_types = (
+    str
+    | list[str]
+    | list[list[str]]
+    | list[Doc]
+    | list[Span]
+    | list[list[Token]]
+    | dict[str, int]
+    | pd.DataFrame
+    | DTM
+)
+
 
 @validate_call(
     config=ConfigDict(
@@ -124,6 +135,7 @@ def wordcloud(
     else:
         if path:
             wc.to_file(path)
+        plt.close()
         return wc
 
 
@@ -133,7 +145,15 @@ def wordcloud(
     )
 )
 def multicloud(
-    data: str | list[str] | list[list[str]] | list[Doc] | list[Span] | list[list[Token]] | dict[str, int] | pd.DataFrame | DTM,
+    data: str
+    | list[str]
+    | list[list[str]]
+    | list[Doc]
+    | list[Span]
+    | list[list[Token]]
+    | dict[str, int]
+    | pd.DataFrame
+    | DTM,
     docs: Optional[int | str | list[int] | list[str]] = None,
     opts: Optional[dict[str, Any]] = None,
     ncols: Optional[int] = 3,
