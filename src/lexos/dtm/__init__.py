@@ -1,6 +1,6 @@
 """__init__.py.
 
-Last Update: June 15, 2025
+Last Update: July 14, 2025
 Last Tested: June 15, 2025
 
 # WARNING: The sorted_terms_list and sorted_term_counts properties only work if the DTM has been built with a vectorizer that has compatible `terms_list` and `vocabulary_terms` attributes.
@@ -354,7 +354,6 @@ class DTM(BaseModel):
             ).T
         except Exception as e:
             raise LexosException(f"Error converting DTM to DataFrame: {e}")
-        df = df.sort_values(by=by, ascending=ascending)
         if as_percent:
             df = self._get_term_percentages(
                 df,
@@ -373,4 +372,5 @@ class DTM(BaseModel):
                 df["Median"] = np.median(df.to_numpy())
         if transpose:
             df = df.T
+        df = df.sort_values(by=by, ascending=ascending)
         return df
