@@ -2,14 +2,14 @@
 
 ## Overview
 
-!!! important
+!!! warning
     This page is currently under construction.
 
 ## About the Document-Term Matrix
 
 A document-term matrix (DTM) is the standard interface for analysis and information of document data. It consists in its raw form of a list of token counts per document in the corpus. Each unique token form is called a term. Thus it is really a list of term counts per document, arranged as matrix.
 
-Producing a DTM is easy with Lexos. All you need a is list of document tokens and a list of labels for each document. In the example below, we will use spaCy docs as the input since we can interate through their tokens just like a list.
+Producing a DTM is easy with Lexos. All you need a is list of document tokens and a list of labels for each document (the labels are human-readable names which would otherwise be referenced by numeric indices). In the example below, we will use spaCy docs as the input since we can iterate through their tokens just like a list.
 
 ```python
 from lexos.dtm import DTM
@@ -42,8 +42,8 @@ docs = [
 ]
 ```
 
-!!! note
-    Lexos uses Textacy's `[Vectorizer](https://textacy.readthedocs.io/en/latest/api_reference/representations.html#textacy.representations.vectorizers.Vectorizer)` is the default vectorizer. It is possible to use Textacy directly to produce a DTM. For instance, the following method will produce a a DTM containing the raw term counts for each document.
+!!! note "Developer's Note"
+    Lexos uses Textacy's <a href="https://textacy.readthedocs.io/en/latest/api_reference/representations.html#textacy.representations.vectorizers.Vectorizer" target="_blank">Vectorizer</a> as the default vectorizer. It is possible to use Textacy directly to produce a DTM. For instance, the following method will produce a a DTM containing the raw term counts for each document.
 
     ```python
     from textacy.representations.vectorizers import Vectorizer
@@ -74,6 +74,8 @@ When you create an instance of the `DTM` class, you automatically assign it a ve
 
     Be aware that this may use a lot of memory for large corpora.
 
+The default vectorizer can be configured to perform additional culling or normalization functions. **Culling** refers to reducing the size of the matrix to include only part of the data. **Normalization** refers to performing additional calculations on the raw term counts in order to better represent the sigificance of those counts within the broader corpus (e.g. to take into account document varying lengths). Each of these categories is discussed below.
+
 ### Culling the DTM
 
 In many cases, you will want to cull terms from your DTM in order to reduce the size of the data or to remove terms which you think might not be meaningful for your research. A common form of culling is to restrict the data to the *n* most-frequently occurring terms. You can do this with the `max_n_terms` parameter. You can also restrict your data to terms occurring in a minimum number of documents with `min_df` or a maximum number of documents with `max_df`. Here is an example using all three:
@@ -102,15 +104,33 @@ Feel free to use whichever approach you find most comfortable.
 
 ### Normalizing the Values
 
-The vectorizer is configured by default to generate a matrix of raw counts. However, it can often be beneficial to normalize the values in some way such as by calculating the term's frequency in proportion to all terms in the corpus. Or, if your documents vary in length, it can be beneficial to calculate the <a href="" target="_blank">term frequency-inverse document frequency (TF-IDF)</a>. The vectorizer allows you to do that with the `tf_type`, `idf_type`, `dl_type`, and `norm` parameters, all of which can be set using one the three methods discussed in the previous section.
+The vectorizer is configured by default to generate a matrix of raw counts. However, it can often be beneficial to normalize the values in some way such as by calculating the term's frequency in proportion to all terms in the corpus. Or, if your documents vary in length, it can be beneficial to apply a weighting function. The vectorizer allows you to do that with the `tf_type`, `idf_type`, `dl_type`, and `norm` parameters, all of which can be set using one the three methods discussed in the previous section.
 
 !!! note: "TO DO"
     Add more discussion on the most common settings. Notes below:
 
-- `tf_type` controls how term frequencies are calculated (e.g., raw counts, log-scaled, binary presence/absence). Options: `"linear"`, `"sqrt"`, `"log"`, `"binary"`.
-- `idf_type` controls inverse document frequency type, how document frequency scaling is applied (for TF-IDF weighting). Options: `None`, `"linear"`, `"sqrt"`, `"log"`.
-- `dl_type`: Controls normalization based on document length. Options: `None`, `"linear"`, `"sqrt"`, `"log"`.
-- `norm`: Applies vector normalization. Options: `None`, `"l1"`, `"l2"`. Normalizes the resulting vectors (rows) to unit length. L1 normalization scales the term frequencies in each document so that the sum of the absolute values equals 1. This means each document vector is divided by the sum of its term frequencies, turning the values into proportions that sum to 1. L2 normalization scales the term frequencies so that the sum of the squares of the values equals 1 (i.e., the Euclidean norm is 1). This is useful for algorithms that are sensitive to the length of the document vectors, such as cosine similarity.
+- `tf_type` controls how term frequencies are calculated (e.g., raw counts, log-scaled, binary presence/absence). Options: "linear", "sqrt", "log", "binary". Default is "linear".
+- `idf_type` controls inverse document frequency type, how document frequency scaling is applied (for TF-IDF weighting). Options: None, "linear", "sqrt", "log". Default is None.
+- `dl_type`: Controls normalization based on document length. Options: None, "linear", "sqrt", "log". Default is None.
+- `norm`: Applies vector normalization. Options: None, "l1", "l2". Normalizes the resulting vectors (rows) to unit length. L1 normalization scales the term frequencies in each document so that the sum of the absolute values equals 1. This means each document vector is divided by the sum of its term frequencies, turning the values into proportions that sum to 1. L2 normalization scales the term frequencies so that the sum of the squares of the values equals 1 (i.e., the Euclidean norm is 1). This is useful for algorithms that are sensitive to the length of the document vectors, such as cosine similarity. Default is None.
+
+!!! note "What Settings Should I Choose?
+
+    If you only want raw counts, just use the default settings. Changing an of the other settings will implement various types of weighting functions. The <a href="https://github.com/chartbeat-labs/textacy/blob/f08ecbc46020f514b8cbb024778ec4f80456291f/src/textacy/representations/vectorizers.py#L163" target="_blank">Textacy source code</a> provides helpful advice, which is partially reproduced here.
+
+    > In general, weights may consist of a local component (term frequency),
+    a global component (inverse document frequency), and a normalization
+    component (document length). Individual components may be modified:
+    they may have different scaling (e.g. tf vs. sqrt(tf)) or different behaviors
+    (e.g. "standard" idf vs bm25's version). There are *many* possible weightings,
+    and some may be better for particular use cases than others. When in doubt,
+    though, just go with something standard.
+
+    One of the most commonly-used weighting settings is <a href="https://en.wikipedia.org/wiki/Tf%E2%80%93idf" target="_blank">term frequency-inverse document frequency (TF-IDF)</a>, which measures the importance of a term to a document in a collection of documents, adjusted for the fact that some terms appear more frequently than others. The Lexos web app's implementation of TF-IDF has the following settings:
+
+    - `tf_type="log"`
+    - `idf_type="smooth"`
+    - `norm="l2"`
 
 ## Getting Term Counts and Frequencies
 
@@ -134,91 +154,75 @@ Perhaps the most useful method of the `DTM` class is `to_df()`, which converts t
 - `mean`: Add a column showing the mean of each row.
 - `median`: Add a column showing the median of each row.
 
-The labels are human-readable names for the documents which would otherwise be referenced by numeric indices.
-
 ## Visualising the DTM
 
-Once a document-term matrix table has been generated as a pandas dataframe, it becomes possible to use any of the [`pandas.DataFrame.plot`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.plot.html) methods, or to export the data for use with other tools. Here is an example using `matplotlib` and the `seaborn` library.
+Once a document-term matrix table has been generated as a pandas dataframe, it becomes possible to use any of the Pandas plotting methods to visualise the data. Here is a short example of a bar chart containing the top 20 terms in the DTM:
 
 ```python
-import seaborn as sns
-import matplotlib.pyplot as plt
+# Get the first 20 rows of the DTM as a DataFrame sorted by sum
+df = dtm.to_df(sum=True, by="Total", ascending=False)[0:20]
 
-top_n = 20
-term_totals = df.sum(axis=0).sort_values(ascending=False)[:top_n]
+# Plot the DataFrame
+df.plot(
+    kind="bar",
+    title="Top 20 Most Frequent Terms",
+    xlabel="Terms",
+    ylabel="Frequency"
+)
+```
 
-if term_totals.empty:
-    print("No term frequencies to plot. The DataFrame may be empty or contain no data.")
-else:
-    sns.barplot(
-        x=term_totals.index,
-        y=term_totals.values,
-        hue=term_totals.index,
-        palette="viridis",
-        legend=False
+See the Pandas <code><a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.plot.html" target="_blank">DataFrame.plot</a></code> documentation for the complete range of keywords.
+
+!!! note
+
+    By default, `pandas.DataFrame.plot` uses the `matplotlib` plotting library. If you are familiar with `matplotlib`, you can use it directly by using the data from the DataFrame. The same goes for any other plotting library. In Lexos, interactive plots are frequently made using the Plotly library, for which Pandas has a backend. To use it, simply call the following code:
+
+    ```python
+    import pandas as pd
+    pd.options.plotting.backend = "plotly"
+    df.Total.plot(
+            kind="bar",
+            title="Top 20 Most Frequent Terms",
+            labels={"index": "Terms", "value": "Frequency"}
     )
-    plt.title(f"Top {top_n} Most Frequent Terms", fontsize=18, weight="bold")
-    plt.ylabel("Total Frequency", fontsize=14)
-    plt.xlabel("Term", fontsize=14)
-    plt.xticks(rotation=45, ha="right", fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.tight_layout()
-    plt.grid(axis="y", linestyle="--", alpha=0.6)
-    plt.show()
-```
+    ```
 
-However, the Lexos API has two built-in visualisations: word clouds and bubble charts. Word clouds can be generated for the entire DTM or for individual documents. Multiple word clouds arrange for comparison are referred to as multiclouds. For information on generating these and other visualizations, see the [Visualization page](../visualization/).
+    Note that the keywords described in Pandas documentation apply only to the `matplotlib` backend. For Plotly, you will beed to consult the equivalent Plotly documentation to find the appropriate keywords (`labels`, in the example above).
 
-## Using `scikit-learn` Vectorizers
+Lexos word clouds and bubble charts are also ideal for visualising DTMs. Word clouds can be generated for the entire DTM or for individual documents. Multiple word clouds arrange for comparison are referred to as multiclouds. For information on generating these and other visualizations, see the [Visualization page](../visualization/).
 
-The machine-learning library `scikit-learn` (`sklearn`) provides methods for performing many common types of statistical analysis. When using this method, it may be preferable to generate the matrix as part of a pipeline that includes its <code><a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.CountVectorizer.html" target="_blank">CountVectorizer</a></code> class (or similar vectorizers like <code><a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html" target="_blank">TfidfVectorizer</a></code>), rather than Textacy's `Vectorizer` class. The example below shows how this can be achieved whilst still leveraging language-specific knowledge available in a document tokenised with a language model.
+## Advanced Usage with `scikit-learn` Vectorizers
+
+The popular machine-learning library `scikit-learn` (`sklearn`) provides its own vectorizer classes, such as <code><a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.CountVectorizer.html" target="_blank">CountVectorizer</a></code> and <code><a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html" target="_blank">TfidfVectorizer</a></code>, which often form components of machine-learning pipelines. However, these tokenizers use simple regex patterns, rather than language models, to tokenize documents. In the example below, we'll show how you can use the scikit-learn's `CountVectorizer` as part of a pipeline for training a scikit-learn logistic regression model whilst still leveraging language-specific knowledge available in a document tokenised with Lexos.
 
 ```python
-import spacy
+# Scikit-learn imports
 from sklearn.feature_extraction.text import CountVectorizer
-
-# Load the spaCy English model
-nlp = spacy.load("en_core_web_sm")
-
-# Create a custom spaCy tokenizer function
-def spacy_tokenizer(text):
-    return [token.text for token in nlp(text)]
-
-# Note that the tokenizer function can perform additional tasks:
-def spacy_tokenizer(text):
-    return [token.lemma_ for token in nlp(text) if token.pos_ == "NOUN"]
-
-# Instantiate CountVectorizer with the custom tokenizer
-vectorizer = CountVectorizer(tokenizer=spacy_tokenizer)
-
-# Example text data
-documents = ["This is the first document.", "This document is the second document.", "And this is the third one.", "Is this the first document?"]
-
-# Fit and transform the documents
-matrix = vectorizer.fit_transform(documents)
-
-# Print the vocabulary
-print(vectorizer.get_feature_names_out())
-
-# Print the document-term matrix
-print(matrix.toarray())
-```
-
-**Explanation:**
-
-- The `spacy_tokenizer` function processes the input text using the loaded spaCy model. It then extracts the attribute of each token, returning a list of tokens.
-- You then create a `CountVectorizer` object and tells it to use your custom function for tokenization instead of its default tokenizer to build the vocabulary and transform the documents into a matrix of token counts. Note that the output matrix will be a sparse representation of the token counts for efficiency.
-
-Here is an example of how this procedure would be used for training a scikit-learn logistic regression model:
-
-```python
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
 
-# Define the steps of the pipeline
+# 1. We also need the Lexos `tokenizer` module
+from lexos.tokenizer import Tokenizer
+
+# 2. Create a Lexos Tokenizer instance
+lexos_tokenizer = Tokenizer(model="en_core_web_sm")
+
+# 3. Define a custom tokenizer function to return lists of tokens
+# We'll get token lemmas instead of text just to show that we have
+# access to NLP capabilities.
+def my_tokenizer(text, tokenizer=lexos_tokenizer):
+    return [token.lemma_ for token in tokenizer.make_doc(text)]
+
+# 4. Create a `CountVectorizer` instance
+# Notice that we supply `CountVectorizer`, passing it our own tokenizer.
+# `CountVectorizer` expects its own pattern for tokenizing, so we have to set
+# `token_pattern=None`, or it'll give us a warning.
+count_vectorizer = CountVectorizer(tokenizer=my_tokenizer, token_pattern=None)
+
+# Define the steps of the scikit-learn pipeline
 pipeline_steps = [
-    ('vectorizer', CountVectorizer()),
+    ('vectorizer', count_vectorizer),
     ('logistic_regression', LogisticRegression())
 ]
 
@@ -229,3 +233,34 @@ model_pipeline = Pipeline(pipeline_steps)
 model_pipeline.fit(X_train, y_train)
 predictions = model_pipeline.predict(X_test)
 ```
+
+Only the steps numbered 1-4 are really important for showing how to construct a document-term-matrix (the rest is all specific to running the logistic regression pipeline).
+
+If you need to construct a Lexos `DTM` from documents tokenized with `scikit-learn`, you can follow the example below:
+
+```python
+# Set our custom tokenizer in CountVectorizer
+# Note that `CountVectorizer` expects `token_pattern=None`
+# when using a custom tokenizer.
+vectorizer = CountVectorizer(tokenizer=my_tokenizer, token_pattern=None)
+
+# Use CountVectorizer to fit and transform the documents
+document_term_matrix = vectorizer.fit_transform(docs)
+
+# Get a list of terms from the vectorizer
+terms_list = vectorizer.get_feature_names_out()
+
+# Create a new `DTM` instance
+new_dtm = DTM(docs=docs, labels=labels)
+
+# Assign our scikit-learn matrix as a numpy array to the new instance
+new_dtm.doc_term_matrix=document_term_matrix.toarray()
+
+# Assign the vocabulary terms to the `DTM`'s vectorizer
+# Note that the `_validate_vocabulary()` method returns a tuple,
+# so we take the first element.
+new_dtm.vectorizer.vocabulary_terms = new_dtm.vectorizer._validate_vocabulary(
+    terms_list)[0]
+```
+
+This should enable you to access all properties and methods of the `DTM` class.

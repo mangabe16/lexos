@@ -48,6 +48,10 @@ If no language model exists for the text's language, it will only be possible to
 
 There are some trade-offs to using language models. Because the algorithm does more than split strings, processing times can be greater. In addition, the tokenization procedure is not (explicitly) language agnostic. A language model is "opinionated" and it may overfit the data. At the same time, if no language model exists for the language being tokenized, the results may not be satisfactory. The Lexos strategy for handling this situation is described below.
 
+!!! note "Using Other Tokenizers"
+
+    Many machine-learning tools &mdash; including the Lexos web app &mdash; deploy `scikit-learn`'s `CountVectorizer` (and similar) classes to perform tokenizations. Such tools combine the process of tokenizing and counting tokens, whereas the Lexos `tokenizer` module keeps them separate. Moreover, tools like `CountVectorizer` use simple regular expression patterns to divide texts into tokens and do not leverage the capabilities of a language model. If you need a toolk like `CountVectorizer` to perform tokenization but still want to make use of the NLP capabilities of the Lexos Tokenizer, there is an example of how to do it on the [Document-Term Matrix](../the_document_term_matrix/#advanced-usage-with-scikit-learn-vectorizers) page.
+
 ## SpaCy Docs
 
 Lexos uses the <a href="https://spacy.io/" target="_blank">spaCy</a> Natural Language Processing (NLP) library for loading language models and tokenizing texts. Because spaCy has excellent documentation and fairly wide acceptance in the Digital Humanities community, it is a good tool to use under the bonnet. SpaCy has a growing number of language models in a number of languages, as well as wrappers for loading models from other common NLP libraries such as Stanford Stanza.
