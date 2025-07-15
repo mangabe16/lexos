@@ -154,6 +154,17 @@ Perhaps the most useful method of the `DTM` class is `to_df()`, which converts t
 - `mean`: Add a column showing the mean of each row.
 - `median`: Add a column showing the median of each row.
 
+!!! important
+    The `transpose` parameter is applied before the other parameters and may not work in tandem with them. If you need to transpose a DataFrame after applying `sum`, `mean`, or `median`, it is better to use the pandas `transpose()` method:
+
+    ```python
+    # Transpose the DataFrame after creation
+    dtm.df(sum=True).transpose()
+
+    # Or use the alternative `T` property
+    dtm.df(sum=True).T
+    ```
+
 ## Visualising the DTM
 
 Once a document-term matrix table has been generated as a pandas dataframe, it becomes possible to use any of the Pandas plotting methods to visualise the data. Here is a short example of a bar chart containing the top 20 terms in the DTM:
