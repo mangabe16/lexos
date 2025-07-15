@@ -163,7 +163,7 @@ Once a document-term matrix table has been generated as a pandas dataframe, it b
 df = dtm.to_df(sum=True, by="Total", ascending=False)[0:20]
 
 # Plot the DataFrame
-df.plot(
+df.Total.plot(
     kind="bar",
     title="Top 20 Most Frequent Terms",
     xlabel="Terms",
