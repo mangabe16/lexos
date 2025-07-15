@@ -1,6 +1,6 @@
 """__init__.py.
 
-Last Update: July 14, 2025
+Last Update: July 15, 2025
 Last Tested: June 15, 2025
 
 # WARNING: The sorted_terms_list and sorted_term_counts properties only work if the DTM has been built with a vectorizer that has compatible `terms_list` and `vocabulary_terms` attributes.
@@ -178,11 +178,13 @@ class DTM(BaseModel):
                 - **kwargs: Additional keyword arguments to pass to the vectorizer.
         """
         super().__init__(**data)
-        # Make sure that a vectorizer instance is called
-        self.vectorizer = self.vectorizer()
-
-        # Update the vectorizer with any additional keyword arguments
-        self._update_vectorizer(**data)
+        # Make sure that a vectorizer instance is called with any keyword arguments
+        kwargs = {
+            k: v
+            for k, v in data.items()
+            if k not in ["docs", "labels", "vectorizer", "alg", "doc_term_matrix"]
+        }
+        self.vectorizer = self.vectorizer(**kwargs)
 
     def __call__(
         self,
@@ -212,6 +214,9 @@ class DTM(BaseModel):
         if self.vectorizer is None:
             self.vectorizer = TextacyVectorizer()
 
+        # Update the vectorizer with any additional keyword arguments
+        self._update_vectorizer(**kwargs)
+
         # Make sure the sorting algorithm is valid
         self._validate_sorting_algorithm()
 
@@ -233,15 +238,12 @@ class DTM(BaseModel):
             raise LexosException("The number of docs must match the number of labels.")
 
         # Call the vectorizer to build the DTM
-        # try:
-        # Update the vectorizer with any additional keyword arguments
-        self._update_vectorizer(**kwargs)
+        try:
+            # Fit the vectorizer to the docs and build the document-term matrix
+            self.doc_term_matrix = self.vectorizer.fit_transform(self.docs)
 
-        # Fit the vectorizer to the docs and build the document-term matrix
-        self.doc_term_matrix = self.vectorizer.fit_transform(self.docs)
-
-        # except Exception as e:
-        #     raise LexosException(f"Error building DTM: {e}")
+        except Exception as e:
+            raise LexosException(f"Error building DTM: {e}")
 
     def _get_term_percentages(
         self,
@@ -290,8 +292,23 @@ class DTM(BaseModel):
         Args:
             kwargs (dict): Additional keyword arguments to update the vectorizer.
         """
+        # Get parameters from the vectorizer attribute in case they have been set directly
+        params = {
+            "tf_type": self.vectorizer.tf_type,
+            "idf_type": self.vectorizer.idf_type,
+            "dl_type": self.vectorizer.dl_type,
+            "norm": self.vectorizer.norm,
+            "min_df": self.vectorizer.min_df,
+            "max_df": self.vectorizer.max_df,
+            "max_n_terms": self.vectorizer.max_n_terms,
+            "vocabulary_terms": self.vectorizer.vocabulary_terms,
+        }
+        # Override the settings with any additional keyword arguments
         for key, value in kwargs.items():
-            setattr(self.vectorizer, key, value)
+            params[key] = value
+
+        # Create a new vectorizer instance with the updated parameters
+        self.vectorizer = TextacyVectorizer(**params)
 
     def _validate_sorting_algorithm(self) -> bool:
         """Ensure that the specified sorting algorithm is a valid natsort locale.
