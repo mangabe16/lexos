@@ -48,8 +48,8 @@ dendrogram = Dendrogram()
 When we create the `Dendrogram`, we need to tell it how to measure document similarity and how to connect those similarities into a tree. Here are the key parameters you can adjust:
 
 - `dtm`: This is our "linguistic spreadsheet" (`dtm`) that we created in the previous step. It's the essential input for the tree.
-- `metric`: This sets the distance metric, which tells the dendrogram how to measure the "distance" or dissimilarity between your documents. Shorter distances mean more similar documents. Options include `euclidean` (the default), `cosine`, and `cityblock`. For other options, see **Choosing a Distance Metric** below.
-- `method`: This sets the linkage criterion, which determines how individual documents (or existing clusters of documents) are joined together to form larger branches and clusters in the tree. Option `average` (the default), `single`, `complete`, and `ward`. For further information, see **Choosing a Linkage Method** below.
+- `metric`: This sets the distance metric, which tells the dendrogram how to measure the "distance" or dissimilarity between your documents. Shorter distances mean more similar documents. Options include `euclidean` (the default), `cosine`, and `cityblock`. For other options, see [Choosing a Distance Metric](#choosing-a-distance-metric) below.
+- `method`: This sets the linkage criterion, which determines how individual documents (or existing clusters of documents) are joined together to form larger branches and clusters in the tree. Option `average` (the default), `single`, `complete`, and `ward`. For further information, see [Choosing a Linkage Method](#choosing-a-linkage-method) below.
   - `labels`: This is simply the list of descriptive names for your documents (e.g., "Poe", "Lippard") that we defined earlier. These will appear as the leaves (endpoints) on your tree.
 - `orientation`: Controls the direction of the dendrogram. The default `"top"` orients the branches so that they extend downwards from root at the top. Other options are `"bottom"`, `"left"`, and `"right"`.
 - `color_threshold`: If set, branches with a distance below this threshold will be colored differently from those above it. This helps visualize clusters at a certain distance level. You can try a number like `1.0` or `1.5` to see its effect.
@@ -126,14 +126,14 @@ Here is a procedure to use as a starting point:
 
 Lexos does not offer any numerical criteria for evaluating the quality of hierarchical clusters. However, you can count the number of leaves at your cutoff point and use that as the *k* value in a k-means clustering analysis to provide comparative evidence.
 
-In addition, Lexos does not offer a method of drawing the dendrogram showing the cut. SciPy provides the `fcluster` method for cutting dendrograms, and we will hopefully implement it in the future. See also Information here about how to add truncate mode: https://stackoverflow.com/questions/70801281/how-can-i-plot-a-truncated-dendrogram-plot-using-plotly.
+In addition, Lexos does not offer a method of drawing the dendrogram showing the cut. SciPy provides the `fcluster` method for cutting dendrograms, and we will hopefully implement it in the future. This <a href="https://stackoverflow.com/questions/70801281/how-can-i-plot-a-truncated-dendrogram-plot-using-plotly" target="_blank">Stack Overflow discussion</a> provides information on how to add truncate mode.
 
 ### Cluster Robustness
 
 By cutting trying different distance metrics and linkage methods, as well as by cutting the dendrogram at different heights, you can evaluate the **robustness** of individual clusters. A "robust" cluster is one that persists, regardless of the setup criteria. If the cluster is sensitive to changes in the setup criteria, it is more likely to be a statistical artefact of those criteria, rather than a meaningful pattern. This, however, is a guideline, and its usefulness will depend on your data.
 
 !!! note "Measuring Robustness with Bootstrap Consensus Trees"
-    One way to automate the process of assessing cluster robustness is to implement Bootstrap Consensus Trees, which perform clustering with multiple settings and record the most-consistent clusters. See the section on **Bootstrap Consensus Trees** below.
+    One way to automate the process of assessing cluster robustness is to implement Bootstrap Consensus Trees, which perform clustering with multiple settings and record the most-consistent clusters. See the section on [Bootstrap Consensus Trees](#bootstrap-consensus-trees) below.
 
 ## Clustermaps
 
@@ -153,63 +153,80 @@ Lexos can generate static clustermap images using the Python Seaborn library or 
 
 ### Using Seaborn¤
 
-To generate a clustermap with Seaborn, use the following code:
+The Python Seaborn visualization library has a clustermap function, which has somewhat limited functionality. Lexos wraps the Seaborn function in the `Clustermap` class to provide additional convenience features, such as the inclusion of titles. To generate a clustermap with Seaborn, use the following code:
 
 ```python
 # Import the ClusterMap class
-from lexos.cluster.clustermap import ClusterMap
+from lexos.cluster import Clustermap
 
 # Create a ClusterMap object
-cluster_map = ClusterMap(dtm, title="My Clustermap")
-
-# Generate the plot and save it to a variable
-fig = cluster_map(dtm=dtm_df, labels=labels)
+cm = Clustermap(dtm=dtm, title="My Clustermap")
+cm.show()
 ```
 
-<img src="../../../tutorials/cluster/clustermap.png" alt="Sample clustermap">
+<img src="../../../tutorials/cluster/clustermap_example.png" alt="Sample clustermap">
 
-The distance title, distance metric, and linkage method, of the dendrogram can be set in the same way by passing title, metric, and method when instantiating the class or when the class is called.
+The `dtm` can be a Lexos `DTM` instance, a compatible Pandas DataFrame, or a list of lists of tokens. For the clustering parameters, see the advice in [Choosing a Distance Metric](#choosing-a-distance-metric) and [Choosing a Linkage Method](#choosing-a-linkage-method) above. In addition to the `title`, `metric`, and `method` keywords, `Clustermap` takes the following parameters:
 
-The `ClusterMap` instance can be further customized with any  <code><a href="https://seaborn.pydata.org/generated/seaborn.clustermap.html" target="_blank">Seaborn.clustermap</a></code> parameter.
+- `labels`: A list of descriptive names for your documents. These will appear as the leaves (endpoints) on your tree. If not supplied, the labels from your Lexos `DTM` or Pandas DataFrame will be used.
+- `z_score`: Standardizes the values within each row (documents) or column (terms). If the value is set to `None`, the heatmap shows raw frequencies (or whatever your DTM contains). The setting `0` standardizes each row (document) by subtracting its mean and dividing by its standard deviation. This highlights how *terms vary within a single document* relative to that document's average term frequency. Useful for comparing patterns across documents regardless of their length. The setting `1` standardizes each column (term) by subtracting its mean and dividing by its standard deviation. This highlights how *a single term's frequency varies across different documents* relative to that term's average frequency. Useful for seeing which documents use a term more or less than average.
+- `standard_scale`: Similar to `z_score`, but scales to a specific range (usually 0 to 1). The setting `0` scales each row (document) so its minimum value is 0 and its maximum is 1. The setting `1` scales each column (term) so its minimum is 0 and its maximum is 1.
+- `cmap`: Sets the color scheme (colormap) for the heatmap. It determines which colors represent low values and which represent high values. The default setting "vlag" is a diverging colormap (red/blue), which is good for showing values around a center point (especially after `z_score` scaling). Other good general-purpose colormaps are "viridis" and "coolwarm". You can find listings of other [`matplotlib`](https://matplotlib.org/stable/gallery/color/colormap_reference.html) and [`seaborn`](https://seaborn.pydata.org/tutorial/color_palettes.html) colormaps online.
+- `hide_upper`: Setting the value to `True` removes the dendrogram above the heatmap. Useful if you are not interested in the clustering of columns/terms.
+- `hide_side`: Setting the value to `True` removes the dendrogram to the left of the heatmap. Useful if you are not interested in the clustering of rows/documents.
+- `row_cluster`: Perform clustering on rows (documents). Default is `True`. Along with `col_cluster`, this setting is useful if you have a specific ordering in mind for comparison, or if you've pre-computed a linkage.
+- `col_cluster`: Perform clustering on columns (terms). Default is `False`. If `False`, items will be displayed in their original order.
+- `row_colors`: Allows you to add colored strips alongside the rows, which can be used to visually group or categorize your documents. Provide a list of colors (e.g., `['red', 'blue', 'green']`). The list should match the number of documents/terms. You can also use a named `seaborn` palette (e.g., `"husl"`). Setting the value to "default" will use `seaborn.husl_palette(8, s=0.45)`. This setting is great for adding metadata! For example, if you have two categories of documents (e.g., "male authors" vs. "female authors"), you could assign a color to each category to see if your clustering aligns with these external factors.
+- `col_colors`:Allows you to add colored strips alongside the columns, which can be used to visually group or categorize your terms. Setting values are the same as for `row_colors`.
+- `title`: Adds a title to your dendrogram plot.
+- `figsize`: A tuple `(width, height)` in inches to set the size of the overall figure. For example, `(12, 8)` for a wider and taller plot.
 
-The clustermap plot is not shown by default. To display the plot, generate it with `show=True` or reference it with `ClusterMap.fig`.
+The `Clustermap` instance can be further customized with any  <code><a href="https://seaborn.pydata.org/generated/seaborn.clustermap.html" target="_blank">Seaborn.clustermap</a></code> parameter.
 
-!!! Note
-    Information on saving the clustermap needs to be added here.
-
-!!! warning
-  Once the clustermap plot has been generated, it is inadvisable to use the modebar zoom and pan buttons because this tends to separate the heatmap from the dendrogram leaves. In the future, these buttons may be removed.
+After you've generated your clustermap, you'll likely want to save it as an image for reports or presentations. The `save()` method lets you do this easily. Just provide a file path, and it'll save the image. You can specify different file formats by changing the extension (e.g., `.png`, `.jpg`, `.pdf`, `.svg`). The `save()` method wraps the `matplotlib` <code><a href="https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html" target="_blank">savefig</a></code> function and accepts any of its keywords.
 
 ### Using Plotly¤
 
-Plotly clustermaps are somewhat experimental and may not render plots that are as informative as Seaborn clustermaps. One advantage they have is that, instead of providing labels for each document at the bottom of the graph, they provide the document labels on the x and y axes, as well as the z (distance) score in the hovertext. This allows you to mouse over individual sections of the heatmap to see which documents are represented by that particular section, as well as the exact distance values.
+Plotly clustermaps are somewhat experimental and may or may not render plots that are as informative as Seaborn clustermaps. One advantage they have is that, instead of providing labels for each document at the bottom of the graph, they provide the document labels on the x- and y-axes, as well as the z (distance) score in the hovertext. This allows you to mouse over individual sections of the heatmap to see which documents are represented by that particular section, as well as the exact distance values.
 
-Plotly clustermaps are constructed in the same manner to Seaborn clustermaps:
+Plotly clustermaps are constructed in the same manner to Seaborn clustermaps with the same settings, so far as is possible in the Plotly library:
 
 ```python
-# Import the ClusterMap class
-from lexos.cluster.clustermap import PlotlyClustermap
+# Import the PlotlyClustermap class
+from lexos.cluster import PlotlyClustermap
 
 # Create a PlotlyClustermap object
-cluster_map = PlotlyClustermap(dtm, title="My Clustermap")
-
-# Generate the plot and save it to a variable
-fig = cluster_map(dtm=dtm_df, labels=labels)
+cm = PlotlyClustermap(dtm=dtm, title="My Clustermap")
 ```
 
-<img src="../../../tutorials/cluster/plotly_clustermap.png" alt="Sample Plotly clustermap">
+<img src="../../../tutorials/cluster/plotly_clustermap_example.png" alt="Sample Plotly clustermap">
 
-Note that the image above is a static representation and does not demonstrate Plotly's hover effects.
+!!! note
+    Note that the image above is a static representation and does not demonstrate Plotly's hover effects.
 
 All the options for Plotly dendrograms are available with the following differences:
 
-- Figure size is determined by configuring the `width` and `height` parameters.
-- `colorscale` is the name of a built-in Plotly colorscale. This is applied to the heatmap and converted internally to a list of colorus to apply to the dendrograms.
+- `figsize` is measured in pixels.
+- `colorscale` is the name of a built-in <a href="https://plotly.com/python/builtin-colorscales/" target="_blank">Plotly colorscale</a>. This is applied to the heatmap and converted internally to a list of colours to apply to the dendrograms.
 
 Two additional parameters, `hide_upper` and `hide_side` allow you to hide the individual dendrograms.
 
 !!! warning
-    Once the clustermap plot has been generated, it is inadvisable to use the modebar zoom and pan buttons because this tends to separate the heatmap from the dendrogram leaves. It may even be advisable to remove these buttons from the modebar by default.
+    Note that panning and zooming can cause the heatmap and dendrograms to become unsynced. There is currently no way to maintain the syncing in pure Python. If you need to zoom in on particular sections of the plot, you may be able to achieve the effect you are looking for by saving the plot as an HTML file with the *experimental* `include_sync` parameter:
+
+  ```python
+  html = cm.to_html(include_sync=True)
+  with open("filename.html", "w") as f:
+      f.write(html)
+  ```
+
+  Open the HTML file in a web browser, and you may get the behaviour you need. See below for other options for saving your Plotly clustermaps.
+
+You have several option for saving your Plotly clustermaps. In the Plotly toolbar, there is a "Download plot as png" option to save the plot as a static `.png` file. You can also save the the image to a static file programmatically by calling `PlotlyClustermap.write_image()`. Just provide a file name (including the extension), and it will save the image. You can choose different file formats by changing the extension (e.g., `.png`, `.jpg`, `.pdf`, `.svg`). This is a wrapper around Plotly's <code><a href="https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html" target="_blank">write_image()</a></code> function and accepts all the same arguments.
+
+Plotly figures are highly interactive when saved as HTML, allowing you to zoom, pan, and hover over data points in your saved file. If you wish to save your diagram as an HTML file, call `PlotlyClustermap.write_html()`. This is a wrapper around Plotly's <code><a href="https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_html.html" target="_blank">write_html()</a></code> function and accepts all the same arguments.
+
+Note that `write_image()` and `write_html()` have parallel `to_image()` and `to_html()` methods that allow you to assign the results to a variable, rather than saving to a file.
 
 ## Bootstrap Consensus Trees
 

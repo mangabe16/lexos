@@ -28,7 +28,7 @@ The `dendrogram` module performs hierarchical aggolomerative clustering.
 
 ## The `Clustermap` Class
 
-### ::: lexos.cluster.clustermap.ClusterMap
+### ::: lexos.cluster.clustermap.Clustermap
 
     rendering:
       show_root_heading: true
@@ -36,7 +36,7 @@ The `dendrogram` module performs hierarchical aggolomerative clustering.
 
 ## The `PlotlyClusterMap` Class
 
-### ::: lexos.cluster.plotly_clustermap.PlotlyClustermap
+### ::: lexos.cluster.clustermap.PlotlyClustermap
 
     rendering:
       show_root_heading: true
