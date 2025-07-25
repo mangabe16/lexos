@@ -141,6 +141,13 @@ class PlotlyClustermap(BaseModel):
         # Get the matrix based on the data type
         matrix = self._get_valid_matrix()
 
+        # WARNING: From clustermap.py
+        # Ensure that the matrix is not a sparse array
+        # if self.row_linkage is None and self.col_linkage is None:
+        matrix = matrix.sparse.to_dense()
+        # else:
+        #     matrix = pd.DataFrame(matrix, index=self.labels)
+
         # Create the figure
         fig = create_dendrogram(
             matrix,
@@ -182,8 +189,9 @@ class PlotlyClustermap(BaseModel):
         dendro_leaves = list(map(int, dendro_leaves))
         data_dist = pdist(matrix)
         heat_data = squareform(data_dist)
+        # WARNING: This is repeated
         heat_data = heat_data[dendro_leaves, :]
-        heat_data = heat_data[:, dendro_leaves]
+        # heat_data = heat_data[:, dendro_leaves]
 
         num = len(self.labels)
         heatmap = [
@@ -288,12 +296,31 @@ class PlotlyClustermap(BaseModel):
         if self.showfig:
             self.fig.show(config=self.config)
 
+    # WARNING: From clustermap.py
+    # def _get_valid_matrix(self):
+    #     """Get a valid matrix based on the data type of the dtm."""
+    #     if isinstance(self.dtm, DTM):
+    #         matrix = self.dtm.to_df()
+    #         matrix.index.name = "terms"
+    #     else:
+    #         matrix = self.dtm
+    #     if isinstance(matrix, list):
+    #         first_row = len(matrix[0])
+    #         first_row = len(matrix)
+    #     else:
+    #         first_row = matrix.shape[0]
+    #     if first_row < 2:
+    #         raise LexosException(
+    #             "The document-term matrix must have more than one document."
+    #         )
+    #     return matrix
+
     def _get_valid_matrix(self):
         """Get a valid matrix based on the data type of the dtm."""
         if isinstance(self.dtm, DTM):
             matrix = self.dtm.to_df()
             matrix.index.name = "terms"
-            matrix = matrix.T
+            matrix = matrix.T  # Not in clustermap.py
         else:
             matrix = self.dtm
         if isinstance(matrix, list):
