@@ -19,31 +19,31 @@ from lexos.cluster import (
     PlotlyClusterGrid,
     PlotlyClustermap,
     _create_dendrogram_traces,
-    get_matrix,
+    _get_matrix,
 )
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 
 
 class TestGetMatrix:
-    """Test suite for the get_matrix function."""
+    """Test suite for the _get_matrix function."""
 
     def test_get_matrix_with_dtm(self):
-        """Test get_matrix with a DTM object."""
+        """Test _get_matrix with a DTM object."""
         # Create a sample DTM
         data = [[1, 2, 3], [4, 5, 6]]
         labels = ["doc1", "doc2"]
         dtm = DTM()
         dtm(docs=data, labels=labels)
 
-        result = get_matrix(dtm)
+        result = _get_matrix(dtm)
 
         assert isinstance(result, pd.DataFrame)
         assert result.index.name == "terms"
         assert result.shape == (6, 2)
 
     def test_get_matrix_with_dataframe(self):
-        """Test get_matrix with a pandas DataFrame."""
+        """Test _get_matrix with a pandas DataFrame."""
         data = [[1, 2, 3], [4, 5, 6]]
         labels = ["doc1", "doc2"]
         dtm = DTM()
@@ -57,20 +57,20 @@ class TestGetMatrix:
         pd.testing.assert_frame_equal(result, df.sparse.to_dense())
 
     def test_get_matrix_with_numpy_array(self):
-        """Test get_matrix with a numpy array."""
+        """Test _get_matrix with a numpy array."""
         data = np.array([[1, 2, 3], [4, 5, 6]])
 
-        result = get_matrix(data)
+        result = _get_matrix(data)
 
         assert isinstance(result, np.ndarray)
         assert result.shape == (2, 3)
         np.testing.assert_array_equal(result, data)
 
     def test_get_matrix_with_list(self):
-        """Test get_matrix with a list."""
+        """Test _get_matrix with a list."""
         data = [[1, 2, 3], [4, 5, 6]]
 
-        result = get_matrix(data)
+        result = _get_matrix(data)
 
         assert isinstance(result, list)
         assert len(result) == 2
@@ -78,7 +78,7 @@ class TestGetMatrix:
         assert result == data
 
     def test_get_matrix_single_document_raises_exception(self):
-        """Test that get_matrix raises exception with single document."""
+        """Test that _get_matrix raises exception with single document."""
         # Test with DataFrame
         single_doc_df = pd.DataFrame([[1, 2, 3]], columns=["term1", "term2", "term3"])
 
@@ -86,56 +86,56 @@ class TestGetMatrix:
             LexosException,
             match="The document-term matrix must have more than one document",
         ):
-            get_matrix(single_doc_df)
+            _get_matrix(single_doc_df)
 
     def test_get_matrix_single_document_numpy_raises_exception(self):
-        """Test that get_matrix raises exception with single document numpy array."""
+        """Test that _get_matrix raises exception with single document numpy array."""
         single_doc_array = np.array([[1, 2, 3]])
 
         with pytest.raises(
             LexosException,
             match="The document-term matrix must have more than one document",
         ):
-            get_matrix(single_doc_array)
+            _get_matrix(single_doc_array)
 
     def test_get_matrix_single_document_list_raises_exception(self):
-        """Test that get_matrix raises exception with single document list."""
+        """Test that _get_matrix raises exception with single document list."""
         single_doc_list = [[1, 2, 3]]
 
         with pytest.raises(
             LexosException,
             match="The document-term matrix must have more than one document",
         ):
-            get_matrix(single_doc_list)
+            _get_matrix(single_doc_list)
 
     def test_get_matrix_empty_list_raises_exception(self):
-        """Test that get_matrix raises exception with empty list."""
+        """Test that _get_matrix raises exception with empty list."""
         empty_list = []
 
         with pytest.raises(
             LexosException,
             match="The document-term matrix cannot be empty",
         ):
-            get_matrix(empty_list)
+            _get_matrix(empty_list)
 
     def test_get_matrix_empty_dataframe_raises_exception(self):
-        """Test that get_matrix raises exception with empty DataFrame."""
+        """Test that _get_matrix raises exception with empty DataFrame."""
         empty_df = pd.DataFrame()
 
         with pytest.raises(
             LexosException,
             match="The document-term matrix must have more than one document",
         ):
-            get_matrix(empty_df)
+            _get_matrix(empty_df)
 
     def test_get_matrix_preserves_dataframe_structure(self):
-        """Test that get_matrix preserves DataFrame structure and metadata."""
+        """Test that _get_matrix preserves DataFrame structure and metadata."""
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
         df = pd.DataFrame(
             data, columns=["term1", "term2", "term3"], index=["doc1", "doc2", "doc3"]
         )
 
-        result = get_matrix(df)
+        result = _get_matrix(df)
 
         assert isinstance(result, pd.DataFrame)
         pd.testing.assert_frame_equal(result, df)
@@ -143,11 +143,11 @@ class TestGetMatrix:
         assert list(result.index) == ["doc1", "doc2", "doc3"]
 
     def test_get_matrix_with_large_matrix(self):
-        """Test get_matrix with a larger matrix."""
+        """Test _get_matrix with a larger matrix."""
         data = np.random.rand(100, 50)
         df = pd.DataFrame(data)
 
-        result = get_matrix(df)
+        result = _get_matrix(df)
 
         assert isinstance(result, pd.DataFrame)
         assert result.shape == (100, 50)
@@ -159,18 +159,18 @@ class TestGetMatrix:
         # This test ensures the fix works correctly
         data = [[1, 2], [3, 4], [5, 6]]  # 3 documents, 2 terms each
 
-        result = get_matrix(data)
+        result = _get_matrix(data)
 
         assert isinstance(result, list)
         assert len(result) == 3  # Should have 3 documents
         assert all(len(row) == 2 for row in result)  # Each should have 2 terms
 
     def test_get_matrix_with_mixed_types(self):
-        """Test get_matrix with DataFrame containing mixed numeric types."""
+        """Test _get_matrix with DataFrame containing mixed numeric types."""
         data = [[1, 2.5, 3], [4.0, 5, 6.7]]
         df = pd.DataFrame(data, columns=["term1", "term2", "term3"])
 
-        result = get_matrix(df)
+        result = _get_matrix(df)
 
         assert isinstance(result, pd.DataFrame)
         pd.testing.assert_frame_equal(result, df)
@@ -185,23 +185,23 @@ class TestGetMatrix:
         ],
     )
     def test_get_matrix_various_dimensions(self, n_docs, n_terms):
-        """Test get_matrix with various matrix dimensions."""
+        """Test _get_matrix with various matrix dimensions."""
         data = np.random.rand(n_docs, n_terms)
         df = pd.DataFrame(data)
 
-        result = get_matrix(df)
+        result = _get_matrix(df)
 
         assert isinstance(result, pd.DataFrame)
         assert result.shape == (n_docs, n_terms)
 
     def test_get_matrix_dtm_sets_index_name(self):
-        """Test that get_matrix sets index name to 'terms' when input is DTM."""
+        """Test that _get_matrix sets index name to 'terms' when input is DTM."""
         data = [[1, 2, 3], [4, 5, 6]]
         labels = ["doc1", "doc2"]
         dtm = DTM()
         dtm(docs=data, labels=labels)
 
-        result = get_matrix(dtm)
+        result = _get_matrix(dtm)
 
         assert isinstance(result, pd.DataFrame)
         assert result.index.name == "terms"

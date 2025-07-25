@@ -32,7 +32,7 @@ from lexos.exceptions import LexosException
 sns.set_theme()
 
 
-def get_matrix(matrix: ArrayLike | DTM | pd.DataFrame) -> ArrayLike | pd.DataFrame:
+def _get_matrix(matrix: ArrayLike | DTM | pd.DataFrame) -> ArrayLike | pd.DataFrame:
     """Get a valid matrix from the input.
 
     Args:
@@ -161,7 +161,7 @@ class Clustermap(BaseModel):
         self._set_labels()
 
         # Get the matrix based on the data type
-        matrix = get_matrix(self.dtm)
+        matrix = _get_matrix(self.dtm)
 
         # Get colour palettes for the dendrograms
         # Ensure that lists of colours are longer than the number of labels
@@ -651,7 +651,7 @@ class PlotlyClustermap(BaseModel):
         self._set_labels()
 
         # Get the matrix based on the data type
-        matrix = get_matrix(self.dtm)
+        matrix = _get_matrix(self.dtm)
 
         # Extract our custom parameters from kwargs to prevent them being passed to plotly components
         filtered_kwargs = self.kwargs.copy()
