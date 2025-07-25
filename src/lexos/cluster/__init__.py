@@ -1,5 +1,13 @@
 """__init__.py."""
-from lexos.cluster.clustermap import ClusterMap
-from lexos.cluster.dendrogram import Dendrogram
-from lexos.cluster.plotly_clustermap import PlotlyClustermap
-from lexos.cluster.plotly_dendrogram import PlotlyDendrogram
+
+from .bootstrap_consensus import BCT
+from .clustermap import (
+    Clustermap,
+    PlotlyClusterGrid,
+    PlotlyClustermap,
+    _create_dendrogram_traces,
+    get_matrix,
+)
+from .dendrogram import Dendrogram
+from .plotly_dendrogram import PlotlyDendrogram
+from .sync_script import SYNC_SCRIPT
