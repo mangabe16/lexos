@@ -52,19 +52,9 @@ class BCT(BaseModel):
     layout: Optional[str] = Field(
         "rectangular", description="Tree visualization layout: 'rectangular' or 'fan'."
     )
-    showfig: Optional[bool] = Field(False, description="Whether to show the figure.")
     fig: Optional[Figure] = Field(None, description="The figure for the dendrogram.")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    @field_validator("text_color", mode="after")
-    @classmethod
-    def _validate_text_color(cls, value):
-        if not is_valid_colour(value):
-            raise LexosException(
-                "Value is not a valid colour: string not recognised as a valid colour."
-            )
-        return value
 
     @property
     def _doc_term_matrix(self) -> pd.DataFrame:
@@ -96,6 +86,23 @@ class BCT(BaseModel):
                 else:
                     return {i: label for i, label in enumerate(self.labels)}
         return {}
+
+    def __init__(self, **data) -> None:
+        """Construct the BCT instance and render the bootstrap consensus tree."""
+        super().__init__(**data)
+
+        # Get the matplotlib figure for bootstrap consensus tree result
+        self.fig = self._get_bootstrap_consensus_tree_fig(layout=self.layout)
+        plt.close()
+
+    @field_validator("text_color", mode="after")
+    @classmethod
+    def _validate_text_color(cls, value):
+        if not is_valid_colour(value):
+            raise LexosException(
+                "Value is not a valid colour: string not recognised as a valid colour."
+            )
+        return value
 
     @staticmethod
     def linkage_to_newick(matrix: np.ndarray, labels: list[str]) -> str:
@@ -278,9 +285,6 @@ class BCT(BaseModel):
         for text in plt.gca().texts:
             text.set_linespacing(spacing=0.1)
             text.set_color(normalized_color)
-
-        if not self.showfig:
-            plt.close()
 
         return fig
 
@@ -615,78 +619,7 @@ class BCT(BaseModel):
 
         plt.tight_layout()
 
-        if not self.showfig:
-            plt.close()
-
         return fig
-
-    @validate_call(config=model_config)
-    def __call__(
-        self,
-        dtm: Optional[DTM] = Field(None, description="The document term matrix."),
-        metric: Optional[str] = Field("euclidean", description="The distance metric."),
-        method: Optional[str] = Field("average", description="The linkage method."),
-        cutoff: Optional[float] = Field(0.5, description="The cutoff value."),
-        iterations: Optional[int] = Field(
-            100, description="The number of iterations to run the bootstrap."
-        ),
-        replace: Optional[str] = Field(
-            "without", description="The replacement method."
-        ),
-        labels: Optional[list[int | str] | dict[int, str]] = Field(
-            None, description="The document labels."
-        ),
-        text_color: Optional[str] = Field(
-            "rgb(0, 0, 0)", description="The text colour."
-        ),
-        title: Optional[str] = Field(
-            "Bootstrap Consensus Tree Result",
-            description="The title of the dendrogram.",
-        ),
-        layout: Optional[str] = Field(
-            "rectangular",
-            description="Tree visualization layout: 'rectangular' or 'fan'.",
-        ),
-        showfig: Optional[bool] = Field(
-            False, description="Whether to show the figure."
-        ),
-    ) -> Figure:
-        """Render the bootstrap consensus tree result and save it to images.
-
-        Returns:
-            Figure: The rendered BCT figure.
-        """
-        # Set the attributes of the class
-        self._set_attrs(
-            dtm=dtm,
-            metric=metric,
-            method=method,
-            cutoff=cutoff,
-            iterations=iterations,
-            replace=replace,
-            labels=labels,
-            text_color=text_color,
-            title=title,
-            showfig=showfig,
-        )
-
-        # Do not automatically show the figure
-        if not self.showfig:
-            plt.ioff()
-
-        # Get the matplotlib figure for bootstrap consensus tree result
-        fig = self._get_bootstrap_consensus_tree_fig(layout=layout)
-
-        # Save the figure to the instance and show or close the plot
-        self.fig = fig
-
-        return fig
-
-    def _set_attrs(self, **kwargs):
-        """Set the attributes of the class."""
-        for key, value in kwargs.items():
-            if value is not None:
-                setattr(self, key, value)
 
     @validate_call(config=model_config)
     def save(self, path: Path | str | None) -> None:
@@ -698,14 +631,6 @@ class BCT(BaseModel):
         if not path or path == "":
             raise LexosException("You must provide a valid path.")
         self.fig.savefig(path)
-        # NOTE: It may be better to avoid plt.ion/ioff by saving a binary
-        # version of the image, but that might complicate the ui.
-        # Create a bytes IO image holder and save figure to it
-        # image_holder = BytesIO()
-        # bct_plot.savefig(image_holder, transparent=True)
-        # image_holder.seek(0)
-        # Decode image to utf-8 string
-        # return base64.b64encode(b"".join(image_holder)).decode("utf-8")
 
     def show(self) -> Figure:
         """Show the figure if it is hidden.
@@ -717,5 +642,4 @@ class BCT(BaseModel):
             raise LexosException(
                 "You must call the instance before showing the figure."
             )
-        plt.ion()
         return self.fig

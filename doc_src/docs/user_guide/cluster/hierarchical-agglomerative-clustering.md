@@ -241,32 +241,30 @@ Generating bootrap consensus dendrograms involves submitting the same distance m
 - `text_color`: Sets the color for all text on the plot (axis labels, branch lengths, and document labels). You can use "rgb(R, G, B)" format. For example: `"rgb(0, 0, 0)"` (black) or `"rgb(255, 0, 0)"` (red).
 - `layout`: Sets the layout of the dendrogram, either "rectangular" (the default) or "fan".
 
-!!! warning
-    Although bootstrap consensus trees take the same parameters as normal dendrograms, the keyword arguments are not consistent between the two classes. This needs to be fixed.
-
 ### Plotting Bootstrap Consensus Trees
 
 To create a bootstrap consensus tree with rectangular layout, use the following code, setting the parameters describe above as required:
 
 ```python
-# Import the BCT class
-from lexos.cluster.bootstrap_consensus2 import BCT
+# Import the BCT class for Bootstrap Consensus Tree
+from lexos.cluster import BCT
 
-# Create an instance of the BCT object
-bct = BCT()
-
-# Generate the Bootstrap Consensus Tree
-fig = bct(
-    doc_term_matrix=dtm,
-    doc_labels=labels,
+# Create an instance of the BCT object (feel free to adjust parameters)
+bct = BCT(
+    dtm=dtm,
+    metric="euclidean",
+    method="average",
     cutoff=0.5,
     iterations=10,
     replace="without",
+    labels=labels,
     text_color="rgb(0, 0, 0)",
     layout="rectangular",
     title="Bootstrap Consensus Tree (Rectangular Layout)"
-    showfig=True
 )
+
+# Show the figure
+bct.show()
 ```
 
 <img src="../../../tutorials/cluster/bootstrap_consensus_rectangular.png" alt="Sample Bootstrap Consensus Tree rectangular layout">
