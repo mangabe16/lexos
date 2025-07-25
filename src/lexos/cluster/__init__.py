@@ -6,7 +6,7 @@ from .clustermap import (
     PlotlyClusterGrid,
     PlotlyClustermap,
     _create_dendrogram_traces,
-    get_matrix,
+    _get_matrix,
 )
 from .dendrogram import Dendrogram
 from .plotly_dendrogram import PlotlyDendrogram
