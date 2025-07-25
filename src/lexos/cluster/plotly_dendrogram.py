@@ -15,7 +15,7 @@ import pandas as pd
 import scipy.cluster.hierarchy as sch
 from numpy.typing import ArrayLike
 from plotly.figure_factory import create_dendrogram
-from plotly.graph_objs.graph_objs import Scatter
+from plotly.graph_objs.graph_objs import Figure, Scatter
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy.spatial.distance import pdist
 
@@ -31,24 +31,13 @@ class PlotlyDendrogram(BaseModel):
     ```python
     from lexos.cluster import PlotlyDendrogram
 
-    dendrogram = PlotlyDendrogram(dtm, showfig=True)
-    dendrogram()
-
-    or
-
     dendrogram = PlotlyDendrogram(dtm)
-    dendrogram()
-    dendrogram.fig
-
-    or
-
-    dendrogram = PlotlyDendrogram()
-    dendrogram(dtm, showfig=True)
+    dendrogram.show()
 
     Needs some work in returning the figure as a figure
     and html and html div.
     ```
-    """  # End of class docstring
+    """
 
     dtm: Optional[ArrayLike | DTM | pd.DataFrame] = Field(
         None, json_schema_extra={"The document-term matrix."}
@@ -75,7 +64,6 @@ class PlotlyDendrogram(BaseModel):
     figsize: Optional[tuple] = Field(
         (10, 10), description="The figsize for the dendrogram."
     )
-    showfig: Optional[bool] = Field(False, description="The show for the dendrogram.")
     colorscale: Optional[list] = Field(
         None, description="The colorscale for the dendrogram."
     )
@@ -99,9 +87,7 @@ class PlotlyDendrogram(BaseModel):
     y_tickangle: Optional[int] = Field(
         0, description="The y tickangle for the dendrogram."
     )
-    fig: Optional[plt.Figure] = Field(
-        None, description="The figure for the dendrogram."
-    )
+    fig: Optional[Figure] = Field(None, description="The figure for the dendrogram.")
     layout: Optional[dict] = Field(
         {},
         description="The layout for the dendrogram. Keywords and values to be passed to plotly.graph_objects.Figure.update_layout().",
@@ -109,32 +95,9 @@ class PlotlyDendrogram(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    @validate_call(config=model_config)
-    def __call__(
-        self,
-        dtm: Optional[ArrayLike | DTM | pd.DataFrame] = None,
-        labels: Optional[list[str]] = None,
-        metric: Optional[str] = "euclidean",
-        method: Optional[str] = "average",
-        truncate_mode: Optional[str] = None,
-        get_leaves: Optional[bool] = True,
-        orientation: Optional[str] = "bottom",
-        title: Optional[str] = None,
-        figsize: Optional[tuple] = (10, 10),
-        showfig: Optional[bool] = False,
-        colorscale: Optional[list] = None,
-        hovertext: Optional[list] = None,
-        color_threshold: Optional[float] = None,
-        config: Optional[dict] = dict(
-            displaylogo=False,
-            modeBarButtonsToRemove=["toggleSpikelines"],
-            scrollZoom=True,
-        ),
-        x_tickangle: Optional[int] = 0,
-        y_tickangle: Optional[int] = 0,
-        layout: Optional[dict] = None,
-    ):
-        """Call the instance."""  # End of __call__ docstring
+    def __init__(self, **data):
+        """Initialize the PlotlyDendrogram instance."""
+        super().__init__(**data)
 
         def distfun(x: ArrayLike) -> ArrayLike:
             """Get the pairwise distance matrix.
@@ -144,7 +107,7 @@ class PlotlyDendrogram(BaseModel):
 
             Returns:
                 ArrayLike: The pairwise distance matrix.
-            """  # End of distfun docstring
+            """
             return pdist(x, metric=self.metric)
 
         def linkagefun(x: ArrayLike) -> ArrayLike:
@@ -155,29 +118,8 @@ class PlotlyDendrogram(BaseModel):
 
             Returns:
                 ArrayLike: The linkage matrix.
-            """  # End of linkagefun docstring
+            """
             return sch.linkage(x, self.method)
-
-        # Set the attributes of the class
-        self._set_attrs(
-            dtm=dtm,
-            labels=labels,
-            metric=metric,
-            method=method,
-            truncate_mode=truncate_mode,
-            get_leaves=get_leaves,
-            orientation=orientation,
-            title=title,
-            figsize=figsize,
-            showfig=showfig,
-            colorscale=colorscale,
-            hovertext=hovertext,
-            color_threshold=color_threshold,
-            config=config,
-            x_tickangle=x_tickangle,
-            y_tickangle=y_tickangle,
-            layout=layout,
-        )
 
         # Ensure there is a document-term matrix
         if self.dtm is None:
@@ -235,7 +177,7 @@ class PlotlyDendrogram(BaseModel):
         # Hack to ensure that leaves on the edge of the plot are not clipped.
         # Only works for bottom and left orientation.
         # Add an invisible scatter point to extend the margin.
-        if orientation in ["bottom", "left"]:
+        if self.orientation in ["bottom", "left"]:
             x_value = max([max(data["x"]) for data in self.fig.data])
             dummy_scatter = Scatter(
                 x=[x_value], y=[0], mode="markers", opacity=0, hoverinfo="skip"
@@ -248,8 +190,7 @@ class PlotlyDendrogram(BaseModel):
         if self.orientation == "right":
             self.fig.update_yaxes(side="right")
 
-        if self.showfig:
-            self.fig.show(config=self.config)
+        plt.close()
 
     def _get_valid_matrix(self):
         """Get a valid matrix based on the data type of the dtm."""  # End of _get_valid_matrix docstring
@@ -269,13 +210,7 @@ class PlotlyDendrogram(BaseModel):
             )
         return matrix
 
-    def _set_attrs(self, **kwargs):
-        """Set the attributes of the class."""  # End of _set_attrs docstring
-        for key, value in kwargs.items():
-            if value is not None:
-                setattr(self, key, value)
-
-    def show(self):
+    def show(self) -> None:
         """Show the figure."""  # End of show docstring
         if self.fig is None:
             raise LexosException(

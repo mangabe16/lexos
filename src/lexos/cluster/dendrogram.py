@@ -1,6 +1,6 @@
 """dendrogram.py.
 
-Last Updated: July 7, 2025
+Last Updated: July 25, 2025
 Last Tested: February 18, 2025
 """
 
@@ -26,14 +26,10 @@ class Dendrogram(BaseModel):
     Typical usage:
 
     ```python
-    from lexos.cluster.dendrogram import Dendrogram
+    from lexos.cluster import Dendrogram
 
-    dendrogram = Dendrogram(dtm, show=True)
-
-    or
-
-    dendrogram = Dendrogram(dtm, show=False)
-    dendrogram.fig
+    dendrogram = Dendrogram(dtm=dtm)
+    dendrogram.show()
     ```
 
     The dtm parameter can be a a DTM instance or a pandas DataFrame with terms
@@ -104,18 +100,15 @@ class Dendrogram(BaseModel):
     figsize: Optional[tuple] = Field(
         (10, 10), description="The figsize for the dendrogram."
     )
-    show: Optional[bool] = Field(False, description="The show for the dendrogram.")
     fig: Optional[plt.Figure] = Field(
         None, description="The figure for the dendrogram."
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __call__(self, **kwargs):
-        """Call the instance."""
-        # Set the attributes of the class
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    def __init__(self, **data) -> None:
+        """Initialize the Dendrogram instance."""
+        super().__init__(**data)
 
         # Ensure there is a document-term matrix with more than one document
         if self.dtm is None:
@@ -168,9 +161,7 @@ class Dendrogram(BaseModel):
             above_threshold_color=self.above_threshold_color,
         )
         self.fig = fig
-
-        if not self.show:
-            plt.close()
+        plt.close()
 
     def _get_valid_matrix(self):
         """Get a valid matrix based on the data type of the dtm."""
@@ -233,7 +224,7 @@ class Dendrogram(BaseModel):
             raise LexosException("You must provide a valid path.")
         self.fig.savefig(path)
 
-    def showfig(self):
+    def show(self):
         """Show the figure if it is hidden.
 
         This is a helper method. You can also reference the figure

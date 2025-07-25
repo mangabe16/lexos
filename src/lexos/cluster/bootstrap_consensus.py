@@ -1,10 +1,11 @@
 """This is a model to produce bootstrap consensus tree of the dtm.
 
-Last update: July 7, 2025
+Last update: July 25, 2025
 Last tested: June 29, 2025
 
 # TODO:
 - Datatype for `dtm` should match those allowable for the `Dendrogram` class.
+- Update tests for API changes.
 - See https://github.com/koonimaru/omniplot/blob/962310436a153098b671ebd76cdd59f8a7b5e681/omniplot/plot.py#L38 for a method of getting round dendrograms.
 """
 
@@ -34,7 +35,7 @@ PRECISION = 1  # Precision for branch length formatting in dendrogram labels
 class BCT(BaseModel):
     """The Bootstrap Consensus Tree Class."""
 
-    dtm: Optional[DTM] = Field(None, description="The document term matrix.")
+    dtm: DTM = Field(None, description="The document term matrix.")
     metric: Optional[str] = Field("euclidean", description="The distance metric.")
     method: Optional[str] = Field("average", description="The linkage method.")
     cutoff: Optional[float] = Field(0.5, description="The cutoff value.")

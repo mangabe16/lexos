@@ -31,14 +31,24 @@ An advantage of hierarchical clustering is that we do not need to choose the num
 To perform cluster analysis and generate a dendrogram, you will need document-term matrix produced by the DTM module. Then you simply import the Dendrogram class and feed it your DTM. You will also need a list of labels for the documents in your DTM object. In the example below, we will use the default settings for the distance metric and linkage criterion.
 
 ```python
-# Import the Dendrogram Class
-from lexos.cluster.dendrogram import Dendrogram
+# Import the Dendrogram class
+from lexos.cluster import Dendrogram
 
-# Create an instance of the Dendrogram object
-dendrogram = Dendrogram()
+# Create an instance of the Dendrogram object (feel free to change the parameters)
+dendrogram = Dendrogram(
+    dtm=dtm,
+    labels=labels,
+    metric="euclidean",
+    method="average",
+    orientation="top",
+    # color_threshold=1.5, # Uncomment to color branches
+    title="My First Dendrogram",
+    figsize=(10, 8),
+    show=True
+)
 
-# Generate the Dendrogram.
- dendrogram(dtm=dtm, labels=dtm.labels, show=True)
+# Show the dendrogram
+dendrogram.show()
 ```
 
 <img src="../../../tutorials/cluster/dendrogram.png" alt="Sample dendrogram">
@@ -65,13 +75,20 @@ To use the Plotly plotter, import the `PlotlyDendrogram` class, create an instan
 
 ```python
 # Import the PlotlyDendrogram class
-from lexos.cluster.plotly_dendrogram import PlotlyDendrogram
+from lexos.cluster import PlotlyDendrogram
 
-# Create an instance of the dendrogram
-dendrogram = PlotlyDendrogram()
+# Create an instance of the PlotlyDendrogram object
+dendrogram = PlotlyDendrogram(
+    dtm=dtm,
+    labels=labels,
+    metric="euclidean",
+    method="average",
+    orientation="bottom",
+    title="Document Similarity Dendrogram",
+)
 
-# Call the instance with your DTM and labels
-dendrogram(dtm=dtm, labels=labels, showfig=True)
+# Show the dendrogram using Plotly
+dendrogram.show()
 ```
 
 <img src="../../../tutorials/cluster/plotly_dendrogram.png" alt="Sample Plotly dendrogram">
