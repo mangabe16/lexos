@@ -2,8 +2,8 @@
 
 Lexos KMeans clustering module for document-term matrices.
 
-Last Updated: 2025-07-25
-Last Tested: 2025-07-02
+Last Updated: 2025-07-26
+Last Tested: 2025-07-26
 
 # TODO:
 - Implement silhouette score? See https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_silhouette_analysis.html
@@ -34,10 +34,10 @@ class KMeans(BaseModel):
     """Perform and visualize KMeans clustering with optional dimensionality reduction."""
 
     # Configurable parameters for clustering
-    dtm: Optional[DTM | pd.DataFrame | np.ndarray] = Field(
+    dtm: DTM | pd.DataFrame | np.ndarray = Field(
         default=None, description="Input document-term matrix."
     )
-    k: Optional[int] = Field(default=None, description="Number of clusters to use.")
+    k: int = Field(default=2, description="Number of clusters to use.")
     init: Literal["k-means++", "random"] = Field(
         default="k-means++", description="Initialization method for centroids."
     )
@@ -77,11 +77,12 @@ class KMeans(BaseModel):
                 tol=self.tol,
                 random_state=self.random_state,
             )
+        except Exception as e:
+            raise LexosException(f"KMeans clustering failed: {e}")
+        try:
             self.cluster_assignments = _kmeans.fit_predict(matrix)
         except Exception as e:
             raise LexosException(f"KMeans clustering failed: {e}")
-
-        # return self.cluster_assignments
 
     def _get_valid_matrix(self) -> np.ndarray:
         """Convert the input into a valid NumPy matrix format.
@@ -243,8 +244,14 @@ class KMeans(BaseModel):
 
         # Reduce dimensions for plot
         matrix = self._get_valid_matrix()
-        pca = PCA(n_components=dim)
-        reduced = pca.fit_transform(matrix)
+        try:
+            pca = PCA(n_components=dim)
+        except ValueError as e:
+            raise LexosException(f"Failed to perform PCA: {e}")
+        try:
+            reduced = pca.fit_transform(matrix)
+        except Exception as e:
+            raise LexosException(f"Failed to reduce dimensions: {e}")
 
         # Start cluster numbering from 1 for display
         cluster_assignments = [str(i + 1) for i in self.cluster_assignments]
@@ -371,8 +378,14 @@ class KMeans(BaseModel):
         """
         # Reduce dimensions for 2D Voronoi visualization
         matrix = self._get_valid_matrix()
-        pca = PCA(n_components=2)
-        reduced = pca.fit_transform(matrix)
+        try:
+            pca = PCA(n_components=2)
+        except ValueError as e:
+            raise LexosException(f"Failed to perform PCA: {e}")
+        try:
+            reduced = pca.fit_transform(matrix)
+        except Exception as e:
+            raise LexosException(f"Failed to reduce dimensions: {e}")
 
         if self.k is None:
             raise LexosException(
