@@ -2,7 +2,7 @@
 
 Lexos KMeans clustering module for document-term matrices.
 
-Last Updated: 2025-07-02
+Last Updated: 2025-07-25
 Last Tested: 2025-07-02
 
 # TODO:
@@ -24,6 +24,7 @@ from sklearn.cluster import (
     KMeans as sklearn_KMeans,
 )
 from sklearn.decomposition import PCA
+from wasabi import msg
 
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
@@ -56,39 +57,11 @@ class KMeans(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    @validate_call(config=model_config)
-    def __call__(
-        self,
-        dtm: Optional[DTM | pd.DataFrame | np.ndarray] = None,
-        k: Optional[int] = None,
-        init: Optional[Literal["k-means++", "random"]] = "k-means++",
-        max_iter: Optional[int] = None,
-        n_init: Optional[int] = None,
-        tol: Optional[float] = None,
-        random_state: Optional[int] = None,
-    ) -> np.ndarray:
-        """Run KMeans clustering on the input matrix.
+    def __init__(self, **data) -> None:
+        """Initialize KMeans clustering with the provided parameters."""
+        super().__init__(**data)
 
-        Args:
-            dtm (DTM | pd.DataFrame | np.ndarray, optional): Input matrix.
-            k (int, optional): Number of clusters.
-            init (str, optional): Initialization strategy.
-            max_iter (int, optional): Maximum iterations.
-            n_init (int, optional): Number of initializations.
-            tol (float, optional): Tolerance for convergence.
-
-        Returns:
-            np.ndarray: Array of cluster labels for each document.
-        """
-        self._set_attrs(
-            dtm=dtm,
-            k=k,
-            init=init,
-            max_iter=max_iter,
-            n_init=n_init,
-            tol=tol,
-            random_state=random_state,
-        )
+        # Get a valid matrix from the input DTM or DataFrame
         matrix = self._get_valid_matrix()
 
         if self.k is None:
@@ -108,13 +81,7 @@ class KMeans(BaseModel):
         except Exception as e:
             raise LexosException(f"KMeans clustering failed: {e}")
 
-        return self.cluster_assignments
-
-    def _set_attrs(self, **kwargs) -> None:
-        """Update instance attributes only if new values are provided."""
-        for key, value in kwargs.items():
-            if value is not None:
-                setattr(self, key, value)
+        # return self.cluster_assignments
 
     def _get_valid_matrix(self) -> np.ndarray:
         """Convert the input into a valid NumPy matrix format.
@@ -123,10 +90,9 @@ class KMeans(BaseModel):
         Raises an error for unsupported formats or too few documents.
         """
         if isinstance(self.dtm, DTM):
-            df = self.dtm.to_df(transpose=True)
-            self.labels = self.dtm.labels  # Save labels for plotting
+            df = self.dtm.to_df().T
         elif isinstance(self.dtm, pd.DataFrame):
-            df = self.dtm
+            df = self.dtm.T
         elif isinstance(self.dtm, np.ndarray):
             df = pd.DataFrame(self.dtm)
         else:
@@ -140,6 +106,7 @@ class KMeans(BaseModel):
 
         return df.values
 
+    @validate_call(config=model_config)
     def elbow_plot(
         self,
         k_range: range = range(1, 10),
@@ -170,7 +137,7 @@ class KMeans(BaseModel):
             )
 
         adjusted_range = range(min_k, max_k + 1)
-        print(
+        msg.info(
             f"Running elbow plot for k = {min_k} to {max_k} (limited to document count)"
         )
 
@@ -229,6 +196,7 @@ class KMeans(BaseModel):
         if return_knee:
             return optimal_k
 
+    @validate_call(config=model_config)
     def save(self, path: str | Path, html: bool = False, **kwargs) -> None:
         """Save the most recent Plotly figure to an image or HTML file.
 
@@ -246,6 +214,7 @@ class KMeans(BaseModel):
         else:
             self.fig.write_image(path, **kwargs)
 
+    @validate_call(config=model_config)
     def scatter(
         self,
         dim: int = 2,
@@ -277,13 +246,16 @@ class KMeans(BaseModel):
         pca = PCA(n_components=dim)
         reduced = pca.fit_transform(matrix)
 
+        # Start cluster numbering from 1 for display
+        cluster_assignments = [str(i + 1) for i in self.cluster_assignments]
+
         # Build DataFrame for plotting
         if dim == 2:
             df = pd.DataFrame(
                 {
                     "x": reduced[:, 0],
                     "y": reduced[:, 1],
-                    "Cluster": self.cluster_assignments.astype(str),
+                    "Cluster": cluster_assignments,
                     "Document": self.labels
                     or [f"Doc{i + 1}" for i in range(len(matrix))],
                 }
@@ -294,7 +266,7 @@ class KMeans(BaseModel):
                     "x": reduced[:, 0],
                     "y": reduced[:, 1],
                     "z": reduced[:, 2],
-                    "Cluster": self.cluster_assignments.astype(str),
+                    "Cluster": cluster_assignments,
                     "Document": self.labels
                     or [f"Doc{i + 1}" for i in range(len(matrix))],
                 }
@@ -345,6 +317,7 @@ class KMeans(BaseModel):
         else:
             return fig
 
+    @validate_call(config=model_config)
     def to_csv(self, path: str | Path, **kwargs) -> None:
         """Export a CSV of PCA coordinates and cluster labels.
 
@@ -376,6 +349,7 @@ class KMeans(BaseModel):
         except Exception as e:
             raise LexosException(f"Failed to export CSV: {e}")
 
+    @validate_call(config=model_config)
     def voronoi(
         self,
         title: Optional[str] = None,
@@ -425,7 +399,7 @@ class KMeans(BaseModel):
         if grid_step is None:
             range_area = (x_max - x_min) * (y_max - y_min)
             grid_step = (range_area / max_points) ** 0.5
-            print(
+            msg.info(
                 f"Grid step auto-adjusted to {grid_step:.2f} to avoid memory overload."
             )
 

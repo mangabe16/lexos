@@ -22,13 +22,10 @@ To perform a simple k-means analysis with the default settings, start by constru
 
 ```python
 # Import KMeans
-from lexos.cluster.kmeans import KMeans
+from lexos.cluster import KMeans
 
 # Assuming you have your DTM saved to the dtm variable
-kmeans = KMeans(dtm=dtm)
-
-# Perform the analysis
-result = kmeans(k=4)
+kmeans = KMeans(dtm=dtm, k=4)
 ```
 
 Pre-configuring your k-means settings can be valuable in helping you to produce meaningful results. Lexos provides a number of options for configuring the k-means procedure.
@@ -39,20 +36,6 @@ Pre-configuring your k-means settings can be valuable in helping you to produce 
 - `n_init`: The number of times (N) the k-means algorithm will be run with different centroid seeds (the tolerance for convergence). The final results will be the best output of those N consecutive runs. The default is 10.
 - `tol` The relative tolerance with respect to inertia to declare convergence. The default is 0.0001.
 - `random_state`: A number to use as the initial seed to insure that the results are reproducible. The default is 42.
-
-These parameters can be set when you create the instance:
-
-```python
-kmeans = KMeans(k=4, init="random", max_iter=500, n_init=20, tol=1e-3)
-```
-
-Or you can set them when you generate your k-means analysis:
-
-```python
-kmeans = KMeans()
-
-kmeans(k=4, init="random", max_iter=500, n_init=20, tol=1e-3)
-```
 
 There is no obvious way to choose the number of clusters, but some strategies will be discussed below. The k-means procedure can be very sensitive to how you have constructed your DTM, for instance, whether you have performed normalization or restricted it to only the most frequesnt terms. The procedure is also very sensitive to the position of the initial centroid seeds, although employing the "k-means++" setting of the `init` parameter helps to constrain this placement.
 
