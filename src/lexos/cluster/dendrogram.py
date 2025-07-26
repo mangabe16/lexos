@@ -53,7 +53,7 @@ class Dendrogram(BaseModel):
     truncate_mode: Optional[str] = Field(
         None, description="The truncate mode for the dendrogram."
     )
-    color_threshold: Optional[str] = Field(
+    color_threshold: Optional[float] = Field(
         None, description="The color threshold for the dendrogram."
     )
     get_leaves: Optional[bool] = Field(
@@ -127,7 +127,12 @@ class Dendrogram(BaseModel):
         matrix = self._get_valid_matrix()
 
         # Check to see if the number of labels matches the number of rows
-        if len(self.labels) != matrix.shape[0]:
+        # Make sure we have a matrix length for list input
+        if isinstance(matrix, list):
+            matrix_length = len(matrix)
+        else:
+            matrix_length = matrix.shape[0]
+        if len(self.labels) != matrix_length:
             raise LexosException(
                 "The number of labels must match the number of documents."
             )
@@ -207,8 +212,14 @@ class Dendrogram(BaseModel):
             else:
                 raise LexosException("Unsupported document-term matrix type.")
 
+        # Make sure we have a matrix length for list input
+        if isinstance(matrix, list):
+            matrix_length = len(matrix)
+        else:
+            matrix_length = matrix.shape[0]
+
         # Check labels vs matrix row count
-        if self.labels and len(self.labels) != matrix.shape[0]:
+        if self.labels and len(self.labels) != matrix_length:
             raise LexosException(label_error)
 
         return matrix
