@@ -53,6 +53,9 @@ dendrogram.show()
 
 <img src="../../../tutorials/cluster/dendrogram.png" alt="Sample dendrogram">
 
+!!! warning "TODO:"
+    There needs to be info on the different ways to submit data: DTMs, DataFrames, etc. Note that when DTMs are submitted, they are automatically transposed so that docs are rows and terms are columns. DataFrames have to be submitted in that format. All this needs a section explaining how to pass data to `Dendrogram` and `PlotlyDendrogram`.
+
 ### Dendrogram Settings
 
 When we create the `Dendrogram`, we need to tell it how to measure document similarity and how to connect those similarities into a tree. Here are the key parameters you can adjust:
