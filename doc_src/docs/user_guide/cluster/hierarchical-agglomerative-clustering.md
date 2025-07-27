@@ -53,14 +53,11 @@ dendrogram.show()
 
 <img src="../../../tutorials/cluster/dendrogram.png" alt="Sample dendrogram">
 
-!!! warning "TODO:"
-    There needs to be info on the different ways to submit data: DTMs, DataFrames, etc. Note that when DTMs are submitted, they are automatically transposed so that docs are rows and terms are columns. DataFrames have to be submitted in that format. All this needs a section explaining how to pass data to `Dendrogram` and `PlotlyDendrogram`.
-
 ### Dendrogram Settings
 
 When we create the `Dendrogram`, we need to tell it how to measure document similarity and how to connect those similarities into a tree. Here are the key parameters you can adjust:
 
-- `dtm`: This is our "linguistic spreadsheet" (`dtm`) that we created in the previous step. It's the essential input for the tree.
+- `dtm`: This is our "linguistic spreadsheet" (`dtm`). See the notes below for the possible formats.
 - `metric`: This sets the distance metric, which tells the dendrogram how to measure the "distance" or dissimilarity between your documents. Shorter distances mean more similar documents. Options include `euclidean` (the default), `cosine`, and `cityblock`. For other options, see [Choosing a Distance Metric](#choosing-a-distance-metric) below.
 - `method`: This sets the linkage criterion, which determines how individual documents (or existing clusters of documents) are joined together to form larger branches and clusters in the tree. Option `average` (the default), `single`, `complete`, and `ward`. For further information, see [Choosing a Linkage Method](#choosing-a-linkage-method) below.
   - `labels`: This is simply the list of descriptive names for your documents (e.g., "Poe", "Lippard") that we defined earlier. These will appear as the leaves (endpoints) on your tree.
@@ -69,6 +66,11 @@ When we create the `Dendrogram`, we need to tell it how to measure document simi
 - `show`: Controls whether the generated tree figure is displayed automatically. If `False`, the tree will not be displayed, but you display it later by calling `dendrogram.showfig()`. There are also methods that enable you to save it to a variable or file.
 - `title`: Adds a title to your dendrogram plot.
 - `figsize`: A tuple `(width, height)` in inches to set the size of the overall figure. For example, `(12, 8)` for a wider and taller plot.
+
+The easiest way to format your data for plotting is to generate a Lexos `DTM` instance and pass it to the `Dendrogram` class. However, `Dendrogram` also accepts two other formats:
+
+1. A Pandas DataFrame with document labels as row indexes and terms as column indexes (this is the equivalent of `DTM.to_df(transpose=True)`).
+2. A list of documents in which each document is a sublist containing the term counts. You can also pass equivalent numpy arrays. If you use data in this format, you will probably want to include a list of document labels using the `labels` keyword.
 
 ### Plotting Dendrograms with Plotly
 
@@ -98,8 +100,7 @@ dendrogram.show()
 
 Note that the image above is a static representation and does not demonstrate Plotly's interactive features.
 
-!!! Note
-    Information on saving the dendrogram needs to be added here.
+Data should be passed to `PlotlyDendrogram` either as a Lexos `DTM` instance or using one of the other datatypes described for the `Dendrogram` class above.
 
 ## Choosing a Distance Metric
 
@@ -186,7 +187,12 @@ cm.show()
 
 <img src="../../../tutorials/cluster/clustermap_example.png" alt="Sample clustermap">
 
-The `dtm` can be a Lexos `DTM` instance, a compatible Pandas DataFrame, or a list of lists of tokens. For the clustering parameters, see the advice in [Choosing a Distance Metric](#choosing-a-distance-metric) and [Choosing a Linkage Method](#choosing-a-linkage-method) above. In addition to the `title`, `metric`, and `method` keywords, `Clustermap` takes the following parameters:
+The `dtm` can be a Lexos `DTM` instance, a compatible Pandas DataFrame, or a list of lists of tokens. For the clustering parameters, see the advice in [Choosing a Distance Metric](#choosing-a-distance-metric) and [Choosing a Linkage Method](#choosing-a-linkage-method) above.
+
+!!! important
+    Unlike `Dendrogram` and `PlotlyDendrogram`, `Clustermap` accepts a Pandas DataFrame formatted with documents as columns and terms as rows. This is the equivalent of `DTM.to_df()`.
+
+In addition to the `title`, `metric`, and `method` keywords, `Clustermap` takes the following parameters:
 
 - `labels`: A list of descriptive names for your documents. These will appear as the leaves (endpoints) on your tree. If not supplied, the labels from your Lexos `DTM` or Pandas DataFrame will be used.
 - `z_score`: Standardizes the values within each row (documents) or column (terms). If the value is set to `None`, the heatmap shows raw frequencies (or whatever your DTM contains). The setting `0` standardizes each row (document) by subtracting its mean and dividing by its standard deviation. This highlights how *terms vary within a single document* relative to that document's average term frequency. Useful for comparing patterns across documents regardless of their length. The setting `1` standardizes each column (term) by subtracting its mean and dividing by its standard deviation. This highlights how *a single term's frequency varies across different documents* relative to that term's average frequency. Useful for seeing which documents use a term more or less than average.

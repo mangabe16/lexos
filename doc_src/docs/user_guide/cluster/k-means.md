@@ -37,6 +37,11 @@ Pre-configuring your k-means settings can be valuable in helping you to produce 
 - `tol` The relative tolerance with respect to inertia to declare convergence. The default is 0.0001.
 - `random_state`: A number to use as the initial seed to insure that the results are reproducible. The default is 42.
 
+The easiest way to format your data for plotting is to generate a Lexos `DTM` instance and pass it to the `Dendrogram` class. However, `Dendrogram` also accepts two other formats:
+
+1. A Pandas DataFrame with document labels as column indexes and terms as row indexes (this is the equivalent of `DTM.to_df()`).
+2. A list of documents in which each document is a sublist containing the term counts. You can also pass equivalent numpy arrays. If you use data in this format, you will probably want to include a list of document labels using the `labels` keyword.
+
 There is no obvious way to choose the number of clusters, but some strategies will be discussed below. The k-means procedure can be very sensitive to how you have constructed your DTM, for instance, whether you have performed normalization or restricted it to only the most frequesnt terms. The procedure is also very sensitive to the position of the initial centroid seeds, although employing the "k-means++" setting of the `init` parameter helps to constrain this placement.
 
 You can play with these settings to determine which one provide you with the best results.
