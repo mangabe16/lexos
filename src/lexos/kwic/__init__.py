@@ -1,287 +1,277 @@
-"""__init__.py.
+"""kwic.py.
 
-Last Updated: 7/1/25
-Last Tested: 7/1/25
+Last Updated: July 28, 2025
+Last Tested: June 28, 2025
 
-Current Usage:
-- Find keywords and their surrounding context in spaCy docs
-    - Returns as either an iterable of tuples or a pandas DataFrame
-- Find multiple keywords and their context in a spaCy doc or string
-- Find keywords in sentences of a spaCy doc
+A current limitation is that all spaCy docs must share the same model. This is due to the way spaCy loads models and the Matcher/PhraseMatcher, which are tied to the vocabulary of the loaded model. Without detecting the document models and loading each one, the only way to support lists of documents with different models is to create separate instances of the Kwic class for each set of documents created with a specific model.
+
+Sample usage:
+    kwic = Kwic(nlp="en_core_web_sm")
+    results = kwic(
+        docs=["This is a test document.", "Another test document."],
+        labels=["Doc 1", "Doc 2"],
+        patterns=["test", "document"],
+        window=5,
+        matcher="tokens",
+        case_sensitive=False,
+        use_regex=False,
+        as_df=True,
+        sort_by="keyword",
+        ascending=True,
+    )
+    print(results)
 """
 
-from typing import Any, Iterable, Optional, Pattern
+import re
+from typing import Optional
 
 import pandas as pd
 import spacy
-from pydantic import BaseModel, ConfigDict, Field, validate_call
-from spacy.language import Language
-from spacy.matcher import Matcher
+from natsort import natsort_keygen, ns
+from pydantic import BaseModel, ConfigDict, Field
+from spacy.matcher import Matcher, PhraseMatcher
 from spacy.tokens import Doc
-from textacy.extract import kwic
 
 from lexos.exceptions import LexosException
-
-try:
-    default_model = spacy.load("xx_sent_ud_sm")
-except ImportError:  # pragma: no cover
-    raise LexosException(
-        "The default model is not available. Please run `python -m spacy download xx_sent_ud_sm` from the command line."
-    )  # pragma: no cover
+from lexos.util import ensure_list
 
 
 class Kwic(BaseModel):
-    """A class for generating keyword-in-context (KWIC) results using textacy."""
+    """Class for finding keywords in context (KWIC) in text or spaCy documents."""
 
-    model_name: Optional[str] = Field(
-        default="xx_sent_ud_sm",
-        description="The spaCy model to use for processing documents.",
+    nlp: Optional[str] = Field(
+        default="xx_sent_ud_sm", description="The spaCy model to use for tokenization."
     )
-    nlp: Optional[Language] = Field(
-        default=default_model,
-        description="The spaCy language object.",
+    alg: Optional[ns] = Field(
+        default=ns.LOCALE, description="The sorting algorithm to use."
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __init__(self, **data) -> None:
+    def __init__(self, **data):
         """Initialize the Kwic class with a spaCy model."""
         super().__init__(**data)
-        try:
-            self.nlp = spacy.load(self.model_name)
-        except OSError:
-            raise LexosException(
-                f"Error loading model {self.model_name}. Please check the name and try again. You may need to install the model on your system."
-            )
+        self.nlp = spacy.load(self.nlp)
 
-    @validate_call(config=model_config)
-    def find(
+        # Make sure the sorting algorithm is valid
+        self._validate_sorting_algorithm()
+
+    def __call__(
         self,
-        doc: Any,
-        keyword: str | Pattern,
-        ignore_case: bool = True,
-        window_size: int = 50,
-        pad_context: bool = False,
-        dataframe_format: bool = False,
-    ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
-        """Generate KWIC results for a given term in the document.
-
-        Args:
-            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
-            keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
-            ignore_case (bool): Whether to ignore case when searching for the keyword.
-            window_size (int): The number of characters to include as context on either side of the keyword.
-            pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
-            dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
+        docs: Optional[Doc | str | list[Doc | str]] = Field(
+            default_factory=list,
+            description="The spaCy Doc(s) or string(s) to search within.",
+        ),
+        labels: Optional[str | list[str]] = Field(
+            None,
+            description="A list of labels for the documents. Defaults to None.",
+        ),
+        patterns: list = Field(
+            default_factory=list,
+            description="A list of patterns to match. Can be regex strings or spaCy token patterns.",
+        ),
+        window: Optional[int] = Field(
+            50,
+            description="The number of tokens or characters to include before and after the match.",
+        ),
+        matcher: Optional[str] = Field(
+            "characters",
+            description="The type of matcher to use. Can be 'rule' for spaCy Matcher, 'phrase' for PhraseMatcher, 'tokens' for token patterns, or 'characters' for string matching.",
+        ),
+        case_sensitive: Optional[bool] = Field(
+            False,
+            description="If True, the matching will be case-sensitive. Defaults to False.",
+        ),
+        use_regex: Optional[bool] = Field(
+            False,
+            description="If True, use regex for matching with the 'tokens' setting. Defaults to False.",
+        ),
+        as_df: Optional[bool] = Field(
+            True,
+            description="If True, return results as a pandas DataFrame. Defaults to True.",
+        ),
+        sort_by: Optional[str] = Field(
+            "keyword",  # Make sure this matches the column name exactly
+            description="The column to sort the results by if as_df is True. Defaults to 'keyword'.",
+        ),
+        ascending: Optional[bool] = Field(
+            True,
+            description="If True, sort in ascending order. Defaults to True.",
+        ),
+    ) -> list[tuple[str, str, str]] | pd.DataFrame:
+        """Call the Kwic instance to find keywords in context.
 
         Returns:
-            Iterable[tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword, and the right context.
-            pd.DataFrame: A DataFrame containing the left context, the keyword, and the right context if dataframe_format is True.
-
+            list: A list of tuples, each containing the context before, the matched keyword,
+                and the context after, or a DataFrame with the same content.
         """
-        # type check for doc
-        if isinstance(doc, Doc):
-            doc_list = [doc]
-        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
-            doc_list = doc
-        else:
-            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
+        # Validate input types
+        if matcher in ["rule", "phrase", "tokens"] and any(
+            isinstance(doc, str) for doc in docs
+        ):
+            raise LexosException(
+                "Docs must be spaCy Doc objects when using 'rule', 'phrase', or 'tokens' matcher. To search raw text strings, use the 'characters' matcher type, setting `use_regex` if you wish to use regex patterns."
+            )
 
-        ret = []
-        for eachDoc in doc_list:
-            ret.append(
-                list(
-                    kwic.keyword_in_context(
-                        doc=eachDoc,
-                        keyword=keyword,
-                        ignore_case=ignore_case,
-                        window_width=window_size,
-                        pad_context=pad_context,
+        # Ensure that docs and labels are lists of equal length
+        docs = ensure_list(docs)
+        if isinstance(labels, list):
+            labels = ensure_list(labels)
+            if len(docs) != len(labels) and labels:
+                raise LexosException(
+                    "The number of documents and labels must match. If you do not want to label the documents, set `labels` to None."
+                )
+        else:
+            labels = [f"Doc {i + 1}" for i in range(len(docs))]
+
+        # Assign search parameters and call match method
+        match matcher:
+            case "rule":
+                matcher = Matcher(self.nlp.vocab)
+                matcher.add("KWIC_PATTERNS", patterns)
+                hits = self._match_tokens(docs, labels, window, matcher)
+            case "phrase":
+                if case_sensitive:
+                    matcher = PhraseMatcher(self.nlp.vocab)
+                else:
+                    matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
+                patterns = [self.nlp.make_doc(phrase) for phrase in patterns]
+                matcher.add("KWIC_PATTERNS", patterns)
+                hits = self._match_tokens(docs, labels, window, matcher)
+            case "tokens":
+                matcher = Matcher(self.nlp.vocab)
+                patterns = ensure_list(patterns)
+                patterns = self._convert_patterns_to_spacy(
+                    patterns, case_sensitive, use_regex
+                )
+                matcher.add("KWIC_PATTERNS", patterns)
+                hits = self._match_tokens(docs, labels, window, matcher)
+            case _:
+                docs = [doc.text if isinstance(doc, Doc) else doc for doc in docs]
+                patterns = ensure_list(patterns)
+                hits = list(
+                    self._match_strings(
+                        docs, labels, patterns, window, case_sensitive=case_sensitive
                     )
                 )
+
+        # Convert hits to DataFrame for sorting
+        df = pd.DataFrame(
+            hits, columns=["doc", "context_before", "keyword", "context_after"]
+        )
+
+        # Only sort if we have data and the sort_by column exists
+        if not df.empty and sort_by in df.columns:
+            df = df.sort_values(
+                by=sort_by, ascending=ascending, key=natsort_keygen(alg=self.alg)
             )
 
-        if dataframe_format:
-            # from RomanPerekhrest on StackOverflow
-            # https://stackoverflow.com/questions/57509968/list-of-lists-of-tuples-to-pandas-dataframe
-            return pd.DataFrame(
-                [t for lst in ret for t in lst], columns=["Left", "Keyword", "Right"]
-            )
-        return ret
+        # If as_df is False, convert DataFrame to list of dictionaries
+        if not as_df:
+            result = list(df.to_records(index=False))
+            return [tuple(item) for item in result]
 
-    @validate_call(config=model_config)
-    def find_multiple_keywords(
-        self,
-        doc: Any,
-        keywords: Iterable[str | Pattern],
-        ignore_case: bool = True,
-        window_size: int = 50,
-        pad_context: bool = False,
-        dataframe_format: bool = False,
-    ) -> Iterable[tuple[str, str, str, str]] | pd.DataFrame:
-        """Generate KWIC results for multiple keywords in the document.
+        return df
+
+    def _convert_patterns_to_spacy(
+        self, patterns: list, case_sensitive: bool, use_regex: bool
+    ) -> list:
+        """Convert a list of string patterns to spaCy token patterns.
 
         Args:
-            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
-            keywords (Iterable[str | Pattern]): An iterable of keywords to search for, can be strings or regex patterns.
-            ignore_case (bool): Whether to ignore case when searching for the keywords.
-            window_size (int): The number of characters to include as context on either side of the keyword.
-            pad_context (bool): Whether to pad the context with empty space if the keyword is at the start or end of the document.
-            dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
+            patterns (list): A list of string patterns to convert.
+            case_sensitive (bool): If True, the patterns will be case-sensitive.
+            use_regex (bool): If True, the patterns will be treated as regex patterns.
 
         Returns:
-            Iterable[tuple[str, str, str, str]]: An iterable of tuples containing the left context, the keyword found, the right context, and the original keyword for each search.
-            pd.DataFrame: A DataFrame containing the left context, the keyword found, the right context, and the original keyword if dataframe_format is True.
+            list: A list of spaCy token patterns.
         """
-        # type check for doc
-        if isinstance(doc, Doc):
-            doc_list = [doc]
-        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
-            doc_list = doc
-        else:
-            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
-
-        keywords = list(keywords)
-        all_kwic_results = []
-        for doc in doc_list:
-            for original_kw in keywords:
-                for left, found_keyword, right in kwic.keyword_in_context(
-                    doc=doc,
-                    keyword=original_kw,
-                    ignore_case=ignore_case,
-                    window_width=window_size,
-                    pad_context=pad_context,
-                ):
-                    all_kwic_results.append(
-                        (left, found_keyword, right, str(original_kw))
-                    )
-
-        if dataframe_format:
-            return pd.DataFrame(
-                all_kwic_results,
-                columns=["Left", "Keyword", "Right", "Original Keyword"],
-            )
-        return all_kwic_results
-
-    @validate_call(config=model_config)
-    def find_in_sentences(
-        self,
-        doc: Any,
-        keyword: str | Pattern,
-        ignore_case: bool = True,
-        dataframe_format: bool = False,
-    ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
-        """Generate KWIC results for a keyword in each sentence of the document.
-
-        Args:
-            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
-            keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
-            ignore_case (bool): Whether to ignore case when searching for the keyword.
-            dataframe (bool): Whether to return the results in the form of a pandas DataFrame.
-
-        Returns:
-            Iterable[tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
-            pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
-        """
-        all_sentence_kwic_results = []
-
-        # type check for doc
-        if isinstance(doc, Doc):
-            doc_list = [doc]
-        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
-            doc_list = doc
-        else:
-            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
-
-        for doc in doc_list:
-            for sent_idx, sentence_span in enumerate(doc.sents):
-                for left, found_keyword, right in kwic.keyword_in_context(
-                    doc=sentence_span.text,
-                    keyword=keyword,
-                    ignore_case=ignore_case,
-                    window_width=len(sentence_span.text) * 2,  # capture entire sentence
-                    pad_context=False,
-                ):
-                    all_sentence_kwic_results.append((left, found_keyword, right))
-
-        if dataframe_format:
-            return pd.DataFrame(
-                all_sentence_kwic_results,
-                columns=["Left", "Keyword", "Right"],
-            )
-        return all_sentence_kwic_results
-
-    @validate_call(config=model_config)
-    def find_tokens(
-        self,
-        doc: Any,
-        keyword: str | Pattern,
-        token_window: int = 5,
-        ignore_case: bool = True,
-        dataframe_format: bool = False,
-    ) -> Iterable[tuple[str, str, str]] | pd.DataFrame:
-        """Generate KWIC results for a keyword within documents, using a window of tokens as context.
-
-        Args:
-            doc (Doc | Iterable[Doc]): The spaCy Doc or list of Docs to search within.
-            keyword (str | Pattern): The keyword to search for, can be a string or a regex pattern.
-            token_window (int): The number of tokens to include as context on each side of the keyword.
-            ignore_case (bool): Whether to ignore case when searching for the keyword.
-            dataframe_format (bool): Whether to return the results in the form of a pandas DataFrame.
-            nlp (Language): The spaCy Language model to use for matching.
-
-        Returns:
-            Iterable [tuple[str, str, str]]: An iterable of tuples containing the left context, the keyword found, and the right context for each sentence.
-            pd.DataFrame: A DataFrame containing the left context, the keyword found, and the right context if dataframe_format is True.
-        """
-        # type check for doc
-        if isinstance(doc, Doc):
-            doc_list = [doc]
-        elif isinstance(doc, list) and all(isinstance(d, Doc) for d in doc):
-            doc_list = doc
-        else:
-            raise TypeError("Input must be a spaCy Doc or a list of Docs.")
-        # Instantiate the Matcher with the Doc's vocabulary
-        matcher = Matcher(self.nlp.vocab)
-
-        # Add the keyword pattern to the matcher
-        if isinstance(keyword, str):
-            if ignore_case:
-                matcher.add("search", [[{"LOWER": keyword.lower()}]])
+        if use_regex:
+            if case_sensitive:
+                return [[{"TEXT": {"REGEX": pattern}}] for pattern in patterns]
             else:
-                matcher.add("search", [[{"TEXT": keyword}]])
+                return [[{"LOWER": {"REGEX": pattern.lower()}}] for pattern in patterns]
         else:
-            pattern = [{"TEXT": {"REGEX": keyword.pattern}}]
-            matcher.add("search", [pattern])
+            if case_sensitive:
+                return [[{"TEXT": pattern}] for pattern in patterns]
+            else:
+                return [[{"LOWER": pattern}] for pattern in patterns]
 
-        # Get the matches in the document(s)
-        all_matches = []
+    def _match_strings(
+        self,
+        docs: list[str],
+        labels: list[str],
+        patterns: list,
+        window: int,
+        case_sensitive: bool,
+    ):
+        """Match keywords in a string and return their context.
 
-        for doc in doc_list:
+        Args:
+            docs (list[str]): The text to search within.
+            labels (str): A list of labels for the documents.
+            patterns (list): A list of regex patterns to match.
+            window (int): The number of characters to include before and after the match.
+            case_sensitive (bool): If True, the matching will be case-sensitive.
+
+        Yields:
+            tuple: A tuple containing the context before, the matched keyword, and the context after.
+        """
+        flags = 0 if case_sensitive else re.IGNORECASE
+        for i, doc in enumerate(docs):
+            for pattern in patterns:
+                for match in re.finditer(pattern, doc, flags=flags):
+                    start = match.start()
+                    end = match.end()
+                    context_start = max(0, start - window)
+                    context_end = min(len(doc), end + window)
+                    context_before = doc[context_start:start]
+                    context_after = doc[end:context_end]
+                    yield (labels[i], context_before, match.group(), context_after)
+
+    def _match_tokens(
+        self, docs: list[Doc], labels: list[str], window: int, matcher: Matcher
+    ) -> list[tuple[str, str, str, str]]:
+        """Match keywords in a spaCy Doc and return their context.
+
+        Args:
+            docs (list[Doc]): The spaCy Doc(s) to search within.
+            labels (list[str]): A list of labels for the documents.
+            window (int): The number of tokens to include before and after the match.
+            matcher (Matcher): The spaCy Matcher object with patterns added.
+
+        Returns:
+            list[tuple[str, str, str, str]]: A list of tuples, each containing the context before, the matched keyword, and the context after.
+        """
+        hits = []  # List to store the hits
+        for i, doc in enumerate(docs):
             matches = matcher(doc)
-            for match in matches:
-                all_matches.append((doc, match))
-
-        # If there are no matches, return an empty list or DataFrame
-        if not all_matches:
-            raise LexosException(f"No matches found for keyword: {keyword}")
-
-        hits = []
-        # Iterate over the matches
-        for doc_of_match, match in all_matches:
-            match_id, start, end = match  # Get the start and end indices of the match
-            # Get the matched span.
-            span = doc_of_match[start:end]  # The matched span
-
-            left = start - token_window
-            right = end + token_window
-            left = max(left, 0)  # Ensure we don't go out of bounds
-            right = min(right, len(doc_of_match))  # Ensure we don't go out of bounds
-            left_context = doc_of_match[left:start].text.strip()
-            right_context = doc_of_match[end:right].text.strip()
-            hits.append((left_context, span.text, right_context))
-
-        if dataframe_format:
-            return pd.DataFrame(hits, columns=["Left", "Keyword", "Right"])
-
+            for _, start, end in matches:
+                span = doc[start:end]  # The matched span (keyword)
+                context_start = max(0, start - window)  #  Start of context window
+                context_end = min(len(doc), end + window)  # End of context window
+                context_before = doc[context_start : span.start]
+                context_after = doc[span.end : context_end]  # Fixed indentation
+                hits.append(
+                    (labels[i], context_before.text, span.text, context_after.text)
+                )  # Fixed indentation
         return hits
+
+    def _validate_sorting_algorithm(self) -> bool:
+        """Ensure that the specified sorting algorithm is a valid natsort locale.
+
+        Args:
+            alg: The sorting algorithm to validate.
+
+        Returns:
+            bool: Whether the sorting algorithm is valid.
+        """
+        if self.alg not in [e for e in ns]:
+            locales = ", ".join([f"ns.{e.name}" for e in ns])
+            err = (
+                f"Invalid sorting algorithm: {self.alg}.",
+                f"Valid algorithms for `alg` are: {locales}.",
+                "See https://natsort.readthedocs.io/en/stable/api.html#natsort.ns.",
+            )
+            raise LexosException(" ".join(err))
+        return True
