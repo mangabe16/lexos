@@ -1,7 +1,7 @@
 """kwic.py.
 
 Last Updated: July 28, 2025
-Last Tested: June 28, 2025
+Last Tested: July 28, 2025
 
 A current limitation is that all spaCy docs must share the same model. This is due to the way spaCy loads models and the Matcher/PhraseMatcher, which are tied to the vocabulary of the loaded model. Without detecting the document models and loading each one, the only way to support lists of documents with different models is to create separate instances of the Kwic class for each set of documents created with a specific model.
 
