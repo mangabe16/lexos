@@ -1,13 +1,11 @@
 """plotly_wordcloud.py.
 
-Last Update: March 3, 2025
+Last Update: July 29, 2025
 Last Tested: March 4, 2025
 
-This module could possibly be better implemented as a class, rather than as
-a function. That would allow calling the various Plotly graph_objects write
-methods, rather than making write_html() a default format to save. However,
-since the function returns aseparate call. However, since the function returns
-a Plotly graph_objects Figure, you can then call any write method on that.
+The plotly_wordcloud function has been re-implemented as a class. However,
+it may need to have some extra save methods and an implementation for
+multiclouds.
 """
 
 from collections import Counter
@@ -17,10 +15,10 @@ from typing import Any, Optional
 
 import pandas as pd
 import plotly.graph_objects as go
-from pydantic import ConfigDict, validate_call
+from pydantic import BaseModel, ConfigDict, Field, validate_call
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Span, Token
-from wordcloud import WordCloud
+from wordcloud import WordCloud as PythonWordCloud
 
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
@@ -87,9 +85,9 @@ def plotly_wordcloud(
         }
     # Process the data into a consistent format
     if isinstance(data, str):
-        wc = WordCloud(**opts).generate_from_text(data)
+        wc = PythonWordCloud(**opts).generate_from_text(data)
     elif isinstance(data, (Doc | Span)):
-        wc = WordCloud(**opts).generate_from_frequencies(
+        wc = PythonWordCloud(**opts).generate_from_frequencies(
             Counter([t.text for t in data])
         )
     else:
@@ -109,7 +107,7 @@ def plotly_wordcloud(
             raise LexosException(
                 "Cannot process data. Make sure that all items in the input belong to the same data type."
             )
-        wc = WordCloud(**opts).generate_from_frequencies(counts)
+        wc = PythonWordCloud(**opts).generate_from_frequencies(counts)
 
     # Convert the WordCloud object to a Plotly graph_objects Figure
     word_list = []
@@ -147,7 +145,7 @@ def plotly_wordcloud(
         y.append(i[1])
 
     # Get the relative occurence frequencies
-    new_freq_list = [f"{Decimal(str(n*100)):.2f}%" for n in freq_list]
+    new_freq_list = [f"{Decimal(str(n * 100)):.2f}%" for n in freq_list]
 
     trace = go.Scatter(
         x=x,
@@ -173,3 +171,143 @@ def plotly_wordcloud(
         return fig
     else:
         return fig
+
+
+class PlotlyWordcloud(BaseModel):
+    """A Pydantic model for WordCloud options."""
+
+    data: single_doc_types | multi_doc_types | pd.DataFrame = Field(
+        ...,
+        description="The data to generate the word cloud from. Accepts data from a string, list of lists or tuples, a dict with terms as keys and counts/frequencies as values, or a dataframe.",
+    )
+    docs: Optional[int | str | list[int] | list[str]] = Field(
+        None, description="A list of documents to be selected from the DTM."
+    )
+    layout: Optional[dict[str, Any]] = {}
+    height: int = Field(
+        200, gt=50, description="The height of the word cloud in pixels."
+    )
+    width: int = Field(200, gt=50, description="The width of the word cloud in pixels.")
+    opts: Optional[dict[str, Any]] = Field(
+        {
+            "background_color": "white",
+            "max_words": 2000,
+            "contour_width": 0,
+            "contour_color": "steelblue",
+        },
+        description="The WordCloud() options.",
+    )
+    round: Optional[int] = Field(
+        0,
+        description="An integer to apply a mask that rounds the word cloud. It is best to use 100 or higher for a circular mask, but it will depend on the height and width of the word cloud.",
+    )
+    cloud: PythonWordCloud | None = Field(
+        None, description="The generated WordCloud object."
+    )
+    fig: Optional[go.Figure] = Field(
+        None, description="The Plotly figure object for the word cloud."
+    )
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+
+    def __init__(self, **data: Any) -> None:
+        """Initialize the WordCloud model."""
+        super().__init__(**data)
+
+        # Set the default WordCloud options
+        self.opts = {
+            "background_color": "white",
+            "max_words": 2000,
+            "contour_width": 3,
+            "contour_color": "steelblue",
+            "width": self.width,
+            "height": self.height,
+        }
+
+        # Process the data into a consistent format
+        if isinstance(self.data, str):
+            wc = PythonWordCloud(**self.opts).generate_from_text(self.data)
+        elif isinstance(self.data, (Doc | Span)):
+            wc = PythonWordCloud(**self.opts).generate_from_frequencies(
+                Counter([t.text for t in self.data])
+            )
+        else:
+            if isinstance(self.data, DTM):
+                counts = processors.process_dtm(self.data, self.docs)
+            elif isinstance(self.data, pd.DataFrame):
+                counts = processors.process_dataframe(self.data, self.docs)
+            elif isinstance(self.data, list) and isinstance(self.data[0], list):
+                counts = processors.process_list(self.data, self.docs)
+            elif isinstance(self.data, list) and isinstance(self.data[0], (Doc | Span)):
+                counts = processors.process_docs(self.data, self.docs)
+            elif isinstance(self.data, list) and not isinstance(self.data[0], list):
+                counts = processors.process_item(self.data)
+            elif isinstance(self.data, dict):
+                counts = self.data
+            else:
+                raise LexosException(
+                    "Cannot process data. Make sure that all items in the input belong to the same data type."
+                )
+            wc = PythonWordCloud(**self.opts).generate_from_frequencies(counts)
+
+        # Convert the WordCloud object to a Plotly graph_objects Figure
+        word_list = []
+        freq_list = []
+        fontsize_list = []
+        position_list = []
+        orientation_list = []
+        color_list = []
+        layout_opts = {
+            "xaxis": {"showgrid": False, "showticklabels": False, "zeroline": False},
+            "yaxis": {"showgrid": False, "showticklabels": False, "zeroline": False},
+            "autosize": False,
+            "width": 750,
+            "height": 750,
+            "margin": {"l": 50, "r": 50, "b": 100, "t": 100, "pad": 4},
+        }
+        for k, v in self.layout.items():
+            layout_opts[k] = v
+
+        # Plot the word cloud
+        for (word, freq), fontsize, position, orientation, color in wc.layout_:
+            word_list.append(word)
+            freq_list.append(freq)
+            fontsize_list.append(fontsize)
+            position_list.append(position)
+            orientation_list.append(orientation)
+            color_list.append(color)
+
+        # Get the positions
+        x = []
+        y = []
+        for i in position_list:
+            x.append(i[0])
+            y.append(i[1])
+
+        # Get the relative occurence frequencies
+        new_freq_list = [f"{Decimal(str(n * 100)):.2f}%" for n in freq_list]
+
+        trace = go.Scatter(
+            x=x,
+            y=y,
+            textfont=dict(size=fontsize_list, color=color_list),
+            hoverinfo="text",
+            hovertext=[f"{w}: {f}" for w, f in zip(word_list, new_freq_list)],
+            mode="text",
+            text=word_list,
+        )
+
+        # Set the layout and create the figure
+        layout = go.Layout(layout_opts)
+        self.fig = go.Figure(data=[trace], layout=layout)
+
+    @validate_call
+    def save(self, path: Path | str) -> None:
+        """Save the word cloud figure."""
+        self.fig.write_image(path)
+
+    def show(self) -> go.Figure:
+        """Show the word cloud figure."""
+        return self.fig

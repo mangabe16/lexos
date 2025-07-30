@@ -1,6 +1,6 @@
 """refactored_wordcloud.py.
 
-Last Update: July 7, 2025
+Last Update: July 28, 2025
 Last Tested: TBD
 """
 
@@ -45,6 +45,10 @@ class WordCloud(BaseModel):
     docs: Optional[int | str | list[int] | list[str]] = Field(
         None, description="A list of documents to be selected from the DTM."
     )
+    height: int = Field(
+        200, gt=50, description="The height of the word cloud in pixels."
+    )
+    width: int = Field(200, gt=50, description="The width of the word cloud in pixels.")
     opts: Optional[dict[str, Any]] = Field(
         {
             "background_color": "white",
@@ -54,18 +58,12 @@ class WordCloud(BaseModel):
         },
         description="The WordCloud() options.",
     )
-    showfig: Optional[bool] = Field(
-        True,
-        description="Whether to show the plotted word cloud or return it as a WordCloud object.",
-    )
     figure_opts: Optional[dict[str, Any]] = Field(
         {}, description="A dict of matplotlib figure options."
     )
     round: Optional[int] = Field(
-        0, description="An integer to apply a mask that rounds the word cloud."
-    )
-    path: Optional[Path | str] = Field(
-        None, description="The filepath to save the word cloud to."
+        0,
+        description="An integer to apply a mask that rounds the word cloud. It is best to use 100 or higher for a circular mask, but it will depend on the height and width of the word cloud.",
     )
     cloud: PythonWordCloud | None = Field(
         None, description="The generated WordCloud object."
@@ -81,6 +79,10 @@ class WordCloud(BaseModel):
     def __init__(self, **data: Any) -> None:
         """Initialize the WordCloud model."""
         super().__init__(**data)
+
+        # Set the figure dimensions
+        self.opts["height"] = self.height
+        self.opts["width"] = self.width
 
         # Set the mask, if using
         if self.round > 0:
@@ -115,128 +117,11 @@ class WordCloud(BaseModel):
                     "Cannot process data. Make sure that all items in the input belong to the same data type."
                 )
             print("Counts:", counts)  # Debugging line to check counts
-            self.cloud = PythonWordCloud(**self.opts).generate_from_frequencies(counts)
+            self.cloud = PythonWordCloud(
+                height=self.height, width=self.width, **self.opts
+            ).generate_from_frequencies(counts)
 
-        # If a path is provided, save the WordCloud to that path
-        if self.path:
-            self.cloud.to_file(self.path)
-
-        # Create matplotlib figure
-        plt.ioff()  # Turn off interactive mode
-        plt.axis("off")
-        plt.imshow(self.cloud, interpolation="bilinear")
-        self.fig = plt.figure(**self.figure_opts)
-        if not self.showfig:
-            plt.close("all")
-        # if self.showfig:
-        #     print("Showing figure...")  # Debugging line to indicate showing the figure
-        #     plt.ion()  # Turn on interactive mode if showfig is True
-        #     plt.show()
-        #     # plt.close()
-        #     return None
-        # else:
-        #     # plt.ioff()
-        #     # plt.close()
-        #     return None
-        # print(
-        #     "Returning figure..."
-        # )  # Debugging line to indicate returning the figure
-        # plt.close("all")
-        # return self.fig
-
-        # if self.showfig is True:
-        #     plt.axis("off")
-        #     plt.figure(self.fig)  # Set the current figure to self.fig
-        #     plt.imshow(self.cloud, interpolation="bilinear")
-        #     plt.show()
-        #     # plt.close("all")  # Close the display but keep the figure object
-        #     return None  # or None / return fig if you want the figure even when showing
-        # else:
-        #     plt.close("all")  # Close the display but keep the figure object
-        #     return None  # Return the matplotlib figure
-
-    def generate(
-        self,
-        data: Optional[single_doc_types | multi_doc_types | pd.DataFrame] = None,
-        docs: Optional[int | str | list[int] | list[str]] = None,
-        opts: Optional[dict[str, Any]] = None,
-        showfig: Optional[bool] = True,
-        figure_opts: Optional[dict[str, Any]] = None,
-        round: Optional[int] = None,
-        path: Optional[Path | str] = None,
-    ) -> PythonWordCloud | None:
-        """Make a word cloud.
-
-        Returns:
-            WordCloud: A Python WordCloud object if show is set to False or None.
-
-        Notes:
-            - For a full list of options, see https://amueller.github.io/word_cloud/generated/wordcloud.WordCloud.html#wordcloud-wordcloud.
-            - If `show=False` the function returns a Python WordCloud object which can be manipulated by any of its methods, such as `to_file()`. See the Python  WordCloud documentation for a list of methods.
-        """
-        # Set the default options
-        if opts is None:
-            opts = {
-                "background_color": "white",
-                "max_words": 2000,
-                "contour_width": 0,
-                "contour_color": "steelblue",
-            }
-        self.opts = opts
-
-        if figure_opts is None:
-            figure_opts = {}
-        self.figure_opts = figure_opts
-
-        # Set the mask, if using
-        if self.round > 0:
-            x, y = np.ogrid[:300, :300]
-            mask = (x - 150) ** 2 + (y - 150) ** 2 > self.round**2
-            mask = 255 * mask.astype(int)
-            opts["mask"] = mask
-
-        # Process the data into a consistent format
-        if not data:
-            data = self.data
-        if isinstance(data, str):
-            self.cloud = PythonWordCloud(**opts).generate_from_text(data)
-        elif isinstance(data, (Doc | Span)):
-            self.cloud = PythonWordCloud(**opts).generate_from_frequencies(
-                Counter([t.text for t in data])
-            )
-        else:
-            if isinstance(data, DTM):
-                counts = processors.process_dtm(data, docs)
-            elif isinstance(data, pd.DataFrame):
-                counts = processors.process_dataframe(data, docs)
-            elif isinstance(data, list) and isinstance(data[0], list):
-                counts = processors.process_list(data, docs)
-            elif isinstance(data, list) and isinstance(data[0], (Doc | Span)):
-                counts = processors.process_docs(data, docs)
-            elif isinstance(data, list) and not isinstance(data[0], list):
-                counts = processors.process_item(data)
-            elif isinstance(data, dict):
-                counts = data
-            else:
-                raise LexosException(
-                    "Cannot process data. Make sure that all items in the input belong to the same data type."
-                )
-            self.cloud = PythonWordCloud(**opts).generate_from_frequencies(counts)
-
-        # If a path is provided, save the WordCloud to that path
-        if path:
-            self.cloud.to_file(path)
-
-        # Create matplotlib figure
-        plt.ioff()
-        plt.imshow(self.cloud)
-        fig, _ = plt.subplots(**self.figure_opts)
-        self.fig = fig
-
-        # Show the figure if showfig is True
-        if self.showfig:
-            plt.ion()
-            self.fig.show()
+        plt.close()
 
     @validate_call
     def save(self, path: Path | str) -> None:
@@ -253,119 +138,199 @@ class WordCloud(BaseModel):
         """
         plt.axis("off")
         plt.imshow(self.cloud)
-        return self.fig
 
 
-@validate_call(
-    config=ConfigDict(
-        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+class Multicloud(BaseModel):
+    """A Pydantic model for creating multiple WordClouds arranged in a grid."""
+
+    data: list[str] | list[Doc] | list[Span] | DTM | pd.DataFrame = Field(
+        ...,
+        description="The data to generate word clouds from. Accepts list of documents, DTM, or DataFrame.",
     )
-)
-def multicloud(
-    data: str
-    | list[str]
-    | list[list[str]]
-    | list[Doc]
-    | list[Span]
-    | list[list[Token]]
-    | dict[str, int]
-    | pd.DataFrame
-    | DTM,
-    docs: Optional[int | str | list[int] | list[str]] = None,
-    opts: Optional[dict[str, Any]] = None,
-    ncols: Optional[int] = 3,
-    title: Optional[str] = None,
-    labels: Optional[list[str]] = None,
-    show: Optional[bool] = True,
-    figure_opts: Optional[dict[str, Any]] = None,
-    round: Optional[int] = None,
-    filename: Optional[str] = None,
-) -> object:
-    """Make multiclouds.
-
-    Returns:
-        list[WordCloud]: A WordCloud object if show is set to False.
-
-    Notes:
-        - For a full list of options, see https://amueller.github.io/word_cloud/generated/wordcloud.WordCloud.html#wordcloud-wordcloud.
-        - If `show=False` the function expects to be called with something like `wordcloud = make_wordcloud(data, show=False)`.
-            This returns WordCloud object which can be manipulated by any of its methods, such as `to_file()`. See the
-            WordCloud documentation for a list of methods.
-    """
-    # TODO: As with WordCloud
-    if opts is None:
-        opts = {
+    docs: Optional[int | str | list[int] | list[str]] = Field(
+        None, description="A list of documents to be selected from the DTM/DataFrame."
+    )
+    ncols: int = Field(3, gt=0, description="Number of columns in the grid layout.")
+    height: int = Field(
+        200, gt=50, description="The height of each word cloud in pixels."
+    )
+    width: int = Field(
+        200, gt=50, description="The width of each word cloud in pixels."
+    )
+    opts: Optional[dict[str, Any]] = Field(
+        {
             "background_color": "white",
             "max_words": 2000,
             "contour_width": 0,
             "contour_color": "steelblue",
-        }
-    if figure_opts is None:
-        figure_opts = {}
+        },
+        description="The WordCloud() options applied to each word cloud.",
+    )
+    figure_opts: Optional[dict[str, Any]] = Field(
+        {}, description="A dict of matplotlib figure options."
+    )
+    round: Optional[int] = Field(
+        0,
+        description="An integer to apply a mask that rounds each word cloud. It is best to use 100 or higher for a circular mask.",
+    )
+    title: Optional[str] = Field(None, description="Overall title for the figure.")
+    labels: Optional[list[str]] = Field(
+        None, description="Labels for each subplot/word cloud."
+    )
+    padding: float = Field(
+        0.3,
+        ge=0.0,
+        le=1.0,
+        description="Amount of padding between subplots (0.0 to 1.0).",
+    )
+    clouds: list[WordCloud] = Field(
+        default_factory=list, description="List of generated WordCloud objects."
+    )
+    fig: Optional[plt.Figure] = Field(
+        None, description="The matplotlib figure object for the multi-cloud plot."
+    )
 
-    # Create a rounded mask
-    if round:
-        x, y = np.ogrid[:300, :300]
-        mask = (x - 150) ** 2 + (y - 150) ** 2 > round**2
-        mask = 255 * mask.astype(int)
-        opts["mask"] = mask
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
 
-    # TODO: This is where we do the loop. We need to create WordCloud objects for each item in the data.
-    if isinstance(data, list) and isinstance(data[0], str):
-        clouds = [WordCloud(**opts).generate_from_text(item) for item in data]
-    else:
-        data = processors.multicloud_processor(data, docs)
-        clouds = [WordCloud(**opts).generate_from_frequencies(item) for item in data]
+    def __init__(self, **data: Any) -> None:
+        """Initialize the MultiCloud model."""
+        super().__init__(**data)
 
-    # List for multiple word clouds if they are to be returned.
-    multiclouds = []
+        # Process different data types to get individual document data
+        doc_data = self._process_data()
 
-    # Constrain the layout
-    figure_opts["constrained_layout"] = True
+        # Create individual WordCloud objects
+        self.clouds = []
+        for doc in doc_data:
+            try:
+                # Create a WordCloud instance for each document
+                wc = WordCloud(
+                    data=doc,
+                    opts=self.opts,
+                    round=self.round,
+                    width=self.width,
+                    height=self.height,
+                )
+                self.clouds.append(wc)
+            except Exception as e:
+                raise LexosException(f"Failed to create word cloud: {e}")
 
-    # Create the figure
-    fig = plt.figure(**figure_opts)
+    def _process_data(self) -> list:
+        """Process the input data into individual documents."""
+        if isinstance(self.data, DTM):
+            # Extract documents from DTM
+            doc_data = []
+            selected_docs = (
+                self.docs
+                if self.docs is not None
+                else range(len(self.data.doc_term_matrix))
+            )
+            if isinstance(selected_docs, (int, str)):
+                selected_docs = [selected_docs]
 
-    # Add the title
-    if title:
-        fig.suptitle(title)
+            for doc_idx in selected_docs:
+                # Get term frequencies for this document
+                if isinstance(doc_idx, str):
+                    doc_idx = self.data.doc_labels.index(doc_idx)
+                doc_counts = {}
+                for term_idx, count in enumerate(self.data.doc_term_matrix[doc_idx]):
+                    if count > 0:
+                        doc_counts[self.data.terms[term_idx]] = count
+                doc_data.append(doc_counts)
 
-    # Calculate the number of rows and columns
+        elif isinstance(self.data, pd.DataFrame):
+            # Process DataFrame - assume it's a document-term matrix
+            doc_data = []
+            selected_docs = (
+                self.docs if self.docs is not None else range(len(self.data))
+            )
+            if isinstance(selected_docs, (int, str)):
+                selected_docs = [selected_docs]
 
-    nrows = int(np.ceil(len(clouds) / ncols))
-    spec = fig.add_gridspec(nrows, ncols)
+            for doc_idx in selected_docs:
+                if isinstance(doc_idx, str):
+                    doc_idx = self.data.index.get_loc(doc_idx)
+                doc_counts = self.data.iloc[doc_idx].to_dict()
+                # Filter out zero counts
+                doc_counts = {k: v for k, v in doc_counts.items() if v > 0}
+                doc_data.append(doc_counts)
 
-    # Divide the data into rows
-    rows = list(processors.get_rows(clouds, ncols))
+        elif isinstance(self.data, list):
+            # Handle list of documents
+            doc_data = self.data
+        else:
+            raise LexosException("Unsupported data type for MultiCloud")
 
-    # Set an index for labels
-    i = 0
+        return doc_data
 
-    # Loop through the rows
-    for row, doc in enumerate(rows):
-        # Loop through the documents in the row
-        for col, wordcloud in enumerate(doc):
-            # Create a subplot
-            ax = fig.add_subplot(spec[row, col])
+    @validate_call
+    def save(self, path: Path | str) -> None:
+        """Save the MultiCloud figure to a file."""
+        if self.fig is None:
+            self.show()  # Generate the figure first
+        if self.fig is None:
+            raise LexosException("No figure to save.")
+        self.fig.savefig(path)
 
-            # If `show=True`, show the word cloud
-            if show:
-                ax.imshow(wordcloud)
-                ax.axis("off")
+    def show(self) -> plt.Figure:
+        """Generate and display the multi-cloud figure."""
+        # Calculate layout
+        num_clouds = len(self.clouds)
+        nrows = int(np.ceil(num_clouds / self.ncols))
 
-                # Set the image title from the label
-                if labels:
-                    ax.set_title(labels[i])
-                    i += 1
+        # Set up figure with padding
+        figure_opts = self.figure_opts.copy()
+        figure_opts.setdefault("figsize", (self.ncols * 4, nrows * 3))
 
-            # Otherwise, add the word cloud to the multiclouds list.
-            else:
-                multiclouds.append(wordcloud)
+        # Remove constrained_layout if it exists since we're setting manual spacing
+        figure_opts.pop("constrained_layout", None)
 
-    # If a filename is provided, save the figure
-    if filename:
-        fig.savefig(filename)
+        self.fig, axes = plt.subplots(nrows, self.ncols, **figure_opts)
 
-    # If `show=False`, return the multiclouds list.
-    if not show:
-        return multiclouds
+        # Add padding between subplots
+        self.fig.subplots_adjust(wspace=self.padding, hspace=self.padding)
+
+        # Handle single row case
+        if nrows == 1:
+            axes = axes.reshape(1, -1) if self.ncols > 1 else np.array([[axes]])
+        elif self.ncols == 1:
+            axes = axes.reshape(-1, 1)
+
+        # Add overall title with extra space if padding is used
+        if self.title:
+            title_y = 0.95 if self.padding > 0.2 else 0.98
+            self.fig.suptitle(self.title, fontsize=16, y=title_y)
+
+        # Plot each word cloud
+        for i, cloud in enumerate(self.clouds):
+            row = i // self.ncols
+            col = i % self.ncols
+
+            ax = axes[row, col]
+
+            # Display the word cloud
+            ax.imshow(cloud.cloud, interpolation="bilinear")
+            ax.axis("off")
+
+            # Add label if provided
+            if self.labels and i < len(self.labels):
+                ax.set_title(self.labels[i])
+            elif hasattr(cloud.data, "__len__") and not isinstance(cloud.data, str):
+                ax.set_title(f"Document {i + 1}")
+
+        # Hide unused subplots
+        for i in range(num_clouds, nrows * self.ncols):
+            row = i // self.ncols
+            col = i % self.ncols
+            axes[row, col].axis("off")
+            axes[row, col].set_visible(False)
+
+        plt.close()
+
+        return self.fig
+
+    def get_clouds(self) -> list[WordCloud]:
+        """Return the list of individual WordCloud objects."""
+        return self.clouds
