@@ -1,6 +1,6 @@
 """__init__.py.
 
-Last Update: 16 February, 2025
+Last Update: 5 August, 2025
 Last Tested: 16 February, 2025
 
 Credits:
@@ -27,24 +27,22 @@ validation_config = ConfigDict(
 
 
 class Windows(BaseModel):
+    """Basic model for windows."""
+
     input: Optional[str | list[str] | Tokenized] = Field(
-        None, json_schema_extra={"description": "The input data to be windowed."}
+        None, description="The input data to be windowed."
     )
-    n: Optional[int] = Field(
-        1000, gt=0, json_schema_extra={"description": "The size of the window."}
-    )
+    n: Optional[int] = Field(1000, gt=0, description="The size of the window.")
     window_type: Optional[str] = Field(
         "characters",
-        json_schema_extra={
-            "description": "The type of window to generate: `characters`, `spans`, or `tokens`."
-        },
+        description="The type of window to generate: `characters`, `spans`, or `tokens`.",
     )
     alignment_mode: Optional[str] = Field(
         "strict",
-        json_schema_extra={"description": "The alignment mode for the window."},
+        description="The alignment mode for the window.",
     )
     output: Optional[str] = Field(
-        "strings", json_schema_extra={"description": "The output type for the windows."}
+        "strings", description="The output type for the windows."
     )
     windows: Optional[Iterator] = Field(
         None, description="Container for the windows generator."
@@ -53,6 +51,7 @@ class Windows(BaseModel):
     model_config = validation_config
 
     def __init__(self, **data):
+        """Create the Windows instance."""
         super().__init__(**data)
         if self.window_type not in [None, "characters", "spans", "tokens"]:
             raise LexosException("Window type must be 'characters' or 'tokens'.")
@@ -69,24 +68,20 @@ class Windows(BaseModel):
     def __call__(
         self,
         input: Optional[str | list[str] | Tokenized] = Field(
-            None, json_schema_extra={"description": "The input data to be windowed."}
+            None, description="The input data to be windowed."
         ),
-        n: Optional[int] = Field(
-            None, gt=0, json_schema_extra={"description": "The size of the window."}
-        ),
+        n: Optional[int] = Field(None, gt=0, description="The size of the window."),
         window_type: Optional[str] = Field(
             None,
-            json_schema_extra={
-                "description": "The type of window to generate: `characters`, `spans`, or `tokens`."
-            },
+            description="The type of window to generate: `characters`, `spans`, or `tokens`.",
         ),
         alignment_mode: Optional[str] = Field(
             None,
-            json_schema_extra={"description": "The alignment mode for the window."},
+            description="The alignment mode for the window.",
         ),
         output: Optional[str] = Field(
             None,
-            json_schema_extra={"description": "The output type for the windows."},
+            description="The output type for the windows.",
         ),
     ) -> Iterator:
         """Generate windows based on the input data type."""
@@ -158,7 +153,6 @@ class Windows(BaseModel):
             input (list[Span]): A list of spaCy Span objects.
 
         Yields:
-
             Iterator[list[Span | str | Token]]: A generator of windows.
         """
         if self.output not in ["strings", "tokens"]:
@@ -172,12 +166,12 @@ class Windows(BaseModel):
                 slice = input[start:end]
                 if slice is not None:
                     if self.output == "strings":
-                        yield [token.text for token in slice]  
-                    else: # assuming self.output == "tokens"
+                        yield [token.text for token in slice]
+                    else:  # assuming self.output == "tokens"
                         yield [token for token in slice]
                     # appears to be unreachable code as output must be 'strings' or 'tokens'
                     # else:
-                        # yield slice
+                    # yield slice
         else:
             # Merge spans into a single Doc object
             input = Doc.from_docs([span.as_doc() for span in input])

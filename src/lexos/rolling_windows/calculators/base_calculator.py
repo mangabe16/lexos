@@ -1,6 +1,6 @@
 """base_calculator.py.
 
-Last update: February 16, 2025
+Last update: August 5, 2025
 Last tested: February 16, 2025
 """
 
@@ -109,45 +109,29 @@ class BaseCalculator(ABC, BaseModel):
     id: ClassVar[str] = "base_calculator"
 
     patterns: Optional[list | str] = Field(
-        default=None,
-        json_schema_extra={
-            "description": "A pattern or list of patterns to search in windows."
-        },
+        default=None, description="A pattern or list of patterns to search in windows."
     )
     windows: Optional[Windows] = Field(
-        default=None,
-        json_schema_extra={
-            "description": "A Windows object containing the windows to search."
-        },
+        default=None, description="A Windows object containing the windows to search."
     )
     mode: Optional[bool | str] = Field(
         default="exact",
-        json_schema_extra={
-            "description": "The search method to use ('regex', 'spacy_rule', 'multi_token', 'multi_token_exact')."
-        },
+        description="The search method to use ('regex', 'spacy_rule', 'multi_token', 'multi_token_exact').",
     )
     case_sensitive: Optional[bool] = Field(
-        default=False,
-        json_schema_extra={"description": "Whether to make searches case-sensitive."},
+        default=False, description="Whether to make searches case-sensitive."
     )
     alignment_mode: Optional[str] = Field(
         default="strict",
-        json_schema_extra={
-            "description": "Whether to snap searches to token boundaries. Values are 'strict', 'contract', and 'expand'."
-        },
+        description="Whether to snap searches to token boundaries. Values are 'strict', 'contract', and 'expand'.",
     )
     model: Optional[str] = Field(
         default="xx_sent_ud_sm",
-        json_schema_extra={
-            "description": "The language model to be used for searching spaCy tokens/spans."
-        },
+        description="The language model to be used for searching spaCy tokens/spans.",
     )
-    nlp: Optional[Language] = Field(
-        default=None, json_schema_extra={"description": "The spaCy nlp object."}
-    )
+    nlp: Optional[Language] = Field(default=None, description="The spaCy nlp object.")
     data: Optional[list] = Field(
-        default=[],
-        json_schema_extra={"description": "A container for the calculated data."},
+        default=[], description="A container for the calculated data."
     )
 
     model_config = validation_config
@@ -180,7 +164,9 @@ class BaseCalculator(ABC, BaseModel):
         return None
 
     @abstractmethod
-    def __call__(self, *args, **kwargs): ...
+    def __call__(self, *args, **kwargs):
+        """Call the instance."""
+        ...
 
     def _count_character_patterns_in_character_windows(
         self, window: str, pattern: str
@@ -188,11 +174,11 @@ class BaseCalculator(ABC, BaseModel):
         """Use Python count() to count exact character matches in a character window.
 
         Args:
-                        window (str): A string window.
-                        pattern (str): A string pattern to search for.
+            window (str): A string window.
+            pattern (str): A string pattern to search for.
 
         Returns:
-                        The number of occurrences of the pattern in the window.
+            The number of occurrences of the pattern in the window.
         """
         if self.mode == "regex":
             return len(re.findall(pattern, window, self.regex_flags))
@@ -204,12 +190,13 @@ class BaseCalculator(ABC, BaseModel):
 
     def _count_in_character_window(self, window: str, pattern: str) -> int:
         """Choose function for counting matches in character windows.
+
         Args:
-                        window (str): A string window.
-                        pattern (str): A string pattern to search for.
+            window (str): A string window.
+            pattern (str): A string pattern to search for.
 
         Returns:
-                        The number of occurrences of the pattern in the window.
+            The number of occurrences of the pattern in the window.
         """
         if self.mode in ["exact", "regex"]:
             return self._count_character_patterns_in_character_windows(window, pattern)
@@ -222,11 +209,11 @@ class BaseCalculator(ABC, BaseModel):
         """Count patterns in lists of token strings.
 
         Args:
-                        window (list[str]): A window consisting of a list of strings.
-                        pattern (str): A string pattern to search for.
+            window (list[str]): A window consisting of a list of strings.
+            pattern (str): A string pattern to search for.
 
         Returns:
-                        The number of occurrences of the pattern in the window.
+            The number of occurrences of the pattern in the window.
         """
         if self.mode == "regex":
             return sum(
@@ -242,11 +229,11 @@ class BaseCalculator(ABC, BaseModel):
         """Count patterns in spans or docs.
 
         Args:
-                        window (Span): A window consisting of a list of spaCy spans or a spaCy doc.
-                        pattern (list | str): A string pattern or spaCy rule to search for.
+            window (Span): A window consisting of a list of spaCy spans or a spaCy doc.
+            pattern (list | str): A string pattern or spaCy rule to search for.
 
         Returns:
-                        The number of occurrences of the pattern in the window.
+            The number of occurrences of the pattern in the window.
         """
         if self.mode == "exact":
             if not self.case_sensitive:
@@ -271,12 +258,13 @@ class BaseCalculator(ABC, BaseModel):
 
     def _count_token_patterns_in_span_text(self, window: Span, pattern: str) -> int:
         """Count patterns in span or doc text with token alignment.
+
         Args:
-                        window (Span): A Span window.
-                        pattern (str): A string pattern to search for.
+            window (Span): A Span window.
+            pattern (str): A string pattern to search for.
 
         Returns:
-                        The number of occurrences of the pattern in the window.
+            The number of occurrences of the pattern in the window.
         """
         count = 0
         if self.mode == "multi_token_exact":
@@ -294,11 +282,11 @@ class BaseCalculator(ABC, BaseModel):
         """Choose function for counting matches in token windows.
 
         Args:
-                        window (list[str] | Span): A window consisting of a list of token strings, a list of spaCy spans, or a spaCy doc.
-                        pattern (list | str): A string pattern or spaCy rule to search for.
+            window (list[str] | Span): A window consisting of a list of token strings, a list of spaCy spans, or a spaCy doc.
+            pattern (list | str): A string pattern or spaCy rule to search for.
 
         Returns:
-                        The number of occurrences of the pattern in the window.
+            The number of occurrences of the pattern in the window.
         """
         if isinstance(window, (list, str)):
             if self.mode in ["multi_token", "spacy_rule"]:
@@ -318,11 +306,11 @@ class BaseCalculator(ABC, BaseModel):
         """Extract a string pattern from a spaCy rule.
 
         Args:
-                pattern list[list[dict[str, Any]]]: A list of spaCy rule patterns to search.
-                spacy matcher input is
+            pattern list[list[dict[str, Any]]]: A list of spaCy rule patterns to search.
+            spacy matcher input is
 
         Returns:
-                str: A string pattern.
+            str: A string pattern.
         """
         return "|".join(
             [
@@ -337,11 +325,11 @@ class BaseCalculator(ABC, BaseModel):
         """Call character or token window methods, as appropriate.
 
         Args:
-                window (list[str] | Span | str]): A window consisting of a list of token strings, a list of spaCy spans, a spaCy doc, or a string.
-                pattern (list | str): A string pattern or spaCy rule to search for.
+            window (list[str] | Span | str]): A window consisting of a list of token strings, a list of spaCy spans, a spaCy doc, or a string.
+            pattern (list | str): A string pattern or spaCy rule to search for.
 
         Returns:
-                The number of occurrences of the pattern in the window.
+            The number of occurrences of the pattern in the window.
         """
         if self.window_type == "characters":
             return self._count_in_character_window(window, pattern)
@@ -352,7 +340,7 @@ class BaseCalculator(ABC, BaseModel):
         """Set instance attributes when public method is called.
 
         Args:
-                attrs (dict): A dict of keyword arguments and their values.
+            attrs (dict): A dict of keyword arguments and their values.
         """
         for key, value in attrs.items():
             if value is not None:
@@ -361,4 +349,6 @@ class BaseCalculator(ABC, BaseModel):
                 self.nlp = spacy.load(self.model)
 
     @abstractmethod
-    def to_df(self, *args, **kwargs) -> pd.DataFrame: ...
+    def to_df(self, *args, **kwargs) -> pd.DataFrame:
+        """Output the calcualtions as a pandas DataFrame."""
+        ...
