@@ -2,7 +2,7 @@
 
 This is a very experimental module for making bubble charts.
 
-Last Update: March 3, 2025
+Last Update: August 9, 2025
 Last Tested: March 3, 2025
 """
 
@@ -56,50 +56,37 @@ class BubbleChart(BaseModel):
     """
 
     data: Optional[single_doc_types | multi_doc_types | pd.DataFrame] = Field(
-        json_schema_extra={"description": "The data to plot."}
+        description="The data to plot."
     )
     docs: Optional[int | str | list[int] | list[str]] = Field(
-        None,
-        json_schema_extra={"description": "The document indices or labels to plot."},
+        None, description="The document indices or labels to plot."
     )
     limit: Optional[int] = Field(
-        100, json_schema_extra={"description": "The maximum number of bubbles to plot."}
+        100, description="The maximum number of bubbles to plot."
     )
-    title: Optional[str] = Field(
-        None, json_schema_extra={"description": "The title of the plot."}
-    )
+    title: Optional[str] = Field(None, description="The title of the plot.")
     bubble_spacing: Optional[float | int] = Field(
-        0.1, json_schema_extra={"description": "The spacing between bubbles."}
+        0.1, description="The spacing between bubbles."
     )
     colors: Optional[list[str]] = Field(
-        DEFAULT_COLORS, json_schema_extra={"description": "The colors of the bubbles."}
+        DEFAULT_COLORS, description="The colors of the bubbles."
     )
     figsize: Optional[tuple[int, int]] = Field(
-        (10, 10), json_schema_extra={"description": "The size of the figure."}
+        (10, 10), description="The size of the figure."
     )
     font_family: Optional[str] = Field(
-        "DejaVu Sans", json_schema_extra={"description": "The font family of the plot."}
+        "DejaVu Sans", description="The font family of the plot."
     )
-    showfig: Optional[bool] = Field(
-        True, json_schema_extra={"description": "Whether to show the plot."}
-    )
+    showfig: Optional[bool] = Field(True, description="Whether to show the plot.")
     term_counts: Optional[list[dict[str, int]]] = Field(
-        None, json_schema_extra={"description": "The term counts."}
+        None, description="The term counts."
     )
-    bubbles: Optional[np.ndarray] = Field(
-        None, json_schema_extra={"description": "The bubbles."}
-    )
-    maxstep: Optional[int] = Field(
-        None, json_schema_extra={"description": "The maximum step."}
-    )
-    step_dist: Optional[int] = Field(
-        None, json_schema_extra={"description": "The step distance."}
-    )
-    com: Optional[int] = Field(
-        None, json_schema_extra={"description": "The center of mass."}
-    )
+    bubbles: Optional[np.ndarray] = Field(None, description="The bubbles.")
+    maxstep: Optional[int] = Field(None, description="The maximum step.")
+    step_dist: Optional[int] = Field(None, description="The step distance.")
+    com: Optional[int] = Field(None, description="The center of mass.")
     fig: Optional[plt.Figure] = Field(
-        None, json_schema_extra={"description": "The figure for the bubble chart."}
+        None, description="The figure for the bubble chart."
     )
 
     model_config = ConfigDict(
@@ -108,7 +95,8 @@ class BubbleChart(BaseModel):
 
     @field_validator("data", mode="after")
     @classmethod
-    def is_no_empty(cls, value: Any) -> Any:
+    def is_not_empty(cls, value: Any) -> Any:
+        """Check if the value is not empty."""
         if isinstance(value, pd.DataFrame):
             if value.empty:
                 raise LexosException("Dataframe is empty.")
@@ -332,6 +320,7 @@ class BubbleChart(BaseModel):
 
     def _process_data(self) -> list[dict[str, int]]:
         """Process the data into a dict of terms and counts."""
+        print("called")
         if isinstance(self.data, str):
             # TODO: Need to tokenise the string, but for now...
             self.term_counts = dict(Counter(self.data.split()))
