@@ -45,6 +45,9 @@ class WordCloud(BaseModel):
     docs: Optional[int | str | list[int] | list[str]] = Field(
         None, description="A list of documents to be selected from the DTM."
     )
+    limit: Optional[int] = Field(
+        None, description="The maximum number of terms to plot."
+    )
     height: int = Field(
         200, gt=50, description="The height of the word cloud in pixels."
     )
@@ -65,6 +68,7 @@ class WordCloud(BaseModel):
         0,
         description="An integer to apply a mask that rounds the word cloud. It is best to use 100 or higher for a circular mask, but it will depend on the height and width of the word cloud.",
     )
+    counts: dict[str, int] = Field(None, description="A dictionary of term counts.")
     cloud: PythonWordCloud | None = Field(
         None, description="The generated WordCloud object."
     )
@@ -92,36 +96,83 @@ class WordCloud(BaseModel):
             self.opts["mask"] = mask
 
         # Process the data into a consistent format
-        data = self.data
-        if isinstance(self.data, str):
-            self.cloud = PythonWordCloud(**self.opts).generate_from_text(self.data)
-        elif isinstance(self.data, (Doc | Span)):
-            self.cloud = PythonWordCloud(**self.opts).generate_from_frequencies(
-                Counter([t.text for t in self.data])
-            )
-        else:
-            if isinstance(self.data, DTM):
-                counts = processors.process_dtm(self.data, self.docs)
-            elif isinstance(self.data, pd.DataFrame):
-                counts = processors.process_self.dataframe(self.data, self.docs)
-            elif isinstance(self.data, list) and isinstance(self.data[0], list):
-                counts = processors.process_list(self.data, self.docs)
-            elif isinstance(self.data, list) and isinstance(self.data[0], (Doc | Span)):
-                counts = processors.process_docs(self.data, self.docs)
-            elif isinstance(self.data, list) and not isinstance(self.data[0], list):
-                counts = processors.process_item(self.data)
-            elif isinstance(self.data, dict):
-                counts = self.data
-            else:
-                raise LexosException(
-                    "Cannot process data. Make sure that all items in the input belong to the same data type."
-                )
-            print("Counts:", counts)  # Debugging line to check counts
-            self.cloud = PythonWordCloud(
-                height=self.height, width=self.width, **self.opts
-            ).generate_from_frequencies(counts)
-
+        self.counts = self._process_data()
+        self.cloud = PythonWordCloud(**self.opts).generate_from_frequencies(self.counts)
         plt.close()
+
+    def _process_data(self) -> dict[str, int]:
+        """Process the input data into a consistent format of term counts.
+
+        Returns:
+            dict[str, int]: Dictionary with terms as keys and counts as values.
+        """
+        # Handle simple string input
+        if isinstance(self.data, str):
+            counts = Counter(self.data.split())  # TODO: Use better tokenizer
+
+        # Handle spaCy objects
+        elif isinstance(self.data, (Doc, Span)):
+            counts = Counter([token.text for token in self.data])
+
+        # Handle dictionary input (already in correct format)
+        elif isinstance(self.data, dict):
+            counts = Counter(self.data)
+
+        # Handle list inputs
+        elif isinstance(self.data, list):
+            counts = self._process_list_data()
+
+        # Handle structured data types
+        else:
+            counts = self._process_structured_data()
+            # Make sure counts are integers
+            counts = Counter({k: int(v) for k, v in counts.items()})
+
+        # Limit the number of terms if specified
+        if self.limit is not None:
+            counts = dict(counts.most_common(self.limit))
+
+        return dict(counts)
+
+    def _process_list_data(self) -> dict[str, int]:
+        """Process list-type data inputs.
+
+        Returns:
+            dict[str, int]: Dictionary with terms as keys and counts as values.
+        """
+        if not self.data:
+            return {}
+
+        first_item = self.data[0]
+
+        # List of lists
+        if isinstance(first_item, list):
+            return processors.process_list(self.data, self.docs)
+
+        # List of spaCy objects
+        if isinstance(first_item, (Doc, Span)):
+            return processors.process_docs(self.data, self.docs)
+
+        # Simple list of strings/tokens
+        return processors.process_item(self.data)
+
+    def _process_structured_data(self) -> dict[str, int]:
+        """Process structured data types (DTM, DataFrame).
+
+        Returns:
+            dict[str, int]: Dictionary with terms as keys and counts as values.
+        """
+        if isinstance(self.data, DTM):
+            return processors.process_dtm(self.data, self.docs)
+
+        if isinstance(self.data, pd.DataFrame):
+            return processors.process_dataframe(self.data, self.docs)
+
+        # This should be unreachable with Pydantic validation
+        raise LexosException(
+            f"Unsupported data type: {type(self.data)}. "
+            "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
+        )
 
     @validate_call
     def save(self, path: Path | str) -> None:
@@ -149,6 +200,9 @@ class MultiCloud(BaseModel):
     )
     docs: Optional[int | str | list[int] | list[str]] = Field(
         None, description="A list of documents to be selected from the DTM/DataFrame."
+    )
+    limit: Optional[int] = Field(
+        None, description="The maximum number of terms to plot."
     )
     ncols: int = Field(3, gt=0, description="Number of columns in the grid layout.")
     height: int = Field(
@@ -208,6 +262,7 @@ class MultiCloud(BaseModel):
                 # Create a WordCloud instance for each document
                 wc = WordCloud(
                     data=doc,
+                    limit=self.limit,
                     opts=self.opts,
                     round=self.round,
                     width=self.width,
@@ -217,6 +272,7 @@ class MultiCloud(BaseModel):
             except Exception as e:
                 raise LexosException(f"Failed to create word cloud: {e}")
 
+    # TODO: Figure out how this works
     def _process_data(self) -> list:
         """Process the input data into individual documents."""
         if isinstance(self.data, DTM):

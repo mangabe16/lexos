@@ -2,7 +2,7 @@
 
 This is a very experimental module for making bubble charts.
 
-Last Update: August 9, 2025
+Last Update: August 10, 2025
 Last Tested: March 3, 2025
 """
 
@@ -71,20 +71,18 @@ class BubbleChart(BaseModel):
     colors: Optional[list[str]] = Field(
         DEFAULT_COLORS, description="The colors of the bubbles."
     )
-    figsize: Optional[tuple[int, int]] = Field(
-        (10, 10), description="The size of the figure."
+    figsize: Optional[int | float] = Field(
+        10, description="The size of the figure in inches."
     )
     font_family: Optional[str] = Field(
         "DejaVu Sans", description="The font family of the plot."
     )
     showfig: Optional[bool] = Field(True, description="Whether to show the plot.")
-    term_counts: Optional[list[dict[str, int]]] = Field(
-        None, description="The term counts."
-    )
     bubbles: Optional[np.ndarray] = Field(None, description="The bubbles.")
     maxstep: Optional[int] = Field(None, description="The maximum step.")
     step_dist: Optional[int] = Field(None, description="The step distance.")
     com: Optional[int] = Field(None, description="The center of mass.")
+    counts: dict[str, int] = Field({}, description="A dictionary of word counts.")
     fig: Optional[plt.Figure] = Field(
         None, description="The figure for the bubble chart."
     )
@@ -106,37 +104,21 @@ class BubbleChart(BaseModel):
             raise LexosException("Data is an empty list or string.")
         return value
 
-    @validate_call(config=model_config)
-    def __call__(
-        self,
-        data: Optional[single_doc_types | multi_doc_types | pd.DataFrame] = None,
-        docs: Optional[int | str | list[int] | list[str]] = None,
-        limit: Optional[int] = 100,
-        title: Optional[str] = None,
-        bubble_spacing: Optional[float | int] = 0.1,
-        colors: Optional[list[str]] = DEFAULT_COLORS,
-        figsize: Optional[tuple[int, int]] = (10, 10),
-        font_family: Optional[str] = "DejaVu Sans",
-        showfig: Optional[bool] = True,
-    ):
-        """Call the instance."""
-        # Set the attributes of the class
-        self._set_attrs(
-            data=data,
-            docs=docs,
-            limit=limit,
-            title=title,
-            bubble_spacing=bubble_spacing,
-            colors=colors,
-            figsize=figsize,
-            font_family=font_family,
-            showfig=showfig,
-        )
-        self._process_data()
+    def __init__(self, **data):
+        """Initialize the BubbleChart with the provided data."""
+        super().__init__(**data)
+        # Process the data into a consistent format
+        self.counts = dict(self._process_data())
+
+        # Limit the number of terms if specified
+        if self.limit is not None:
+            self.counts = dict(Counter(self.counts).most_common(self.limit))
+
+        # Set the figure dimensions
+        self.figsize = (self.figsize, self.figsize)
 
         # Reduce the area to the limited number of terms
-        counts = list(self.term_counts.values())
-        area = np.asarray(counts[: self.limit])
+        area = np.asarray(list(self.counts.values()))
         r = np.sqrt(area / np.pi)
 
         self.bubbles = np.ones((len(area), 4))
@@ -157,7 +139,7 @@ class BubbleChart(BaseModel):
         # Create the figure
         self._collapse()
         fig, ax = plt.subplots(subplot_kw=dict(aspect="equal"), figsize=self.figsize)
-        self._plot(ax, list(self.term_counts.keys()))
+        self._plot(ax, list(self.counts.keys()))
         ax.axis("off")
         ax.relim()
         ax.autoscale_view()
@@ -169,13 +151,6 @@ class BubbleChart(BaseModel):
         # Save the fig variable
         self.fig = fig
 
-        # Suppress the output
-        if not self.showfig:
-            plt.close()
-            return self.fig
-
-    def close(self):
-        """Close the figure."""
         plt.close()
 
     def _center_distance(self, bubble: np.ndarray, bubbles: np.ndarray) -> np.ndarray:
@@ -318,39 +293,79 @@ class BubbleChart(BaseModel):
                 verticalalignment="center",
             )
 
-    def _process_data(self) -> list[dict[str, int]]:
-        """Process the data into a dict of terms and counts."""
-        print("called")
-        if isinstance(self.data, str):
-            # TODO: Need to tokenise the string, but for now...
-            self.term_counts = dict(Counter(self.data.split()))
-        elif isinstance(self.data, (Doc | Span)):
-            self.term_counts = dict(Counter([t.text for t in self.data]))
-        else:
-            if isinstance(self.data, DTM):
-                self.term_counts = processors.process_dtm(self.data, self.docs)
-            elif isinstance(self.data, pd.DataFrame):
-                self.term_counts = processors.process_dataframe(self.data, self.docs)
-            elif isinstance(self.data, list) and isinstance(self.data[0], list):
-                self.term_counts = processors.process_list(self.data, self.docs)
-            elif isinstance(self.data, list) and isinstance(self.data[0], (Doc | Span)):
-                self.term_counts = processors.process_docs(self.data, self.docs)
-            elif isinstance(self.data, list) and not isinstance(self.data[0], list):
-                self.term_counts = processors.process_item(self.data)
-            elif isinstance(self.data, dict):
-                self.term_counts = self.data
-            else:
-                raise LexosException(
-                    "Cannot process data. Make sure that all items in the input belong to the same data type."
-                )
-            # As a precaution, make sure that there are no terms with zero counts
-            self.term_counts = {k: v for k, v in self.term_counts.items() if v > 0}
+    def _process_data(self) -> dict[str, int]:
+        """Process the input data into a consistent format of term counts.
 
-    def _set_attrs(self, **kwargs):
-        """Set the attributes of the class."""
-        for key, value in kwargs.items():
-            if value is not None:
-                setattr(self, key, value)
+        Returns:
+            dict[str, int]: Dictionary with terms as keys and counts as values.
+        """
+        # Handle simple string input
+        if isinstance(self.data, str):
+            counts = Counter(self.data.split())  # TODO: Use better tokenizer
+
+        # Handle spaCy objects
+        elif isinstance(self.data, (Doc, Span)):
+            counts = Counter([token.text for token in self.data])
+
+        # Handle dictionary input (already in correct format)
+        elif isinstance(self.data, dict):
+            counts = Counter(self.data)
+
+        # Handle list inputs
+        elif isinstance(self.data, list):
+            counts = self._process_list_data()
+
+        # Handle structured data types
+        else:
+            counts = self._process_structured_data()
+            # Make sure counts are integers
+            counts = Counter({k: int(v) for k, v in counts.items()})
+
+        # Limit the number of terms if specified
+        if self.limit is not None:
+            counts = dict(counts.most_common(self.limit))
+
+        return dict(counts)
+
+    def _process_list_data(self) -> dict[str, int]:
+        """Process list-type data inputs.
+
+        Returns:
+            dict[str, int]: Dictionary with terms as keys and counts as values.
+        """
+        if not self.data:
+            return {}
+
+        first_item = self.data[0]
+
+        # List of lists
+        if isinstance(first_item, list):
+            return processors.process_list(self.data, self.docs)
+
+        # List of spaCy objects
+        if isinstance(first_item, (Doc, Span)):
+            return processors.process_docs(self.data, self.docs)
+
+        # Simple list of strings/tokens
+        return processors.process_item(self.data)
+
+    def _process_structured_data(self) -> dict[str, int]:
+        """Process structured data types (DTM, DataFrame).
+
+        Returns:
+            dict[str, int]: Dictionary with terms as keys and counts as values.
+        """
+        if isinstance(self.data, DTM):
+            return processors.process_dtm(self.data, self.docs)
+
+        if isinstance(self.data, pd.DataFrame):
+            return processors.process_dataframe(self.data, self.docs)
+
+        # This should be unreachable with Pydantic validation
+        raise LexosException(
+            f"Unsupported data type: {type(self.data)}. "
+            "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
+        )
 
     @validate_call(config=model_config)
     def save(self, path: Path | str):
@@ -371,6 +386,4 @@ class BubbleChart(BaseModel):
         This is a helper method. You can also reference the figure using
         `BubbleChart.fig`. This will generally display in a Jupyter notebook.
         """
-        if self.fig is None:
-            raise LexosException("The figure has not yet been generated.")
         return self.fig
