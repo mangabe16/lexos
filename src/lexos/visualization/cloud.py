@@ -1,6 +1,6 @@
 """cloud.py.
 
-Last Update: August 5, 2025
+Last Update: August 11, 2025
 Last Tested: TBD
 """
 
@@ -48,6 +48,7 @@ class WordCloud(BaseModel):
     limit: Optional[int] = Field(
         None, description="The maximum number of terms to plot."
     )
+    title: Optional[str] = Field(None, description="The title of the plot.")
     height: int = Field(
         200, gt=50, description="The height of the word cloud in pixels."
     )
@@ -96,83 +97,9 @@ class WordCloud(BaseModel):
             self.opts["mask"] = mask
 
         # Process the data into a consistent format
-        self.counts = self._process_data()
+        self.counts = processors.process_data(self.data, self.docs, self.limit)
         self.cloud = PythonWordCloud(**self.opts).generate_from_frequencies(self.counts)
         plt.close()
-
-    def _process_data(self) -> dict[str, int]:
-        """Process the input data into a consistent format of term counts.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        # Handle simple string input
-        if isinstance(self.data, str):
-            counts = Counter(self.data.split())  # TODO: Use better tokenizer
-
-        # Handle spaCy objects
-        elif isinstance(self.data, (Doc, Span)):
-            counts = Counter([token.text for token in self.data])
-
-        # Handle dictionary input (already in correct format)
-        elif isinstance(self.data, dict):
-            counts = Counter(self.data)
-
-        # Handle list inputs
-        elif isinstance(self.data, list):
-            counts = self._process_list_data()
-
-        # Handle structured data types
-        else:
-            counts = self._process_structured_data()
-            # Make sure counts are integers
-            counts = Counter({k: int(v) for k, v in counts.items()})
-
-        # Limit the number of terms if specified
-        if self.limit is not None:
-            counts = dict(counts.most_common(self.limit))
-
-        return dict(counts)
-
-    def _process_list_data(self) -> dict[str, int]:
-        """Process list-type data inputs.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if not self.data:
-            return {}
-
-        first_item = self.data[0]
-
-        # List of lists
-        if isinstance(first_item, list):
-            return processors.process_list(self.data, self.docs)
-
-        # List of spaCy objects
-        if isinstance(first_item, (Doc, Span)):
-            return processors.process_docs(self.data, self.docs)
-
-        # Simple list of strings/tokens
-        return processors.process_item(self.data)
-
-    def _process_structured_data(self) -> dict[str, int]:
-        """Process structured data types (DTM, DataFrame).
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if isinstance(self.data, DTM):
-            return processors.process_dtm(self.data, self.docs)
-
-        if isinstance(self.data, pd.DataFrame):
-            return processors.process_dataframe(self.data, self.docs)
-
-        # This should be unreachable with Pydantic validation
-        raise LexosException(
-            f"Unsupported data type: {type(self.data)}. "
-            "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
-        )
 
     @validate_call
     def save(self, path: Path | str) -> None:
@@ -187,6 +114,8 @@ class WordCloud(BaseModel):
         This is a helper method. It will generally display in a
         Jupyter notebook.
         """
+        if self.title:
+            plt.title(self.title)
         plt.axis("off")
         plt.imshow(self.cloud)
 
@@ -272,7 +201,6 @@ class MultiCloud(BaseModel):
             except Exception as e:
                 raise LexosException(f"Failed to create word cloud: {e}")
 
-    # TODO: Figure out how this works
     def _process_data(self) -> list:
         """Process the input data into individual documents."""
         if isinstance(self.data, DTM):
@@ -345,6 +273,18 @@ class MultiCloud(BaseModel):
 
         self.fig, axes = plt.subplots(nrows, self.ncols, **figure_opts)
 
+        # Add padding between subplots and adjust top margin for title
+        if self.title:
+            # More space below title when there's a suptitle
+            self.fig.subplots_adjust(
+                wspace=self.padding,
+                hspace=self.padding,
+                top=0.82,  # Leaves more space at the top for the title
+            )
+        else:
+            # Normal spacing when no title
+            self.fig.subplots_adjust(wspace=self.padding, hspace=self.padding)
+
         # Add padding between subplots
         self.fig.subplots_adjust(wspace=self.padding, hspace=self.padding)
 
@@ -354,10 +294,9 @@ class MultiCloud(BaseModel):
         elif self.ncols == 1:
             axes = axes.reshape(-1, 1)
 
-        # Add overall title with extra space if padding is used
+        # Add overall title
         if self.title:
-            title_y = 0.95 if self.padding > 0.2 else 0.98
-            self.fig.suptitle(self.title, fontsize=16, y=title_y)
+            self.fig.suptitle(self.title, fontsize=16, y=0.90)  # Positioned lower
 
         # Plot each word cloud
         for i, cloud in enumerate(self.clouds):
@@ -373,8 +312,8 @@ class MultiCloud(BaseModel):
             # Add label if provided
             if self.labels and i < len(self.labels):
                 ax.set_title(self.labels[i])
-            elif hasattr(cloud.data, "__len__") and not isinstance(cloud.data, str):
-                ax.set_title(f"Document {i + 1}")
+            elif hasattr(cloud.data, "__len__"):
+                ax.set_title(f"Doc {i + 1}", fontdict={"fontsize": 10})
 
         # Hide unused subplots
         for i in range(num_clouds, nrows * self.ncols):

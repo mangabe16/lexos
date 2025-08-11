@@ -107,12 +107,9 @@ class BubbleChart(BaseModel):
     def __init__(self, **data):
         """Initialize the BubbleChart with the provided data."""
         super().__init__(**data)
-        # Process the data into a consistent format
-        self.counts = dict(self._process_data())
 
-        # Limit the number of terms if specified
-        if self.limit is not None:
-            self.counts = dict(Counter(self.counts).most_common(self.limit))
+        # Process different data types to get individual document data
+        self.counts = processors.process_data(self.data, self.docs, self.limit)
 
         # Set the figure dimensions
         self.figsize = (self.figsize, self.figsize)

@@ -1,6 +1,6 @@
 """d3_wordcloud.py.
 
-Last Updated: August 10, 2025
+Last Updated: August 11, 2025
 Last Tested: August 9, 2025
 """
 
@@ -141,7 +141,7 @@ class D3WordCloud(BaseModel):
             raise LexosException(f"Failed to initialize D3WordCloud: {e}") from e
 
         # Process the data into a consistent format
-        self.counts = dict(self._process_data())
+        self.counts = processors.process_data(self.data, self.docs, self.limit)
         self._render()
         self._include_d3()
         self._include_d3_cloud()
@@ -354,7 +354,7 @@ class D3MultiCloud(BaseModel):
         ...,
         description="List of data sources to create individual word clouds from.",
     )
-    titles: Optional[list[str]] = Field(
+    labels: Optional[list[str]] = Field(
         None,
         description="List of titles for each word cloud. If None, will use 'Cloud 1', 'Cloud 2', etc.",
     )
@@ -367,9 +367,7 @@ class D3MultiCloud(BaseModel):
     columns: int = Field(
         3, gt=0, description="The number of columns in the grid layout."
     )
-    overall_title: str = Field(
-        "Multi-Cloud Word Visualization", description="The title for the overall plot."
-    )
+    title: Optional[str] = Field(None, description="Overall title for the figure.")
     cloud_spacing: int = Field(
         20, ge=0, description="The spacing between clouds in pixels."
     )
@@ -442,12 +440,12 @@ class D3MultiCloud(BaseModel):
         except Exception as e:
             raise LexosException(f"Failed to initialize D3MultiCloud: {e}") from e
 
-        # Generate titles if not provided
-        if self.titles is None:
-            self.titles = [f"Doc {i + 1}" for i in range(len(self.data_sources))]
-        elif len(self.titles) != len(self.data_sources):
+        # Generate labels if not provided
+        if self.labels is None:
+            self.labels = [f"Doc {i + 1}" for i in range(len(self.data_sources))]
+        elif len(self.labels) != len(self.data_sources):
             raise LexosException(
-                "Number of titles must match number of data sources or be None"
+                "Number of labels must match number of data sources or be None"
             )
 
         # Generate individual word clouds
@@ -460,13 +458,13 @@ class D3MultiCloud(BaseModel):
         """Generate individual D3WordCloud objects for each data source."""
         self.word_clouds = []
 
-        for i, (data_source, title) in enumerate(zip(self.data_sources, self.titles)):
+        for i, (data_source, label) in enumerate(zip(self.data_sources, self.labels)):
             try:
                 cloud = D3WordCloud(
                     data=data_source,
                     width=self.cloud_width,
                     height=self.cloud_height,
-                    title=title,
+                    title=label,
                     limit=self.limit,
                     font=self.font,
                     spiral=self.spiral,
@@ -516,7 +514,7 @@ class D3MultiCloud(BaseModel):
             )
 
         self.html = template.render(
-            overall_title=self.overall_title,
+            title=self.title,
             total_width=total_width,
             total_height=total_height + 100,  # Extra space for title
             cloud_data=json.dumps(cloud_data),

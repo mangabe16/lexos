@@ -99,7 +99,9 @@
   </head>
   <body>
     <div class="container">
-      <h1>{{ title }}</h1>
+      {% if title %}
+      <h1>{{title}}</h1>
+      {% else %}
 
       <div class="controls">
         <button class="save-btn" onclick="saveSVG()">Save as SVG</button>

@@ -5,24 +5,52 @@
     <meta charset="utf-8">
     <title>{{ overall_title }}</title>
     <style>
+        /* HTML body styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: {{ backgroundColor }};
-            min-height: 100vh;
-            box-sizing: border-box;
+            background-color: #f5f5f5;
         }
 
         * {
             box-sizing: border-box;
         }
 
-        .title {
+        /* Title styles */
+        h1 {
             text-align: center;
-            font-size: clamp(18px, 4vw, 24px);
-            font-weight: bold;
+            color: #333;
             margin-bottom: 30px;
+        }
+
+        /* Button styles */
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            margin-bottom: 0;
+        }
+
+        .save-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            margin: 0 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.3s;
+        }
+
+        .save-btn:hover {
+            background: #0056b3;
+        }
+
+        .save-btn:active {
+            transform: translateY(1px);
         }
 
         .multi-cloud-container {
@@ -32,6 +60,9 @@
             min-height: 80vh;
             width: 100%;
             padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .tooltip {
@@ -44,7 +75,7 @@
             background: rgba(0, 0, 0, 0.8);
             color: white;
             border: 0px;
-            border-radius: 8px;
+            border-radius: 4px;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.3s;
@@ -60,31 +91,6 @@
             opacity: 0.7;
         }
 
-        #button-container {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1001;
-            display: flex;
-            gap: 5px;
-        }
-
-        #download-svg,
-        #download-png {
-            padding: 8px 16px;
-            font-size: clamp(12px, 2vw, 14px);
-            border: 1px solid #ccc;
-            background: white;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        #download-svg:hover,
-        #download-png:hover {
-            background-color: #f0f0f0;
-        }
-
         /* Responsive SVG container */
         #multicloud-container {
             display: flex;
@@ -94,31 +100,20 @@
             height: 100%;
         }
 
-        #multicloud {
-            border: 1px solid #ddd; /* Optional: shows the SVG boundary */
-        }
+        /* #chart {
+            border: 1px solid #ddd; Optional: shows the SVG boundary
+        } */
 
-        /* Mobile responsiveness */
+        /* Responsiveness */
         @media (max-width: 768px) {
             body {
                 padding: 10px;
             }
 
-            #button-container {
-                position: relative;
-                top: auto;
-                right: auto;
-                justify-content: center;
-                margin-bottom: 20px;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-            }
-
-            #download-svg,
-            #download-png {
-                width: 150px;
-                padding: 12px 16px;
+            .save-btn {
+                padding: 4px 10px;
+                margin: 0 4px;
+                font-size: 11px;
             }
 
             .multi-cloud-container {
@@ -127,30 +122,33 @@
         }
 
         @media (max-width: 480px) {
-            .title {
+            h1 {
                 font-size: 18px;
                 margin-bottom: 15px;
             }
 
-            #download-svg,
-            #download-png {
-                font-size: 12px;
-                padding: 10px 12px;
+            .save-btn {
+                padding: 3px 8px;
+                margin: 0 3px;
+                font-size: 10px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Export buttons-->
-    <div id="button-container">
-        <button id="download-svg">Download SVG</button>
-        <button id="download-png">Download PNG</button>
+    {% if title %}
+    <h1>{{title}}</h1>
+    {% endif %}
+
+    <div class="controls">
+        <button id="save-svg" class="save-btn">Save as SVG</button>
+        <button id="save-png" class="save-btn">Save as PNG</button>
     </div>
 
     <!-- Multi-cloud container -->
     <div class="multi-cloud-container">
         <div id="multicloud-container">
-            <svg id="multicloud"></svg>
+            <svg id="chart"></svg>
         </div>
     </div>
 
@@ -160,7 +158,6 @@
     <script>
         const originalSettings = {
             cloudData: {{ cloud_data }},
-            maxTerms: {{ maxTerms }},
             font: "{{ font }}",
             spiral: "{{ spiral }}",
             scale: "{{ scale }}",
@@ -260,25 +257,15 @@
         // Generate the visualization
         function generateVisualization() {
             // Clear existing content
-            d3.select("#multicloud").selectAll("*").remove();
+            d3.select("#chart").selectAll("*").remove();
 
             // Get responsive layout
             const layout = calculateResponsiveLayout();
 
             // Create SVG with new dimensions
-            const svg = d3.select("#multicloud")
+            const svg = d3.select("#chart")
                 .attr("width", layout.totalWidth)
                 .attr("height", layout.totalHeight);
-
-            // Add the overall title to the SVG
-            svg.append("text")
-                .attr("x", layout.totalWidth / 2)
-                .attr("y", 30)
-                .attr("text-anchor", "middle")
-                .style("font-size", "24px")
-                .style("font-weight", "bold")
-                .style("fill", "black")
-                .text("{{ overall_title }}");
 
             // Generate each cloud with new positions
             layout.cloudData.forEach((cloudConfig, index) => {
@@ -298,8 +285,7 @@
                 // Prepare word data
                 const words = Object.entries(cloudConfig.termCounts)
                     .map(([key, value]) => ({ key, value }))
-                    .sort((a, b) => b.value - a.value)
-                    .slice(0, originalSettings.maxTerms);
+                    .sort((a, b) => b.value - a.value);
 
                 if (words.length === 0) return;
 
@@ -398,13 +384,54 @@
         });
 
         // Download functionality
-        d3.select("#download-svg").on("click", function() {
+        d3.select("#save-svg").on("click", function() {
             if (d3.event) d3.event.preventDefault();
 
-            var svgData = d3.select("#multicloud").attr("version", "1.1")
-                .attr("xmlns", "http://www.w3.org/2000/svg")
-                .node().outerHTML;
+            // Clone the SVG to avoid modifying the original
+            var svgElement = document.querySelector("svg");
+            var svgClone = svgElement.cloneNode(true);
 
+            // Get the title from the h1 element
+            var titleElement = document.querySelector("h1");
+            var titleText = titleElement ? titleElement.textContent : "Technology Word Clouds";
+
+            // Increase SVG height to accommodate title
+            var titleHeight = 50;
+            var originalWidth = svgElement.width.baseVal.value;
+            var originalHeight = svgElement.height.baseVal.value;
+
+            svgClone.setAttribute("width", originalWidth);
+            svgClone.setAttribute("height", originalHeight + titleHeight);
+            svgClone.setAttribute("viewBox", `0 0 ${originalWidth} ${originalHeight + titleHeight}`);
+
+            // Add title to the SVG
+            var svgTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            svgTitle.setAttribute("x", originalWidth / 2);
+            svgTitle.setAttribute("y", 30);
+            svgTitle.setAttribute("text-anchor", "middle");
+            svgTitle.setAttribute("font-family", "Arial, sans-serif");
+            svgTitle.setAttribute("font-size", "24");
+            svgTitle.setAttribute("font-weight", "normal");
+            svgTitle.setAttribute("fill", "#333");
+            svgTitle.textContent = titleText;
+            svgClone.insertBefore(svgTitle, svgClone.firstChild);
+
+            // Move all existing content down to make room for title
+            var mainGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            mainGroup.setAttribute("transform", `translate(0, ${titleHeight})`);
+
+            // Move all existing children (except the title) into the main group
+            var existingChildren = Array.from(svgClone.children).filter(child => child !== svgTitle);
+            existingChildren.forEach(child => {
+                mainGroup.appendChild(child);
+            });
+            svgClone.appendChild(mainGroup);
+
+            // Add SVG namespace and version
+            svgClone.setAttribute("version", "1.1");
+            svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+            var svgData = new XMLSerializer().serializeToString(svgClone);
             var blob = new Blob([svgData], {type: "image/svg+xml"});
             var url = URL.createObjectURL(blob);
 
@@ -416,19 +443,63 @@
             URL.revokeObjectURL(url);
         });
 
-        d3.select("#download-png").on("click", function() {
+        d3.select("#save-png").on("click", function() {
             if (d3.event) d3.event.preventDefault();
+
+            // Clone the SVG to avoid modifying the original
             var svgElement = document.querySelector("svg");
-            var data = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svgElement))}`;
+            var svgClone = svgElement.cloneNode(true);
+
+            // Get the title from the h1 element
+            var titleElement = document.querySelector("h1");
+            var titleText = titleElement ? titleElement.textContent : "Technology Word Clouds";
+
+            // Increase SVG height to accommodate title
+            var titleHeight = 50;
+            var originalWidth = svgElement.width.baseVal.value;
+            var originalHeight = svgElement.height.baseVal.value;
+
+            svgClone.setAttribute("width", originalWidth);
+            svgClone.setAttribute("height", originalHeight + titleHeight);
+            svgClone.setAttribute("viewBox", `0 0 ${originalWidth} ${originalHeight + titleHeight}`);
+
+            // Add title to the SVG
+            var svgTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            svgTitle.setAttribute("x", originalWidth / 2);
+            svgTitle.setAttribute("y", 30);
+            svgTitle.setAttribute("text-anchor", "middle");
+            svgTitle.setAttribute("font-family", "Arial, sans-serif");
+            svgTitle.setAttribute("font-size", "24");
+            svgTitle.setAttribute("font-weight", "normal");
+            svgTitle.setAttribute("fill", "#333");
+            svgTitle.textContent = titleText;
+            svgClone.insertBefore(svgTitle, svgClone.firstChild);
+
+            // Move all existing content down to make room for title
+            var mainGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            mainGroup.setAttribute("transform", `translate(0, ${titleHeight})`);
+
+            // Move all existing children (except the title) into the main group
+            var existingChildren = Array.from(svgClone.children).filter(child => child !== svgTitle);
+            existingChildren.forEach(child => {
+                mainGroup.appendChild(child);
+            });
+            svgClone.appendChild(mainGroup);
+
+            // Add SVG namespace
+            svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+            var svgData = new XMLSerializer().serializeToString(svgClone);
+            var data = `data:image/svg+xml;base64,${btoa(svgData)}`;
             var img = new Image();
             img.src = data;
             img.onload = () => {
                 var canvas = document.createElement("canvas");
-                canvas.width = svgElement.width.baseVal.value;
-                canvas.height = svgElement.height.baseVal.value;
+                canvas.width = originalWidth;
+                canvas.height = originalHeight + titleHeight;
                 var ctx = canvas.getContext("2d");
 
-                var backgroundColor = "{{ backgroundColor }}" || "#ffffff";
+                var backgroundColor = "white";
                 ctx.fillStyle = backgroundColor;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 

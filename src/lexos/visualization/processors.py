@@ -8,7 +8,7 @@ Last Tested: March 1, 2025
 
 from collections import Counter
 from itertools import chain
-from typing import Iterator, Optional
+from typing import Any, Iterator, Optional
 
 import pandas as pd
 from pydantic import ConfigDict, validate_call
@@ -18,6 +18,98 @@ from spacy.tokens import Doc, Span, Token
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 from lexos.util import ensure_list
+
+
+def process_data(
+    data: Any,
+    docs: Optional[int | str | list[int] | list[str]] = None,
+    limit: Optional[int] = None,
+) -> dict[str, int]:
+    """Process any supported data type into a consistent format of term counts.
+
+    Args:
+        data: The input data to process
+        docs: Optional document selection for multi-document data
+        limit: Optional limit on number of terms to return
+
+    Returns:
+        dict[str, int]: Dictionary with terms as keys and counts as values
+
+    Raises:
+        LexosException: If data type is unsupported
+    """
+    # Handle simple string input
+    if isinstance(data, str):
+        counts = Counter(data.split())  # TODO: Use better tokenizer
+
+    # Handle spaCy objects
+    elif isinstance(data, (Doc, Span)):
+        counts = Counter([token.text for token in data])
+
+    # Handle dictionary input (already in correct format)
+    elif isinstance(data, dict):
+        counts = Counter(data)
+
+    # Handle list inputs
+    elif isinstance(data, list):
+        counts = _process_list_data(data, docs)
+
+    # Handle DTM objects
+    elif isinstance(data, DTM):
+        counts = process_dtm(data, docs)
+
+    # Handle DataFrame objects
+    elif isinstance(data, pd.DataFrame):
+        counts = process_dataframe(data, docs)
+
+    # Unsupported data type
+    else:
+        raise LexosException(
+            f"Unsupported data type: {type(data)}. "
+            "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
+        )
+
+    # Ensure counts are integers
+    counts = Counter({k: int(v) for k, v in counts.items()})
+
+    # Limit the number of terms if specified
+    if limit is not None:
+        counts = dict(counts.most_common(limit))
+
+    return dict(counts)
+
+
+def _process_list_data(
+    data: list, docs: Optional[int | str | list[int] | list[str]] = None
+) -> Counter:
+    """Process list-type data inputs.
+
+    Args:
+        data: List data to process
+        docs: Optional document selection
+
+    Returns:
+        Counter: Counter object with term counts
+    """
+    if not data:
+        return Counter()
+
+    first_item = data[0]
+
+    # List of lists
+    if isinstance(first_item, list):
+        return process_list(data, docs)
+
+    # List of spaCy objects
+    if isinstance(first_item, (Doc, Span)):
+        return process_docs(data, docs)
+
+    # List of tokens
+    if isinstance(first_item, Token):
+        return Counter([token.text for token in data])
+
+    # Simple list of strings
+    return process_item(data)
 
 
 def filter_docs(
@@ -162,7 +254,7 @@ def process_docs(
 )
 def process_item(
     data: Doc | Span | list[str] | list[Token],
-) -> dict[str, int]:
+) -> Counter:
     """Process single docs, spans, and strings, or flat lists of strings or tokens.
 
     Args:
@@ -178,7 +270,7 @@ def process_item(
         terms = [item.text for item in data]
     elif isinstance(data, (Doc, Span)):
         terms = [t.text for t in data]
-    return dict(Counter(terms))
+    return Counter(terms)
 
 
 @validate_call(

@@ -3,83 +3,114 @@
 <head>
 <meta charset="utf-8" />
 <title>{{title | safe}}</title>
-<style>
-  /* HTML body styles */
-  body {
-    font-family: "Helvetica Neue", sans-serif;
-    margin-bottom: 1em;
-    margin-top: 20px;
-  }
+  <style>
+    /* HTML body styles */
+    body {
+      font-family: "Arial", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
 
-  /* Title styles */
-  #title {
-    text-align: center;
-    font-size: 24px;
-    margin-bottom: 20px;
-  }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      position: relative;
+    }
 
-  #vis {
-    width: {{width}}px;
-    height: {{height}}px;
-    margin: auto;
-    background-color: {{backgroundColor}};
-  }
+    /* Title styles */
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
 
-  /* Tooltip styles */
-  .tooltip {
-    position: fixed;
-    text-align: center;
-    width: auto;
-    height: auto;
-    padding: 8px 12px;
-    font: 12px sans-serif;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    border: 0px;
-    border-radius: 8px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s;
-    z-index: 1000;
-  }
+    /* Button styles */
+    .controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 100;
+      margin-bottom: 0;
+    }
 
-  /* Word hover effect */
-  .word-cloud text {
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
+    .save-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      margin: 0 5px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background-color 0.3s;
+    }
 
-  .word-cloud text:hover {
-    opacity: 0.7;
-  }
+    .save-btn:hover {
+      background: #0056b3;
+    }
 
-/* Button styles */
-#button-container {
-  text-align: center;
-  margin-top: 10px;
-}
+    .save-btn:active {
+      transform: translateY(1px);
+    }
 
-#download-svg,
-#download-png {
-  padding: 10px 20px;
-  font-size: 14px;
-}
-</style>
+    /* Chart styles */
+    #chart {
+      width: {{width}}px;
+      height: {{height}}px;
+      margin: auto;
+      background-color:white;
+    }
+
+    /* Tooltip styles */
+    .tooltip {
+      position: fixed;
+      text-align: center;
+      width: auto;
+      height: auto;
+      padding: 8px 12px;
+      font: 12px sans-serif;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border: 0px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+
+    /* Word hover effect */
+    .word-cloud text {
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .word-cloud text:hover {
+      opacity: 0.7;
+    }
+  </style>
 </head>
 
 <body>
-  <!-- Title -->
-  <div id="title">{{title | safe}}</div>
+    <div class="container">
+      {% if title %}
+      <h1>{{title}}</h1>
+      {% endif %}
 
-  <!-- Word cloud visualization -->
-  <div id="vis"></div>
+      <div class="controls">
+        <button id="save-svg" class="save-btn">Save as SVG</button>
+        <button id="save-png" class="save-btn">Save as PNG</button>
+      </div>
 
-  <!-- Export buttons-->
-  <div id="button-container">
-    <button id="download-svg">Download SVG</button>
-    <button id="download-png">Download PNG</button>
-  </div>
-</body>
+      <div id="chart"></div>
+    </div>
+
+  </body>
 
 <script>
 // Canvas dimensions
@@ -100,12 +131,12 @@ var progress = 0, total = 0, totalWordCount = 0;
 var color = {{colorscale}}();
 
 // Create tooltip
-var tooltip = d3.select("#vis").append("div")
+var tooltip = d3.select("#chart").append("div")
     .attr("class", "tooltip")
     .style("position", "fixed");
 
 // Create SVG
-var svg = d3.select("#vis").append("svg")
+var svg = d3.select("#chart").append("svg")
     .attr("width", width)
     .attr("height", height);
 
@@ -143,7 +174,7 @@ function prepareWordData() {
     return b.value - a.value;
   });
 
-  return words.slice(0, {{maxTerms}});
+  return words;
 }
 
 // Word cloud configuration
@@ -299,13 +330,54 @@ function generate() {
 }
 
 // Download functionality
-d3.select("#download-svg").on("click", function() {
+d3.select("#save-svg").on("click", function() {
   if (d3.event) d3.event.preventDefault();
 
-  var svgData = svg.attr("version", "1.1")
-      .attr("xmlns", "http://www.w3.org/2000/svg")
-      .node().outerHTML;
+  // Clone the SVG to avoid modifying the original
+  var svgElement = document.querySelector("svg");
+  var svgClone = svgElement.cloneNode(true);
 
+  // Get the title from the h1 element
+  var titleElement = document.querySelector("h1");
+  var titleText = titleElement ? titleElement.textContent : "Word Cloud Visualization";
+
+  // Increase SVG height to accommodate title
+  var titleHeight = 50;
+  var originalWidth = svgElement.width.baseVal.value;
+  var originalHeight = svgElement.height.baseVal.value;
+
+  svgClone.setAttribute("width", originalWidth);
+  svgClone.setAttribute("height", originalHeight + titleHeight);
+  svgClone.setAttribute("viewBox", `0 0 ${originalWidth} ${originalHeight + titleHeight}`);
+
+  // Add title to the SVG
+  var svgTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  svgTitle.setAttribute("x", originalWidth / 2);
+  svgTitle.setAttribute("y", 30);
+  svgTitle.setAttribute("text-anchor", "middle");
+  svgTitle.setAttribute("font-family", "Arial, sans-serif");
+  svgTitle.setAttribute("font-size", "24");
+  svgTitle.setAttribute("font-weight", "normal");
+  svgTitle.setAttribute("fill", "#333");
+  svgTitle.textContent = titleText;
+  svgClone.insertBefore(svgTitle, svgClone.firstChild);
+
+  // Move all existing content down to make room for title
+  var mainGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  mainGroup.setAttribute("transform", `translate(0, ${titleHeight})`);
+
+  // Move all existing children (except the title) into the main group
+  var existingChildren = Array.from(svgClone.children).filter(child => child !== svgTitle);
+  existingChildren.forEach(child => {
+    mainGroup.appendChild(child);
+  });
+  svgClone.appendChild(mainGroup);
+
+  // Add SVG namespace and version
+  svgClone.setAttribute("version", "1.1");
+  svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+  var svgData = new XMLSerializer().serializeToString(svgClone);
   var blob = new Blob([svgData], {type: "image/svg+xml"});
   var url = URL.createObjectURL(blob);
 
@@ -317,28 +389,70 @@ d3.select("#download-svg").on("click", function() {
   URL.revokeObjectURL(url);
 });
 
-
-d3.select("#download-png").on("click", function() {
+d3.select("#save-png").on("click", function() {
   if (d3.event) d3.event.preventDefault();
-  var svg = document.querySelector("svg");
-  var data = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
-        var img = new Image();
-        img.src = data;
-        img.onload = () => {
-            var canvas = document.createElement("canvas");
-            canvas.width = svg.width.baseVal.value;
-            canvas.height = svg.height.baseVal.value;
-            var ctx = canvas.getContext("2d");
-            var backgroundColor = d3.color(d3.select("#vis").style("background-color")).formatHex();
-            ctx.fillStyle = backgroundColor || "#ffffff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.imageSmoothingQuality = "high";
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            var a = document.createElement("a");
-            a.href = canvas.toDataURL("image/png");
-            a.download = "wordcloud.png";
-            a.click();
-        }
+
+  // Clone the SVG to avoid modifying the original
+  var svgElement = document.querySelector("svg");
+  var svgClone = svgElement.cloneNode(true);
+
+  // Get the title from the h1 element
+  var titleElement = document.querySelector("h1");
+  var titleText = titleElement ? titleElement.textContent : "Word Cloud Visualization";
+
+  // Increase SVG height to accommodate title
+  var titleHeight = 50;
+  var originalWidth = svgElement.width.baseVal.value;
+  var originalHeight = svgElement.height.baseVal.value;
+
+  svgClone.setAttribute("width", originalWidth);
+  svgClone.setAttribute("height", originalHeight + titleHeight);
+  svgClone.setAttribute("viewBox", `0 0 ${originalWidth} ${originalHeight + titleHeight}`);
+
+  // Add title to the SVG
+  var svgTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  svgTitle.setAttribute("x", originalWidth / 2);
+  svgTitle.setAttribute("y", 30);
+  svgTitle.setAttribute("text-anchor", "middle");
+  svgTitle.setAttribute("font-family", "Arial, sans-serif");
+  svgTitle.setAttribute("font-size", "24");
+  svgTitle.setAttribute("font-weight", "normal");
+  svgTitle.setAttribute("fill", "#333");
+  svgTitle.textContent = titleText;
+  svgClone.insertBefore(svgTitle, svgClone.firstChild);
+
+  // Move all existing content down to make room for title
+  var mainGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  mainGroup.setAttribute("transform", `translate(0, ${titleHeight})`);
+
+  // Move all existing children (except the title) into the main group
+  var existingChildren = Array.from(svgClone.children).filter(child => child !== svgTitle);
+  existingChildren.forEach(child => {
+    mainGroup.appendChild(child);
+  });
+  svgClone.appendChild(mainGroup);
+
+  // Add SVG namespace
+  svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+  var data = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svgClone))}`;
+  var img = new Image();
+  img.src = data;
+  img.onload = () => {
+    var canvas = document.createElement("canvas");
+    canvas.width = originalWidth;
+    canvas.height = originalHeight + titleHeight;
+    var ctx = canvas.getContext("2d");
+    var backgroundColor = d3.color(d3.select("#chart").style("background-color")).formatHex();
+    ctx.fillStyle = backgroundColor || "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    var a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "wordcloud.png";
+    a.click();
+  }
 });
 
 // Start generation when DOM is ready

@@ -1,15 +1,7 @@
 """d3.bubbleviz.py.
 
-Last Updated: 10 August, 2025
+Last Updated: 11 August, 2025
 Last Tested: August 10, 2025
-
-Usage:
-
-```python
-D3BubbleChart(data=data, title="My Bubble Chart", auto_open=True)
-```
-
-By default, it will auto-open in a web browser. However, you can set `auto_open=False` to prevent this behavior. You can then call the `save` method to save the HTML to a file.
 """
 
 import tempfile
@@ -88,7 +80,7 @@ class D3BubbleChart(BaseModel):
         super().__init__(**data)
         self.template = self._get_asset_path(self.template)
         # Process the data into a consistent format
-        self.counts = self._process_data()
+        self.counts = processors.process_data(self.data, self.docs, self.limit)
         self._render()
 
     def _get_asset_path(self, filename: str) -> Path:
@@ -109,80 +101,6 @@ class D3BubbleChart(BaseModel):
                 return f.read()
         except FileNotFoundError:
             raise LexosException(f"Template file not found: {self.template}")
-
-    def _process_data(self) -> dict[str, int]:
-        """Process the input data into a consistent format of term counts.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        # Handle simple string input
-        if isinstance(self.data, str):
-            counts = Counter(self.data.split())  # TODO: Use better tokenizer
-
-        # Handle spaCy objects
-        elif isinstance(self.data, (Doc, Span)):
-            counts = Counter([token.text for token in self.data])
-
-        # Handle dictionary input (already in correct format)
-        elif isinstance(self.data, dict):
-            counts = Counter(self.data)
-
-        # Handle list inputs
-        elif isinstance(self.data, list):
-            counts = self._process_list_data()
-
-        # Handle structured data types
-        else:
-            counts = self._process_structured_data()
-            # Make sure counts are integers
-            counts = Counter({k: int(v) for k, v in counts.items()})
-
-        # Limit the number of terms if specified
-        if self.limit is not None:
-            counts = dict(counts.most_common(self.limit))
-
-        return dict(counts)
-
-    def _process_list_data(self) -> dict[str, int]:
-        """Process list-type data inputs.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if not self.data:
-            return {}
-
-        first_item = self.data[0]
-
-        # List of lists
-        if isinstance(first_item, list):
-            return processors.process_list(self.data, self.docs)
-
-        # List of spaCy objects
-        if isinstance(first_item, (Doc, Span)):
-            return processors.process_docs(self.data, self.docs)
-
-        # Simple list of strings/tokens
-        return processors.process_item(self.data)
-
-    def _process_structured_data(self) -> dict[str, int]:
-        """Process structured data types (DTM, DataFrame).
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if isinstance(self.data, DTM):
-            return processors.process_dtm(self.data, self.docs)
-
-        if isinstance(self.data, pd.DataFrame):
-            return processors.process_dataframe(self.data, self.docs)
-
-        # This should be unreachable with Pydantic validation
-        raise LexosException(
-            f"Unsupported data type: {type(self.data)}. "
-            "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
-        )
 
     def _open(self) -> None:
         """Open the HTML file in a web browser."""
