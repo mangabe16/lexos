@@ -1,7 +1,7 @@
 """cloud.py.
 
-Last Update: August 11, 2025
-Last Tested: TBD
+Last Update: August 12, 2025
+Last Tested: August 12, 2025
 """
 
 from collections import Counter
@@ -123,9 +123,11 @@ class WordCloud(BaseModel):
 class MultiCloud(BaseModel):
     """A Pydantic model for creating multiple WordClouds arranged in a grid."""
 
-    data: list[str] | list[Doc] | list[Span] | DTM | pd.DataFrame = Field(
-        ...,
-        description="The data to generate word clouds from. Accepts list of documents, DTM, or DataFrame.",
+    data: list[str] | list[list[str]] | list[Doc] | list[Span] | DTM | pd.DataFrame = (
+        Field(
+            ...,
+            description="The data to generate word clouds from. Accepts list of documents, DTM, or DataFrame.",
+        )
     )
     docs: Optional[int | str | list[int] | list[str]] = Field(
         None, description="A list of documents to be selected from the DTM/DataFrame."
@@ -201,15 +203,24 @@ class MultiCloud(BaseModel):
             except Exception as e:
                 raise LexosException(f"Failed to create word cloud: {e}")
 
+        # Render the figure
+        self._render()
+
     def _process_data(self) -> list:
         """Process the input data into individual documents."""
         if isinstance(self.data, DTM):
+            # Make sure there is data
+            if (
+                self.data.doc_term_matrix is None
+                or self.data.doc_term_matrix.shape[0] == 0
+            ):
+                raise LexosException("Empty DTM provided.")
             # Extract documents from DTM
             doc_data = []
             selected_docs = (
                 self.docs
                 if self.docs is not None
-                else range(len(self.data.doc_term_matrix))
+                else range(self.data.doc_term_matrix.shape[0])
             )
             if isinstance(selected_docs, (int, str)):
                 selected_docs = [selected_docs]
@@ -217,14 +228,29 @@ class MultiCloud(BaseModel):
             for doc_idx in selected_docs:
                 # Get term frequencies for this document
                 if isinstance(doc_idx, str):
-                    doc_idx = self.data.doc_labels.index(doc_idx)
+                    doc_idx = self.data.labels.index(doc_idx)
                 doc_counts = {}
-                for term_idx, count in enumerate(self.data.doc_term_matrix[doc_idx]):
-                    if count > 0:
-                        doc_counts[self.data.terms[term_idx]] = count
+
+                # Get the row as a 1D array and convert to list/scalar values
+                doc_row = self.data.doc_term_matrix[doc_idx]
+                if hasattr(doc_row, "toarray"):  # sparse matrix
+                    doc_row = doc_row.toarray().flatten()
+
+                for term_idx, count in enumerate(doc_row):
+                    # Convert to scalar value before comparison
+                    count_value = (
+                        float(count.item()) if hasattr(count, "item") else float(count)
+                    )
+                    if count_value > 0:
+                        doc_counts[self.data.vectorizer.terms_list[term_idx]] = int(
+                            count_value
+                        )
                 doc_data.append(doc_counts)
 
         elif isinstance(self.data, pd.DataFrame):
+            # Make sure there is data
+            if self.data.empty == True:
+                raise LexosException("Empty DataFrame provided.")
             # Process DataFrame - assume it's a document-term matrix
             doc_data = []
             selected_docs = (
@@ -238,27 +264,23 @@ class MultiCloud(BaseModel):
                     doc_idx = self.data.index.get_loc(doc_idx)
                 doc_counts = self.data.iloc[doc_idx].to_dict()
                 # Filter out zero counts
-                doc_counts = {k: v for k, v in doc_counts.items() if v > 0}
+                doc_counts = {
+                    k: v
+                    for k, v in doc_counts.items()
+                    if (float(v) if hasattr(v, "item") else v) > 0
+                }
                 doc_data.append(doc_counts)
 
         elif isinstance(self.data, list):
+            # Make sure the data is not empty
+            if not self.data or len(self.data) == 0:
+                raise LexosException("No valid data provided for MultiCloud.")
             # Handle list of documents
             doc_data = self.data
-        else:
-            raise LexosException("Unsupported data type for MultiCloud")
 
         return doc_data
 
-    @validate_call
-    def save(self, path: Path | str) -> None:
-        """Save the MultiCloud figure to a file."""
-        if self.fig is None:
-            self.show()  # Generate the figure first
-        if self.fig is None:
-            raise LexosException("No figure to save.")
-        self.fig.savefig(path)
-
-    def show(self) -> plt.Figure:
+    def _render(self) -> None:
         """Generate and display the multi-cloud figure."""
         # Calculate layout
         num_clouds = len(self.clouds)
@@ -322,10 +344,23 @@ class MultiCloud(BaseModel):
             axes[row, col].axis("off")
             axes[row, col].set_visible(False)
 
+        # Prevent automatic display
+        self.fig = plt.gcf()
         plt.close()
 
-        return self.fig
+    @validate_call
+    def save(self, path: Path | str) -> None:
+        """Save the MultiCloud figure to a file."""
+        if self.fig is None:
+            raise LexosException("No figure to save.")
+        self.fig.savefig(path)
 
     def get_clouds(self) -> list[WordCloud]:
         """Return the list of individual WordCloud objects."""
         return self.clouds
+
+    def show(self) -> plt.Figure:
+        """Display the multi-cloud figure."""
+        if self.fig is None:
+            raise LexosException("No figure to show.")
+        return self.fig
