@@ -1,7 +1,5 @@
 """bubbleviz.py.
 
-This is a very experimental module for making bubble charts.
-
 Last Update: August 10, 2025
 Last Tested: March 3, 2025
 """
@@ -199,7 +197,16 @@ class BubbleChart(BaseModel):
 
                 # Shorten direction vector to have length of 1
                 # NOTE: Produces invalid value encountered in divide Runtime warnings if dir_vec is zero
-                dir_vec = dir_vec / np.sqrt(dir_vec.dot(dir_vec))
+                # dir_vec = dir_vec / np.sqrt(dir_vec.dot(dir_vec))
+
+                # Shorten direction vector to have length of 1
+                # Check if direction vector is non-zero to avoid division by zero
+                dir_vec_magnitude = np.sqrt(dir_vec.dot(dir_vec))
+                if dir_vec_magnitude > 0:
+                    dir_vec = dir_vec / dir_vec_magnitude
+                else:
+                    # If bubble is already at center of mass, use a small random direction
+                    dir_vec = np.array([1.0, 0.0]) * self.step_dist * 0.01
 
                 # Calculate new bubble position
                 new_point = self.bubbles[i, :2] + dir_vec * self.step_dist
@@ -289,80 +296,6 @@ class BubbleChart(BaseModel):
                 horizontalalignment="center",
                 verticalalignment="center",
             )
-
-    def _process_data(self) -> dict[str, int]:
-        """Process the input data into a consistent format of term counts.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        # Handle simple string input
-        if isinstance(self.data, str):
-            counts = Counter(self.data.split())  # TODO: Use better tokenizer
-
-        # Handle spaCy objects
-        elif isinstance(self.data, (Doc, Span)):
-            counts = Counter([token.text for token in self.data])
-
-        # Handle dictionary input (already in correct format)
-        elif isinstance(self.data, dict):
-            counts = Counter(self.data)
-
-        # Handle list inputs
-        elif isinstance(self.data, list):
-            counts = self._process_list_data()
-
-        # Handle structured data types
-        else:
-            counts = self._process_structured_data()
-            # Make sure counts are integers
-            counts = Counter({k: int(v) for k, v in counts.items()})
-
-        # Limit the number of terms if specified
-        if self.limit is not None:
-            counts = dict(counts.most_common(self.limit))
-
-        return dict(counts)
-
-    def _process_list_data(self) -> dict[str, int]:
-        """Process list-type data inputs.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if not self.data:
-            return {}
-
-        first_item = self.data[0]
-
-        # List of lists
-        if isinstance(first_item, list):
-            return processors.process_list(self.data, self.docs)
-
-        # List of spaCy objects
-        if isinstance(first_item, (Doc, Span)):
-            return processors.process_docs(self.data, self.docs)
-
-        # Simple list of strings/tokens
-        return processors.process_item(self.data)
-
-    def _process_structured_data(self) -> dict[str, int]:
-        """Process structured data types (DTM, DataFrame).
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if isinstance(self.data, DTM):
-            return processors.process_dtm(self.data, self.docs)
-
-        if isinstance(self.data, pd.DataFrame):
-            return processors.process_dataframe(self.data, self.docs)
-
-        # This should be unreachable with Pydantic validation
-        raise LexosException(
-            f"Unsupported data type: {type(self.data)}. "
-            "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
-        )
 
     @validate_call(config=model_config)
     def save(self, path: Path | str):
