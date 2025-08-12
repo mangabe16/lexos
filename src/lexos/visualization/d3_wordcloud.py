@@ -1,7 +1,7 @@
 """d3_wordcloud.py.
 
-Last Updated: August 11, 2025
-Last Tested: August 9, 2025
+Last Updated: August 12, 2025
+Last Tested: August 12, 2025
 """
 
 import json
@@ -261,80 +261,6 @@ class D3WordCloud(BaseModel):
             # Open the temporary HTML file in the default web browser
             webbrowser.open(f"file:///{temp_file_path}")
 
-    def _process_data(self) -> dict[str, int]:
-        """Process the input data into a consistent format of term counts.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        # Handle simple string input
-        if isinstance(self.data, str):
-            counts = Counter(self.data.split())  # TODO: Use better tokenizer
-
-        # Handle spaCy objects
-        elif isinstance(self.data, (Doc, Span)):
-            counts = Counter([token.text for token in self.data])
-
-        # Handle dictionary input (already in correct format)
-        elif isinstance(self.data, dict):
-            counts = Counter(self.data)
-
-        # Handle list inputs
-        elif isinstance(self.data, list):
-            counts = self._process_list_data()
-
-        # Handle structured data types
-        else:
-            counts = self._process_structured_data()
-            # Make sure counts are integers
-            counts = Counter({k: int(v) for k, v in counts.items()})
-
-        # Limit the number of terms if specified
-        if self.limit is not None:
-            counts = dict(counts.most_common(self.limit))
-
-        return dict(counts)
-
-    def _process_list_data(self) -> dict[str, int]:
-        """Process list-type data inputs.
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if not self.data:
-            return {}
-
-        first_item = self.data[0]
-
-        # List of lists
-        if isinstance(first_item, list):
-            return processors.process_list(self.data, self.docs)
-
-        # List of spaCy objects
-        if isinstance(first_item, (Doc, Span)):
-            return processors.process_docs(self.data, self.docs)
-
-        # Simple list of strings/tokens
-        return processors.process_item(self.data)
-
-    def _process_structured_data(self) -> dict[str, int]:
-        """Process structured data types (DTM, DataFrame).
-
-        Returns:
-            dict[str, int]: Dictionary with terms as keys and counts as values.
-        """
-        if isinstance(self.data, DTM):
-            return processors.process_dtm(self.data, self.docs)
-
-        if isinstance(self.data, pd.DataFrame):
-            return processors.process_dataframe(self.data, self.docs)
-
-        # This should be unreachable with Pydantic validation
-        raise LexosException(
-            f"Unsupported data type: {type(self.data)}. "
-            "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
-        )
-
     @validate_call
     def save(self, path: Path | str, minify: bool = False) -> None:
         """Save the word cloud HTML to a file with optional HTML minification."""
@@ -433,6 +359,13 @@ class D3MultiCloud(BaseModel):
             raise LexosException('scale must be "log", "sqrt", or "linear"')
         return v
 
+    @model_validator(mode="after")
+    def validate_angles(self):
+        """Validate the angle settings."""
+        if self.angle_from >= self.angle_to:
+            raise ValueError("angle_from must be less than angle_to")
+        return self
+
     def __init__(self, **data: Any) -> None:
         """Initialize the multi-cloud visualization."""
         try:
@@ -459,92 +392,35 @@ class D3MultiCloud(BaseModel):
         self.word_clouds = []
 
         for i, (data_source, label) in enumerate(zip(self.data_sources, self.labels)):
-            try:
-                cloud = D3WordCloud(
-                    data=data_source,
-                    width=self.cloud_width,
-                    height=self.cloud_height,
-                    title=label,
-                    limit=self.limit,
-                    font=self.font,
-                    spiral=self.spiral,
-                    scale=self.scale,
-                    angle_count=self.angle_count,
-                    angle_from=self.angle_from,
-                    angle_to=self.angle_to,
-                    background_color=self.background_color,
-                    colorscale=self.colorscale,
-                    auto_open=False,
-                    include_d3js=False,  # We'll include D3 once in the master template
-                    include_d3_cloud=False,  # We'll include cloud lib once in the master template
-                )
-                self.word_clouds.append(cloud)
-            except Exception as e:
-                raise LexosException(f"Failed to generate cloud {i + 1}: {e}") from e
-
-    def _render(self) -> None:
-        """Generate the combined HTML for all word clouds."""
-        template = Template(self._load_template())
-
-        # Calculate grid dimensions
-        rows = (len(self.word_clouds) + self.columns - 1) // self.columns
-        total_width = (self.cloud_width * self.columns) + (
-            self.cloud_spacing * (self.columns - 1)
-        )
-        total_height = (self.cloud_height * rows) + (self.cloud_spacing * (rows - 1))
-
-        # Prepare cloud data for template
-        cloud_data = []
-        for i, cloud in enumerate(self.word_clouds):
-            row = i // self.columns
-            col = i % self.columns
-            x_pos = col * (self.cloud_width + self.cloud_spacing)
-            y_pos = row * (self.cloud_height + self.cloud_spacing)
-
-            cloud_data.append(
-                {
-                    "id": f"cloud_{i}",
-                    "title": cloud.title,
-                    "termCounts": cloud.counts,
-                    "x": x_pos,
-                    "y": y_pos,
-                    "width": self.cloud_width,
-                    "height": self.cloud_height,
-                }
+            cloud = D3WordCloud(
+                data=data_source,
+                width=self.cloud_width,
+                height=self.cloud_height,
+                title=label,
+                limit=self.limit,
+                font=self.font,
+                spiral=self.spiral,
+                scale=self.scale,
+                angle_count=self.angle_count,
+                angle_from=self.angle_from,
+                angle_to=self.angle_to,
+                background_color=self.background_color,
+                colorscale=self.colorscale,
+                auto_open=False,
+                include_d3js=False,  # We'll include D3 once in the master template
+                include_d3_cloud=False,  # We'll include cloud lib once in the master template
             )
-
-        self.html = template.render(
-            title=self.title,
-            total_width=total_width,
-            total_height=total_height + 100,  # Extra space for title
-            cloud_data=json.dumps(cloud_data),
-            font=self.font,
-            spiral=self.spiral,
-            scale=self.scale,
-            angleCount=self.angle_count,
-            angleFrom=self.angle_from,
-            angleTo=self.angle_to,
-            backgroundColor=self.background_color,
-            colorscale=self.colorscale,
-        )
-
-        # Include D3 libraries
-        self._include_d3()
-        self._include_d3_cloud()
-
-        # If auto_open is True, open the chart in a web browser
-        if self.auto_open:
-            self._open()
+            self.word_clouds.append(cloud)
 
     def _get_asset_path(self, filename: str) -> Path:
         """Centralized asset path resolution."""
         return Path(__file__).parent / "d3_cloud_assets" / filename
 
-    def _load_template(self) -> str:
-        """Load the HTML template for the multi-cloud visualization."""
-        template = self._get_asset_path(self.template)
-        with open(template) as f:
-            return f.read()
+    def _get_cloud(self, index: int) -> D3WordCloud:
+        """Get a specific word cloud by index."""
+        if 0 <= index < len(self.word_clouds):
+            return self.word_clouds[index]
+        raise IndexError(f"Cloud index {index} out of range")
 
     def _get_d3_js(self, path: str = "d3.min.js") -> str:
         """Retrieve the contents of the d3.js bundle."""
@@ -603,6 +479,83 @@ class D3MultiCloud(BaseModel):
                     '<script src="https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud/build/d3.layout.cloud.js"></script>',
                 )
 
+    def _load_template(self) -> str:
+        """Load the HTML template for the multi-cloud visualization."""
+        template = self._get_asset_path(self.template)
+        with open(template) as f:
+            return f.read()
+
+    def _open(self) -> None:
+        """Open the HTML file in a web browser."""
+        # Create a temporary file to store the HTML
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".html", encoding="utf-8"
+        ) as temp_file:
+            temp_file.write(self.html)
+            temp_file_path = temp_file.name
+
+            # Open the temporary HTML file in the default web browser
+            webbrowser.open(f"file:///{temp_file_path}")
+
+    def _render(self) -> None:
+        """Generate the combined HTML for all word clouds."""
+        template = Template(self._load_template())
+
+        # Calculate grid dimensions
+        rows = (len(self.word_clouds) + self.columns - 1) // self.columns
+        total_width = (self.cloud_width * self.columns) + (
+            self.cloud_spacing * (self.columns - 1)
+        )
+        total_height = (self.cloud_height * rows) + (self.cloud_spacing * (rows - 1))
+
+        # Prepare cloud data for template
+        cloud_data = []
+        for i, cloud in enumerate(self.word_clouds):
+            row = i // self.columns
+            col = i % self.columns
+            x_pos = col * (self.cloud_width + self.cloud_spacing)
+            y_pos = row * (self.cloud_height + self.cloud_spacing)
+
+            cloud_data.append(
+                {
+                    "id": f"cloud_{i}",
+                    "title": cloud.title,
+                    "termCounts": cloud.counts,
+                    "x": x_pos,
+                    "y": y_pos,
+                    "width": self.cloud_width,
+                    "height": self.cloud_height,
+                }
+            )
+
+        self.html = template.render(
+            title=self.title,
+            total_width=total_width,
+            total_height=total_height + 100,  # Extra space for title
+            cloud_data=json.dumps(cloud_data),
+            font=self.font,
+            spiral=self.spiral,
+            scale=self.scale,
+            angleCount=self.angle_count,
+            angleFrom=self.angle_from,
+            angleTo=self.angle_to,
+            backgroundColor=self.background_color,
+            colorscale=self.colorscale,
+        )
+
+        # Include D3 libraries
+        self._include_d3()
+        self._include_d3_cloud()
+
+        # If auto_open is True, open the chart in a web browser
+        if self.auto_open:
+            self._open()
+
+    @validate_call
+    def get_cloud_counts(self, index: int) -> dict[str, int]:
+        """Get word counts for a specific cloud by index."""
+        return self._get_cloud(index).counts
+
     @validate_call
     def save(self, path: Path | str, minify: bool = False) -> None:
         """Save the multi-cloud HTML to a file."""
@@ -617,26 +570,3 @@ class D3MultiCloud(BaseModel):
 
         with open(path, "w", encoding="utf-8") as f:
             f.write(html_content)
-
-    def _get_cloud(self, index: int) -> D3WordCloud:
-        """Get a specific word cloud by index."""
-        if 0 <= index < len(self.word_clouds):
-            return self.word_clouds[index]
-        raise IndexError(f"Cloud index {index} out of range")
-
-    def _open(self) -> None:
-        """Open the HTML file in a web browser."""
-        # Create a temporary file to store the HTML
-        with tempfile.NamedTemporaryFile(
-            "w", delete=False, suffix=".html", encoding="utf-8"
-        ) as temp_file:
-            temp_file.write(self.html)
-            temp_file_path = temp_file.name
-
-            # Open the temporary HTML file in the default web browser
-            webbrowser.open(f"file:///{temp_file_path}")
-
-    @validate_call
-    def get_cloud_counts(self, index: int) -> dict[str, int]:
-        """Get word counts for a specific cloud by index."""
-        return self._get_cloud(index).counts

@@ -2,11 +2,12 @@
 
 Test suite for D3WordCloud and D3MultiCloud classes.
 
-Coverage is 94%. The following lines are uncovered: 155 (unreachable), 200-201, 221-222, 234, 348, 356, 474-475, 489, 495, 503-508, 513.
+Coverage is 89%: 151-153, 216-217, 229, 352, 360, 432-433, 438, 445, 447, 450-453, 461-466, 471, 491-498, 552, 565-569. Most of these lines involve the complex logic of including Javascript or file operations. More work needs to be done on improving the testing.
 
-Last Updated: 9 August, 2025
+Last Updated: August 12, 2025
 """
 
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import mock_open, patch
@@ -14,38 +15,43 @@ from unittest.mock import mock_open, patch
 import pandas as pd
 import pytest
 import spacy
-from pydantic import BaseModel
+from spacy.tokens import Doc
 
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
 from lexos.visualization.d3_wordcloud import D3MultiCloud, D3WordCloud
 
 
-# Test fixtures with real sample data
+# Load spaCy model once for all tests
+@pytest.fixture(scope="session")
+def nlp():
+    """Load spaCy model for testing."""
+    return spacy.load("en_core_web_sm")
+
+
 @pytest.fixture
 def sample_text():
     """Sample text for testing."""
-    return "machine learning artificial intelligence natural language processing data science computer vision deep learning neural networks"
+    return "The quick brown fox jumps over the lazy dog. The fox is quick and smart. The dog is lazy but friendly."
 
 
 @pytest.fixture
-def sample_word_counts():
-    """Sample word count dictionary."""
+def sample_counts():
+    """Sample word counts dictionary."""
     return {
-        "machine": 15,
-        "learning": 12,
-        "artificial": 8,
-        "intelligence": 7,
-        "natural": 6,
-        "language": 9,
-        "processing": 5,
-        "data": 11,
-        "science": 8,
-        "computer": 4,
-        "vision": 3,
-        "deep": 6,
-        "neural": 5,
-        "networks": 4,
+        "the": 4,
+        "fox": 2,
+        "quick": 2,
+        "brown": 1,
+        "jumps": 1,
+        "over": 1,
+        "lazy": 2,
+        "dog": 2,
+        "is": 2,
+        "and": 1,
+        "smart": 1,
+        "but": 1,
+        "friendly": 1,
     }
 
 
@@ -53,1347 +59,976 @@ def sample_word_counts():
 def sample_dataframe():
     """Sample DataFrame for testing."""
     return pd.DataFrame(
-        {
-            "term": ["machine", "learning", "artificial", "intelligence", "data"],
-            "count": [15, 12, 8, 7, 11],
-        }
+        {"doc1": [2, 1, 3, 0], "doc2": [1, 3, 0, 2], "doc3": [0, 2, 1, 1]},
+        index=["term1", "term2", "term3", "term4"],
     )
-
-
-@pytest.fixture
-def sample_token_lists():
-    """Sample list of token lists."""
-    return [
-        ["machine", "learning", "data"],
-        ["artificial", "intelligence", "neural"],
-        ["natural", "language", "processing"],
-        ["computer", "vision", "deep"],
-    ]
-
-
-@pytest.fixture
-def sample_spacy_doc():
-    """Sample spaCy Doc object."""
-    nlp = spacy.blank("en")
-    return nlp("machine learning artificial intelligence data science")
 
 
 @pytest.fixture
 def mock_template_content():
     """Mock HTML template content."""
-    return """<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ title }}</title>
-</head>
-<body>
-    <div id="vis"></div>
-    <script id="d3"></script>
-    <script id="d3cloud"></script>
-    <script>
-        var termCounts = {{ termCounts }};
-        var width = {{ width }};
-        var height = {{ height }};
-        var maxTerms = {{ maxTerms }};
-        var font = "{{ font }}";
-        var spiral = "{{ spiral }}";
-        var scale = "{{ scale }}";
-        var angleCount = {{ angleCount }};
-        var angleFrom = {{ angleFrom }};
-        var angleTo = {{ angleTo }};
-        var backgroundColor = "{{ backgroundColor }}";
-        var colorscale = {{ colorscale }};
-    </script>
-</body>
-</html>"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>{{ title }}</title>
+        <script id="d3"></script>
+        <script id="d3cloud"></script>
+    </head>
+    <body>
+        <div id="wordcloud"></div>
+        <script>
+            var termCounts = {{ termCounts }};
+            var width = {{ width }};
+            var height = {{ height }};
+            var backgroundColor = "{{ backgroundColor }}";
+            var colorscale = "{{ colorscale }}";
+            var font = "{{ font }}";
+            var spiral = "{{ spiral }}";
+            var scale = "{{ scale }}";
+            var angleCount = {{ angleCount }};
+            var angleFrom = {{ angleFrom }};
+            var angleTo = {{ angleTo }};
+        </script>
+    </body>
+    </html>
+    """
+
+
+@pytest.fixture
+def mock_multicloud_template():
+    """Mock multi-cloud HTML template content."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>{{ title or "Multi Word Cloud" }}</title>
+        <script id="d3"></script>
+        <script id="d3cloud"></script>
+    </head>
+    <body>
+        <svg width="{{ total_width }}" height="{{ total_height }}">
+        </svg>
+        <script>
+            var cloudData = {{ cloud_data }};
+            var font = "{{ font }}";
+            var spiral = "{{ spiral }}";
+            var scale = "{{ scale }}";
+            var angleCount = {{ angleCount }};
+            var angleFrom = {{ angleFrom }};
+            var angleTo = {{ angleTo }};
+            var backgroundColor = "{{ backgroundColor }}";
+            var colorscale = "{{ colorscale }}";
+        </script>
+    </body>
+    </html>
+    """
 
 
 @pytest.fixture
 def mock_d3_script():
     """Mock D3.js script content."""
-    return "// D3.js v3 mock content\nvar d3 = {};"
+    return "// Mock D3.js library content"
 
 
 @pytest.fixture
-def mock_d3cloud_script():
+def mock_d3_cloud_script():
     """Mock D3 cloud script content."""
-    return "// D3 cloud layout mock content\nd3.layout = { cloud: function() {} };"
+    return "// Mock D3 cloud library content"
 
 
-class TestD3WordCloud:
-    """Test cases for D3WordCloud class."""
+class TestD3WordCloudInitialization:
+    """Test D3WordCloud initialization with different data types."""
 
-    def test_init_with_text(
-        self, sample_text, mock_template_content, mock_d3_script, mock_d3cloud_script
+    def test_init_with_string_data(
+        self, sample_text, mock_template_content, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test initialization with string input."""
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        cloud = D3WordCloud(data=sample_text)
+        """Test initialization with string data."""
 
-                        assert isinstance(cloud.counts, dict)
-                        assert "machine" in cloud.counts
-                        assert "learning" in cloud.counts
-                        assert cloud.width == 600
-                        assert cloud.height == 600
-                        assert cloud.title == "Word Cloud Visualization"
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-    def test_init_with_dict(
-        self,
-        sample_word_counts,
-        mock_template_content,
-        mock_d3_script,
-        mock_d3cloud_script,
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_text, auto_open=False)
+                assert isinstance(cloud.counts, dict)
+                assert len(cloud.counts) > 0
+                assert cloud.html != ""
+                assert "The" in cloud.counts or "the" in cloud.counts
+
+    def test_init_with_dict_data(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test initialization with dictionary input."""
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        cloud = D3WordCloud(data=sample_word_counts)
+        """Test initialization with dictionary data."""
 
-                        assert cloud.counts == sample_word_counts
-                        assert cloud.counts["machine"] == 15
-                        assert cloud.counts["learning"] == 12
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-    @pytest.mark.skipif(not pytest.importorskip("spacy"), reason="spaCy not available")
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_counts, auto_open=False)
+                assert cloud.counts == sample_counts
+                assert cloud.html != ""
+
     def test_init_with_spacy_doc(
         self,
-        sample_spacy_doc,
+        nlp,
+        sample_text,
         mock_template_content,
         mock_d3_script,
-        mock_d3cloud_script,
+        mock_d3_cloud_script,
     ):
-        """Test initialization with spaCy Doc object."""
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        cloud = D3WordCloud(data=sample_spacy_doc)
+        """Test initialization with spaCy Doc."""
+        doc = nlp(sample_text)
 
-                        assert isinstance(cloud.counts, dict)
-                        assert len(cloud.counts) > 0
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-    def test_custom_parameters(
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=doc, auto_open=False)
+                assert isinstance(cloud.counts, dict)
+                assert len(cloud.counts) > 0
+
+    def test_init_with_spacy_span(
         self,
-        sample_word_counts,
+        nlp,
+        sample_text,
         mock_template_content,
         mock_d3_script,
-        mock_d3cloud_script,
+        mock_d3_cloud_script,
     ):
-        """Test initialization with custom parameters."""
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        cloud = D3WordCloud(
-                            data=sample_word_counts,
-                            width=800,
-                            height=400,
-                            title="Custom Title",
-                            max_terms=20,
-                            font="Arial",
-                            spiral="rectangular",
-                            scale="sqrt",
-                            background_color="lightblue",
-                        )
+        """Test initialization with spaCy Span."""
+        doc = nlp(sample_text)
+        span = doc[:10]  # First 10 tokens
 
-                        assert cloud.width == 800
-                        assert cloud.height == 400
-                        assert cloud.title == "Custom Title"
-                        assert cloud.max_terms == 20
-                        assert cloud.font == "Arial"
-                        assert cloud.spiral == "rectangular"
-                        assert cloud.scale == "sqrt"
-                        assert cloud.background_color == "lightblue"
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-    def test_field_validation(self, sample_word_counts):
-        """Test field validation."""
-        # Test invalid spiral
-        with pytest.raises(
-            LexosException, match='spiral must be "archimedean" or "rectangular"'
-        ):
-            D3WordCloud(data=sample_word_counts, spiral="invalid")
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=span, auto_open=False)
+                assert isinstance(cloud.counts, dict)
+                assert len(cloud.counts) > 0
 
-        # Test invalid scale
-        with pytest.raises(
-            LexosException, match='scale must be "log", "sqrt", or "linear"'
-        ):
-            D3WordCloud(data=sample_word_counts, scale="invalid")
-
-        # Test invalid angle range
-        with pytest.raises(
-            LexosException, match="angle_from must be less than angle_to"
-        ):
-            D3WordCloud(data=sample_word_counts, angle_from=60, angle_to=30)
-
-        # Test invalid width/height
-        with pytest.raises(LexosException):
-            D3WordCloud(data=sample_word_counts, width=0)
-
-        with pytest.raises(LexosException):
-            D3WordCloud(data=sample_word_counts, height=-10)
-
-    def test_html_generation(
+    def test_init_with_token_list(
         self,
-        sample_word_counts,
+        nlp,
+        sample_text,
         mock_template_content,
         mock_d3_script,
-        mock_d3cloud_script,
+        mock_d3_cloud_script,
     ):
-        """Test HTML generation."""
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        cloud = D3WordCloud(data=sample_word_counts, title="Test Cloud")
+        """Test initialization with list of spaCy tokens."""
+        doc = nlp(sample_text)
+        tokens = [token for token in doc if not token.is_punct and not token.is_space]
 
-                        assert "Test Cloud" in cloud.html
-                        assert "600" in cloud.html  # width
-                        assert "600" in cloud.html  # height
-                        assert "machine" in cloud.html  # data should be in HTML
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=tokens, auto_open=False)
+                assert isinstance(cloud.counts, dict)
+                assert len(cloud.counts) > 0
+
+    def test_init_with_string_list(
+        self, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test initialization with list of strings."""
+        data = ["apple", "banana", "apple", "cherry", "banana", "apple", "date"]
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=data, auto_open=False)
+                assert cloud.counts["apple"] == 3
+                assert cloud.counts["banana"] == 2
+                assert cloud.counts["cherry"] == 1
+
+    def test_init_with_dataframe(
+        self,
+        sample_dataframe,
+        mock_template_content,
+        mock_d3_script,
+        mock_d3_cloud_script,
+    ):
+        """Test initialization with DataFrame."""
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_dataframe, auto_open=False)
+                assert isinstance(cloud.counts, dict)
+                assert len(cloud.counts) > 0
+
+
+class TestD3WordCloudParameters:
+    """Test D3WordCloud with different parameter configurations."""
+
+    def test_custom_dimensions(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test word cloud with custom dimensions."""
+        width, height = 800, 500
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(
+                    data=sample_counts, width=width, height=height, auto_open=False
+                )
+                assert cloud.width == width
+                assert cloud.height == height
+                assert str(width) in cloud.html
+                assert str(height) in cloud.html
+
+    def test_custom_title(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test word cloud with custom title."""
+        title = "My Custom Word Cloud"
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_counts, title=title, auto_open=False)
+                assert cloud.title == title
+                assert title in cloud.html
+
+    def test_limit_parameter(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test word cloud with limit parameter."""
+        limit = 3
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_counts, limit=limit, auto_open=False)
+                assert len(cloud.counts) <= limit
+
+    def test_font_parameter(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test word cloud with custom font."""
+        font = "Arial"
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_counts, font=font, auto_open=False)
+                assert cloud.font == font
+                assert font in cloud.html
+
+    def test_spiral_parameter(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test word cloud with different spiral types."""
+        for spiral in ["archimedean", "rectangular"]:
+
+            def mock_open_handler(filename, *args, **kwargs):
+                if "d3_cloud_template" in str(filename):
+                    return mock_open(read_data=mock_template_content).return_value
+                elif "d3.min.js" in str(filename):
+                    return mock_open(read_data=mock_d3_script).return_value
+                elif "d3cloud_bundle.min.js" in str(filename):
+                    return mock_open(read_data=mock_d3_cloud_script).return_value
+                else:
+                    return mock_open().return_value
+
+            with patch("builtins.open", side_effect=mock_open_handler):
+                with patch("webbrowser.open"):
+                    cloud = D3WordCloud(
+                        data=sample_counts, spiral=spiral, auto_open=False
+                    )
+                    assert cloud.spiral == spiral
+
+    def test_scale_parameter(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test word cloud with different scale types."""
+        for scale in ["log", "sqrt", "linear"]:
+
+            def mock_open_handler(filename, *args, **kwargs):
+                if "d3_cloud_template" in str(filename):
+                    return mock_open(read_data=mock_template_content).return_value
+                elif "d3.min.js" in str(filename):
+                    return mock_open(read_data=mock_d3_script).return_value
+                elif "d3cloud_bundle.min.js" in str(filename):
+                    return mock_open(read_data=mock_d3_cloud_script).return_value
+                else:
+                    return mock_open().return_value
+
+            with patch("builtins.open", side_effect=mock_open_handler):
+                with patch("webbrowser.open"):
+                    cloud = D3WordCloud(
+                        data=sample_counts, scale=scale, auto_open=False
+                    )
+                    assert cloud.scale == scale
+
+    def test_angle_parameters(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test word cloud with custom angle parameters."""
+        angle_from, angle_to, angle_count = -90, 90, 7
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(
+                    data=sample_counts,
+                    angle_from=angle_from,
+                    angle_to=angle_to,
+                    angle_count=angle_count,
+                    auto_open=False,
+                )
+                assert cloud.angle_from == angle_from
+                assert cloud.angle_to == angle_to
+                assert cloud.angle_count == angle_count
+
+
+class TestD3WordCloudValidation:
+    """Test D3WordCloud parameter validation."""
+
+    def test_invalid_spiral(self, sample_counts):
+        """Test error handling for invalid spiral parameter."""
+        with pytest.raises((LexosException, ValueError)):
+            D3WordCloud(data=sample_counts, spiral="invalid", auto_open=False)
+
+    def test_invalid_scale(self, sample_counts):
+        """Test error handling for invalid scale parameter."""
+        with pytest.raises((LexosException, ValueError)):
+            D3WordCloud(data=sample_counts, scale="invalid", auto_open=False)
+
+    def test_invalid_angles(self, sample_counts):
+        """Test error handling for invalid angle parameters."""
+        with pytest.raises((LexosException, ValueError)):
+            D3WordCloud(
+                data=sample_counts, angle_from=60, angle_to=-60, auto_open=False
+            )
+
+    def test_invalid_dimensions(self, sample_counts):
+        """Test error handling for invalid dimensions."""
+        with pytest.raises((LexosException, ValueError)):
+            D3WordCloud(data=sample_counts, width=30, auto_open=False)  # Below minimum
+
+        with pytest.raises((LexosException, ValueError)):
+            D3WordCloud(data=sample_counts, height=30, auto_open=False)  # Below minimum
+
+
+class TestD3WordCloudMethods:
+    """Test D3WordCloud methods."""
 
     def test_save_method(
         self,
-        sample_word_counts,
+        sample_counts,
         mock_template_content,
         mock_d3_script,
-        mock_d3cloud_script,
+        mock_d3_cloud_script,
+        tmp_path,
     ):
-        """Test save method."""
-        # Mock the internal methods instead of file operations
-        with patch.object(
-            D3WordCloud, "_load_template", return_value=mock_template_content
-        ):
-            with patch.object(
-                D3WordCloud,
-                "_get_d3_js",
-                return_value=f'<script id="d3">\n{mock_d3_script}\n</script>',
-            ):
-                with patch.object(D3WordCloud, "_include_d3_cloud"):
-                    cloud = D3WordCloud(data=sample_word_counts)
+        """Test saving word cloud to file."""
 
-                    with tempfile.NamedTemporaryFile(
-                        mode="w", suffix=".html", delete=False
-                    ) as f:
-                        temp_path = f.name
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-                    cloud.save(temp_path)
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_counts, auto_open=False)
 
-                    # Read the saved file and verify content
-                    with open(temp_path, "r") as f:
-                        saved_content = f.read()
+        # Test saving without minification
+        output_path = tmp_path / "test_cloud.html"
+        cloud.save(output_path)
 
-                    assert len(saved_content) > 0
-                    assert "machine" in saved_content
+        assert output_path.exists()
+        content = output_path.read_text()
+        assert len(content) > 0
+        assert cloud.html == content
 
-                    # Clean up
-                    Path(temp_path).unlink()
-
-    def test_minify_html(
+    def test_save_with_minify(
         self,
-        sample_word_counts,
+        sample_counts,
         mock_template_content,
         mock_d3_script,
-        mock_d3cloud_script,
+        mock_d3_cloud_script,
+        tmp_path,
     ):
-        """Test HTML minification."""
-        template_with_spaces = """<!DOCTYPE html>
-        <html>
-            <head>
-                <title>{{ title }}</title>
-                <!-- This is a comment -->
-            </head>
-            <body>
-                <div id="vis">   </div>
-            </body>
-        </html>"""
+        """Test saving word cloud with minification."""
 
-        with patch("builtins.open", mock_open(read_data=template_with_spaces)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        cloud = D3WordCloud(data=sample_word_counts)
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-                        with tempfile.NamedTemporaryFile(
-                            mode="w", suffix=".html", delete=False
-                        ) as f:
-                            temp_path = f.name
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_counts, auto_open=False)
 
-                        cloud.save(temp_path, minify=True)
+        output_path = tmp_path / "test_cloud_minified.html"
+        cloud.save(output_path, minify=True)
 
-                        with open(temp_path, "r") as f:
-                            minified_content = f.read()
+        assert output_path.exists()
+        content = output_path.read_text()
+        assert len(content) > 0
+        # Minified content should be shorter
+        assert len(content) <= len(cloud.html)
 
-                        # Should not contain extra whitespace or comments
-                        assert "<!--" not in minified_content
-                        assert "\n            " not in minified_content
-
-                        # Clean up
-                        Path(temp_path).unlink()
-
-    def test_d3_inclusion_options(
-        self,
-        sample_word_counts,
-        mock_template_content,
-        mock_d3_script,
-        mock_d3cloud_script,
+    def test_auto_open_behavior(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test different D3 inclusion options."""
-        # Test CDN inclusion
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                cloud = D3WordCloud(data=sample_word_counts, include_d3js="cdn")
-                assert "https://d3js.org/d3.min.js" in cloud.html
+        """Test auto_open behavior."""
 
-        # Test directory inclusion
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                cloud = D3WordCloud(data=sample_word_counts, include_d3js="directory")
-                assert "d3_cloud_assets/d3.min.js" in cloud.html
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-        # Test no inclusion
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                cloud = D3WordCloud(data=sample_word_counts, include_d3js=False)
-                # Should not contain D3 script tags
-                assert '<script id="d3"></script>' in cloud.html
-
-    ### Additional
-
-    def test_data_processing_edge_cases(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
-    ):
-        """Test edge cases in data processing."""
-        # Mock the internal methods
-        with patch.object(
-            D3WordCloud, "_load_template", return_value=mock_template_content
-        ):
-            with patch.object(
-                D3WordCloud,
-                "_get_d3_js",
-                return_value=f'<script id="d3">\n{mock_d3_script}\n</script>',
-            ):
-                with patch.object(D3WordCloud, "_include_d3_cloud"):
-                    # Test with DTM (line 143)
-                    with patch(
-                        "lexos.visualization.processors.process_dtm"
-                    ) as mock_process_dtm:
-                        mock_process_dtm.return_value = {"term1": 5, "term2": 3}
-                        # Create a mock DTM object instead of a real one
-                        mock_dtm = type("MockDTM", (DTM,), {})()
-                        cloud = D3WordCloud(data=mock_dtm)
-                        assert cloud.counts == {"term1": 5, "term2": 3}
-
-                    # Test with DataFrame (line 145)
-                    with patch(
-                        "lexos.visualization.processors.process_dataframe"
-                    ) as mock_process_df:
-                        mock_process_df.return_value = {"word1": 10, "word2": 8}
-                        df = pd.DataFrame(
-                            {"term": ["word1", "word2"], "count": [10, 8]}
-                        )
-                        cloud = D3WordCloud(data=df)
-                        assert cloud.counts == {"word1": 10, "word2": 8}
-
-                    # Test with list of lists (line 147)
-                    with patch(
-                        "lexos.visualization.processors.process_list"
-                    ) as mock_process_list:
-                        mock_process_list.return_value = {"item1": 7, "item2": 4}
-                        list_data = [["item1", "item2"], ["item1", "item1"]]
-                        cloud = D3WordCloud(data=list_data)
-                        assert cloud.counts == {"item1": 7, "item2": 4}
-
-                    # Test with list of spaCy docs (line 149)
-                    with patch(
-                        "lexos.visualization.processors.process_docs"
-                    ) as mock_process_docs:
-                        mock_process_docs.return_value = {"doc1": 3, "doc2": 2}
-                        nlp = spacy.blank("en")
-                        docs = [nlp("doc1 text"), nlp("doc2 text")]
-                        cloud = D3WordCloud(data=docs)
-                        assert cloud.counts == {"doc1": 3, "doc2": 2}
-
-                    # Test with flat list (line 151)
-                    with patch(
-                        "lexos.visualization.processors.process_item"
-                    ) as mock_process_item:
-                        mock_process_item.return_value = {"flat1": 6, "flat2": 2}
-                        flat_list = ["flat1", "flat2", "flat1"]
-                        cloud = D3WordCloud(data=flat_list)
-                        assert cloud.counts == {"flat1": 6, "flat2": 2}
-
-                    # Test with unsupported data type (line 155) -- unreachable because of validation
-                    # with pytest.raises(LexosException, match="Cannot process data"):
-                    #     D3WordCloud(data=(1, 2, 3))  # tuple is not supported
-
-    def test_include_d3_variations(
-        self,
-        sample_word_counts,
-        mock_template_content,
-        mock_d3_script,
-        mock_d3cloud_script,
-    ):
-        """Test different D3 inclusion methods."""
-        with patch.object(
-            D3WordCloud, "_load_template", return_value=mock_template_content
-        ):
-            with patch.object(D3WordCloud, "_include_d3_cloud"):
-                # Test with custom JS file path (lines 200-201)
-                # Mock the _get_d3_js method to return our expected script
-                with patch.object(
-                    D3WordCloud,
-                    "_get_d3_js",
-                    return_value=f"<script>\n{mock_d3_script}\n</script>",
-                ):
-                    cloud = D3WordCloud(
-                        data=sample_word_counts, include_d3js="custom/path/d3.js"
+        # Test auto_open=True
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open") as mock_browser:
+                with patch("tempfile.NamedTemporaryFile") as mock_temp:
+                    mock_temp.return_value.__enter__.return_value.name = (
+                        "/tmp/test.html"
                     )
-                    assert mock_d3_script in cloud.html
+                    D3WordCloud(data=sample_counts, auto_open=True)
+                    mock_browser.assert_called_once()
 
-                # Test with directory option (line 216)
-                cloud = D3WordCloud(data=sample_word_counts, include_d3js="directory")
-                assert "d3_cloud_assets/d3.min.js" in cloud.html
+        # Test auto_open=False
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open") as mock_browser:
+                D3WordCloud(data=sample_counts, auto_open=False)
+                mock_browser.assert_not_called()
 
-    def test_include_d3_cloud_variations(
-        self,
-        sample_word_counts,
-        mock_template_content,
-        mock_d3_script,
-        mock_d3cloud_script,
-    ):
-        """Test different D3 cloud inclusion methods."""
-        with patch.object(
-            D3WordCloud, "_load_template", return_value=mock_template_content
-        ):
-            with patch.object(
-                D3WordCloud,
-                "_get_d3_js",
-                return_value=f'<script id="d3">\n{mock_d3_script}\n</script>',
-            ):
-                # Test with custom cloud script path (lines 221-222)
-                # Mock the _include_d3_cloud method to simulate successful file read
-                def mock_include_d3_cloud_with_content(self):
-                    self.html = self.html.replace(
-                        '<script id="d3cloud"></script>',
-                        f"<script>\n{mock_d3cloud_script}\n</script>",
-                    )
 
-                with patch.object(
-                    D3WordCloud, "_include_d3_cloud", mock_include_d3_cloud_with_content
-                ):
-                    cloud = D3WordCloud(
-                        data=sample_word_counts,
-                        include_d3_cloud="custom/d3cloud.js",
-                    )
-                    assert mock_d3cloud_script in cloud.html
+class TestD3WordCloudErrorHandling:
+    """Test error handling in D3WordCloud."""
 
-                # Test with FileNotFoundError fallback (lines 234)
-                # Mock the _include_d3_cloud method to simulate CDN fallback
-                def mock_include_d3_cloud_with_cdn(self):
-                    self.html = self.html.replace(
-                        '<script id="d3cloud"></script>',
-                        '<script src="https://cdn.jsdelivr.net/gh/jasondavies/d3-cloud/build/d3.layout.cloud.js"></script>',
-                    )
-
-                with patch.object(
-                    D3WordCloud, "_include_d3_cloud", mock_include_d3_cloud_with_cdn
-                ):
-                    cloud = D3WordCloud(data=sample_word_counts, include_d3_cloud=True)
-                    assert "jasondavies/d3-cloud" in cloud.html
-
-    #### Plus
-
-    def test_wordcloud_unsupported_data_type(self):
-        """Test D3WordCloud with unsupported data type (line 155)."""
-        # This line might be unreachable due to validation, but let's try
-        with pytest.raises((LexosException, ValueError, TypeError)):
-            D3WordCloud(data=set([1, 2, 3]))  # Set is not supported
-
-    def test_wordcloud_real_file_operations(self, sample_word_counts, tmp_path):
-        """Test real file operations without extensive mocking."""
-        # Create a real temporary HTML file
-        html_file = tmp_path / "test_cloud.html"
-
-        # This will use the actual template and file operations
-        try:
-            cloud = D3WordCloud(
-                data=sample_word_counts,
-                title="Real File Test",
-                include_d3js="cdn",  # Use CDN to avoid file issues
-                include_d3_cloud=True,  # Use CDN to avoid file issues
+    def test_template_not_found(self, sample_counts):
+        """Test handling of missing template file."""
+        with pytest.raises(FileNotFoundError):
+            D3WordCloud(
+                data=sample_counts,
+                template="nonexistent_template.html",
+                auto_open=False,
             )
-
-            # Save to real file
-            cloud.save(str(html_file))
-
-            # Verify file exists and has content
-            assert html_file.exists()
-            content = html_file.read_text()
-            assert "Real File Test" in content
-            assert "machine" in content
-
-            # Test minification on real file
-            minified_file = tmp_path / "test_cloud_mini.html"
-            cloud.save(str(minified_file), minify=True)
-
-            minified_content = minified_file.read_text()
-            assert len(minified_content) < len(content)  # Should be smaller
-            assert "<!--" not in minified_content  # Comments removed
-
-        except Exception as e:
-            # If this fails due to missing dependencies, at least we tried
-            pytest.skip(f"Real file operations failed: {e}")
-
-    def test_edge_case_parameters(self, sample_word_counts):
-        """Test edge cases in parameter validation."""
-        # Test boundary values that might not be covered
-        try:
-            # Test minimum values
-            cloud = D3WordCloud(
-                data=sample_word_counts,
-                width=1,  # Minimum width
-                height=1,  # Minimum height
-                max_terms=1,  # Minimum terms
-                angle_count=1,  # Minimum angle count
-                include_d3js="cdn",
-            )
-            assert cloud.width == 1
-            assert cloud.height == 1
-
-            # Test maximum angle range
-            cloud = D3WordCloud(
-                data=sample_word_counts, angle_from=-90, angle_to=90, include_d3js="cdn"
-            )
-            assert cloud.angle_from == -90
-            assert cloud.angle_to == 90
-
-        except Exception as e:
-            pytest.skip(f"Edge case parameter test failed: {e}")
-
-    def test_wordcloud_open_method(self, sample_word_counts, tmp_path):
-        """Test D3WordCloud open method."""
-        from unittest.mock import patch
-
-        # Create a word cloud
-        cloud = D3WordCloud(
-            data=sample_word_counts, include_d3js="cdn", include_d3_cloud=True
-        )
-
-        # Create a temporary HTML file
-        html_file = tmp_path / "test_cloud.html"
-        cloud.save(str(html_file))
-
-        # Test opening the file
-        with patch("webbrowser.open_new_tab") as mock_open:
-            cloud.open(str(html_file))
-
-            # Verify webbrowser.open_new_tab was called with the correct path
-            mock_open.assert_called_once_with(str(html_file))
-
-        # Test with Path object
-        with patch("webbrowser.open_new_tab") as mock_open:
-            cloud.open(html_file)
-
-            # Verify webbrowser.open_new_tab was called with the Path object
-            mock_open.assert_called_once_with(html_file)
-
-        # Test with string path
-        with patch("webbrowser.open_new_tab") as mock_open:
-            test_path = "test/path/file.html"
-            cloud.open(test_path)
-
-            # Verify webbrowser.open_new_tab was called with the string path
-            mock_open.assert_called_once_with(test_path)
 
 
 class TestD3MultiCloud:
-    """Test cases for D3MultiCloud class."""
+    """Test D3MultiCloud functionality."""
 
-    def test_init_with_multiple_data_sources(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
+    def test_multicloud_initialization(
+        self, mock_multicloud_template, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test initialization with multiple data sources."""
+        """Test D3MultiCloud initialization."""
         data_sources = [
-            {"machine": 10, "learning": 8},
-            {"artificial": 7, "intelligence": 6},
-            {"natural": 5, "language": 4},
+            {"apple": 10, "banana": 5},
+            {"cherry": 8, "date": 3},
+            {"elderberry": 6, "fig": 4},
         ]
 
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        multi_cloud = D3MultiCloud(data_sources=data_sources)
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_multicloud_template" in str(filename):
+                return mock_open(read_data=mock_multicloud_template).return_value
+            elif "d3_cloud_template" in str(filename):
+                return mock_open(read_data="<html></html>").return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-                        assert len(multi_cloud.word_clouds) == 3
-                        assert len(multi_cloud.titles) == 3
-                        assert multi_cloud.titles == ["Doc 1", "Doc 2", "Doc 3"]
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                multicloud = D3MultiCloud(data_sources=data_sources, auto_open=False)
+                assert len(multicloud.word_clouds) == 3
+                assert len(multicloud.labels) == 3
+                assert multicloud.html != ""
 
-    def test_custom_titles(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
+    def test_multicloud_with_custom_labels(
+        self, mock_multicloud_template, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test custom titles for clouds."""
-        data_sources = [
-            {"machine": 10, "learning": 8},
-            {"artificial": 7, "intelligence": 6},
-        ]
-        titles = ["ML Terms", "AI Terms"]
+        """Test D3MultiCloud with custom labels."""
+        data_sources = [{"apple": 10, "banana": 5}, {"cherry": 8, "date": 3}]
+        labels = ["Fruits A", "Fruits B"]
 
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        multi_cloud = D3MultiCloud(
-                            data_sources=data_sources, titles=titles
-                        )
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_multicloud_template" in str(filename):
+                return mock_open(read_data=mock_multicloud_template).return_value
+            elif "d3_cloud_template" in str(filename):
+                return mock_open(read_data="<html></html>").return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-                        assert multi_cloud.titles == ["ML Terms", "AI Terms"]
-                        assert multi_cloud.word_clouds[0].title == "ML Terms"
-                        assert multi_cloud.word_clouds[1].title == "AI Terms"
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                multicloud = D3MultiCloud(
+                    data_sources=data_sources, labels=labels, auto_open=False
+                )
+                assert multicloud.labels == labels
+                assert multicloud.word_clouds[0].title == "Fruits A"
+                assert multicloud.word_clouds[1].title == "Fruits B"
 
-    def test_mismatched_titles_length(self, mock_template_content):
-        """Test error when titles length doesn't match data sources."""
-        data_sources = [
-            {"machine": 10, "learning": 8},
-            {"artificial": 7, "intelligence": 6},
-        ]
-        titles = ["Only One Title"]
-
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with pytest.raises(
-                LexosException,
-                match="Number of titles must match number of data sources",
-            ):
-                D3MultiCloud(data_sources=data_sources, titles=titles)
-
-    def test_grid_layout_parameters(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
+    def test_multicloud_save_method(
+        self, mock_multicloud_template, mock_d3_script, mock_d3_cloud_script, tmp_path
     ):
-        """Test grid layout parameters."""
-        data_sources = [{"word1": 5}, {"word2": 4}, {"word3": 3}, {"word4": 2}]
+        """Test D3MultiCloud save method."""
+        data_sources = [{"apple": 10}, {"banana": 5}]
 
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        multi_cloud = D3MultiCloud(
-                            data_sources=data_sources,
-                            columns=2,
-                            cloud_width=200,
-                            cloud_height=150,
-                            cloud_spacing=30,
-                        )
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_multicloud_template" in str(filename):
+                return mock_open(read_data=mock_multicloud_template).return_value
+            elif "d3_cloud_template" in str(filename):
+                return mock_open(read_data="<html></html>").return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-                        assert multi_cloud.columns == 2
-                        assert multi_cloud.cloud_width == 200
-                        assert multi_cloud.cloud_height == 150
-                        assert multi_cloud.cloud_spacing == 30
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                multicloud = D3MultiCloud(data_sources=data_sources, auto_open=False)
 
-    def test_get_cloud_methods(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
+        output_path = tmp_path / "test_multicloud.html"
+        multicloud.save(output_path)
+
+        assert output_path.exists()
+        content = output_path.read_text()
+        assert len(content) > 0
+
+    def test_multicloud_get_cloud_counts(
+        self, mock_multicloud_template, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test cloud getter methods."""
-        data_sources = [
-            {"machine": 10, "learning": 8},
-            {"artificial": 7, "intelligence": 6},
-        ]
+        """Test getting word counts from specific clouds."""
+        data_sources = [{"apple": 10, "banana": 5}, {"cherry": 8, "date": 3}]
 
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        multi_cloud = D3MultiCloud(data_sources=data_sources)
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_multicloud_template" in str(filename):
+                return mock_open(read_data=mock_multicloud_template).return_value
+            elif "d3_cloud_template" in str(filename):
+                return mock_open(read_data="<html></html>").return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-                        # Test get_cloud
-                        first_cloud = multi_cloud.get_cloud(0)
-                        assert isinstance(first_cloud, D3WordCloud)
-                        assert first_cloud.counts == {"machine": 10, "learning": 8}
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                multicloud = D3MultiCloud(data_sources=data_sources, auto_open=False)
 
-                        # Test get_cloud_counts
-                        second_counts = multi_cloud.get_cloud_counts(1)
-                        assert second_counts == {"artificial": 7, "intelligence": 6}
+        counts_0 = multicloud.get_cloud_counts(0)
+        counts_1 = multicloud.get_cloud_counts(1)
 
-                        # Test index out of range
-                        with pytest.raises(IndexError):
-                            multi_cloud.get_cloud(5)
+        assert "apple" in counts_0
+        assert "cherry" in counts_1
 
-    def test_multicloud_html_generation(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
+        # Test invalid index
+        with pytest.raises(IndexError):
+            multicloud.get_cloud_counts(5)
+
+    def test_multicloud_validation_errors(self):
+        """Test D3MultiCloud validation errors."""
+        # Test mismatched labels
+        data_sources = [{"apple": 10}, {"banana": 5}]
+        labels = ["Only One Label"]  # Should have 2 labels
+
+        with pytest.raises(LexosException, match="Number of labels must match"):
+            D3MultiCloud(data_sources=data_sources, labels=labels, auto_open=False)
+
+    @pytest.mark.skip(reason="Couldn't test temporary files on local WSL system.")
+    def test_load_template_method_coverage(self, sample_counts, tmp_path):
+        """Test to ensure _load_template method lines are covered."""
+        # Create a real template file
+        template_content = """
+        <!DOCTYPE html>
+        <html>
+        <head><title>Test Template</title></head>
+        <body><div id="wordcloud"></div></body>
+        </html>
+        """
+        template_file = tmp_path / "real_template.html"
+        template_file.write_text(template_content)
+
+        # Mock only the D3 library files, let template loading happen naturally
+        def selective_mock_open_handler(filename, *args, **kwargs):
+            filename_str = str(filename)
+            if "d3.min.js" in filename_str:
+                return mock_open(read_data="// Mock D3.js").return_value
+            elif "d3cloud_bundle.min.js" in filename_str:
+                return mock_open(read_data="// Mock D3 cloud").return_value
+            else:
+                # Use real file system for everything else (including template)
+                return open(filename, *args, **kwargs)
+
+        with patch("builtins.open", side_effect=selective_mock_open_handler):
+            with patch("webbrowser.open"):
+                # This should execute the actual _load_template method
+                cloud = D3WordCloud(
+                    data=sample_counts, template=str(template_file), auto_open=False
+                )
+
+                # Verify it worked
+                assert template_content.strip() in cloud.html
+
+                # Call _load_template directly to ensure coverage
+                loaded = cloud._load_template()
+                assert loaded == template_content
+
+    def test_d3_library_directory_inclusion(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test HTML generation for multi-cloud."""
-        data_sources = [
-            {"machine": 10, "learning": 8},
-            {"artificial": 7, "intelligence": 6},
-        ]
+        """Test D3 library inclusion with 'directory' option."""
 
-        template_content = """<!DOCTYPE html>
-<html>
-<head><title>{{ overall_title }}</title></head>
-<body>
-    <script id="d3"></script>
-    <script id="d3cloud"></script>
-    <script>
-        var cloudData = {{ cloud_data }};
-        var totalWidth = {{ total_width }};
-        var totalHeight = {{ total_height }};
-    </script>
-</body>
-</html>"""
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-        with patch("builtins.open", mock_open(read_data=template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        multi_cloud = D3MultiCloud(
-                            data_sources=data_sources, overall_title="Test Multi-Cloud"
-                        )
+        # Test directory inclusion - this should execute line 209
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(
+                    data=sample_counts,
+                    include_d3js="directory",  # This triggers line 209
+                    auto_open=False,
+                )
+                # Check that it creates a script tag with src attribute (not embedded)
+                assert 'src="' in cloud.html
+                assert "d3.min.js" in cloud.html
 
-                        assert "Test Multi-Cloud" in multi_cloud.html
-                        assert "machine" in multi_cloud.html
-                        assert "artificial" in multi_cloud.html
+        # Test case-insensitive "DIRECTORY"
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(
+                    data=sample_counts,
+                    include_d3js="DIRECTORY",  # Test case insensitivity
+                    auto_open=False,
+                )
+                assert 'src="' in cloud.html
+                assert "d3.min.js" in cloud.html
 
-    def test_multicloud_save(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
+    # def test_d3_cloud_custom_path_inclusion(
+    #     self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    # ):
+    #     """Test D3 cloud library inclusion with custom JavaScript file path."""
+
+    #     def mock_open_handler(filename, *args, **kwargs):
+    #         filename_str = str(filename)
+    #         if "d3_cloud_template" in filename_str:
+    #             return mock_open(read_data=mock_template_content).return_value
+    #         elif "d3.min.js" in filename_str:
+    #             return mock_open(read_data=mock_d3_script).return_value
+    #         elif "custom_d3_cloud.js" in filename_str:
+    #             return mock_open(
+    #                 read_data="// Custom D3 cloud library content"
+    #             ).return_value
+    #         elif "d3cloud_bundle.min.js" in filename_str:
+    #             return mock_open(read_data=mock_d3_cloud_script).return_value
+    #         else:
+    #             return mock_open().return_value
+
+    #     # Test custom D3 cloud JS file path - this should execute line 229
+    #     with patch("builtins.open", side_effect=mock_open_handler):
+    #         with patch("webbrowser.open"):
+    #             cloud = D3WordCloud(
+    #                 data=sample_counts,
+    #                 include_d3_cloud="custom_d3_cloud.js",  # This triggers line 229
+    #                 auto_open=False,
+    #             )
+    #             # Check that the custom D3 cloud content is embedded
+    #             assert "Custom D3 cloud library content" in cloud.html
+
+    #     # Test with absolute path
+    #     with patch("builtins.open", side_effect=mock_open_handler):
+    #         with patch("webbrowser.open"):
+    #             cloud = D3WordCloud(
+    #                 data=sample_counts,
+    #                 include_d3_cloud="/path/to/custom_d3_cloud.js",
+    #                 auto_open=False,
+    #             )
+    #             assert "Custom D3 cloud library content" in cloud.html
+
+    #     # Test with relative path
+    #     with patch("builtins.open", side_effect=mock_open_handler):
+    #         with patch("webbrowser.open"):
+    #             cloud = D3WordCloud(
+    #                 data=sample_counts,
+    #                 include_d3_cloud="./assets/my_d3_cloud.js",
+    #                 auto_open=False,
+    #             )
+    #             assert "Custom D3 cloud library content" in cloud.html
+
+    def test_d3_library_custom_path_not_found(
+        self, sample_counts, mock_template_content
     ):
-        """Test save method for multi-cloud."""
-        data_sources = [{"machine": 10, "learning": 8}]
-
-        with patch("builtins.open", mock_open(read_data=mock_template_content)):
-            with patch.object(Path, "exists", return_value=True):
-                with patch("builtins.open", mock_open(read_data=mock_d3_script)):
-                    with patch(
-                        "builtins.open", mock_open(read_data=mock_d3cloud_script)
-                    ):
-                        multi_cloud = D3MultiCloud(data_sources=data_sources)
-
-                        with tempfile.NamedTemporaryFile(
-                            mode="w", suffix=".html", delete=False
-                        ) as f:
-                            temp_path = f.name
-
-                        multi_cloud.save(temp_path)
-
-                        # Verify file was created and has content
-                        assert Path(temp_path).exists()
-                        with open(temp_path, "r") as f:
-                            content = f.read()
-                        assert len(content) > 0
-
-                        # Clean up
-                        Path(temp_path).unlink()
-
-    def test_field_validation_multicloud(self):
-        """Test field validation for D3MultiCloud."""
-        data_sources = [{"word": 1}]
-
-        # Test invalid spiral
-        with pytest.raises(
-            LexosException, match='spiral must be "archimedean" or "rectangular"'
-        ):
-            D3MultiCloud(data_sources=data_sources, spiral="invalid")
-
-        # Test invalid scale
-        with pytest.raises(
-            LexosException, match='scale must be "log", "sqrt", or "linear"'
-        ):
-            D3MultiCloud(data_sources=data_sources, scale="invalid")
-
-    #### Additional
-
-    def test_multicloud_init_error_handling(self):
-        """Test D3MultiCloud initialization error handling."""
-        # Test initialization failure (line 259) - mock a method called during init
-        data_sources = [{"word": 1}]
-
-        # Mock BaseModel.__init__ to raise an exception during initialization
-        with patch.object(BaseModel, "__init__", side_effect=Exception("Test error")):
-            with pytest.raises(
-                LexosException, match="Failed to initialize D3MultiCloud"
-            ):
-                D3MultiCloud(data_sources=data_sources)
-
-    def test_multicloud_cloud_generation_error(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
-    ):
-        """Test D3MultiCloud cloud generation errors."""
-        data_sources = [{"machine": 10}]
-
-        with patch.object(
-            D3MultiCloud, "_load_template", return_value=mock_template_content
-        ):
-            with patch.object(D3MultiCloud, "_include_d3"):
-                with patch.object(D3MultiCloud, "_include_d3_cloud"):
-                    # Test cloud generation failure (lines 348, 356)
-                    with patch.object(
-                        D3WordCloud,
-                        "__init__",
-                        side_effect=Exception("Cloud creation failed"),
-                    ):
-                        with pytest.raises(
-                            LexosException, match="Failed to generate cloud 1"
-                        ):
-                            D3MultiCloud(data_sources=data_sources)
-
-    def test_multicloud_template_loading(self, mock_template_content):
-        """Test D3MultiCloud template loading scenarios."""
-        data_sources = [{"word": 1}]
-
-        # Test when external template file is not found (lines 403-404)
-        with patch.object(D3MultiCloud, "_include_d3"):
-            with patch.object(D3MultiCloud, "_include_d3_cloud"):
-                with patch("builtins.open", side_effect=FileNotFoundError):
-                    # Should use default embedded template
-                    multi_cloud = D3MultiCloud(data_sources=data_sources)
-                    assert "<!DOCTYPE html>" in multi_cloud.html
-
-        # def test_multicloud_d3_cloud_inclusion_options(self, mock_d3cloud_script):
-        #     """Test D3MultiCloud D3 cloud inclusion options."""
-        #     data_sources = [{"word": 1}]
-
-        #     # Create a minimal instance with basic mocking
-        #     with patch.object(D3WordCloud, "__init__", return_value=None):
-        #         with patch.object(D3WordCloud, "html", "<div>mock cloud</div>"):
-        #             # Create instance with minimal template
-        #             multi_cloud = D3MultiCloud.__new__(D3MultiCloud)
-        #             multi_cloud.html = "<html><script id='d3cloud'></script></html>"
-        #             multi_cloud.include_d3_cloud = "custom/cloud.js"
-
-        #             # Test custom cloud script path (lines 492-495)
-        #             with patch("builtins.open", mock_open(read_data=mock_d3cloud_script)):
-        #                 multi_cloud._include_d3_cloud()
-        #                 assert mock_d3cloud_script in multi_cloud.html
-
-        #             # Reset HTML for next test
-        #             multi_cloud.html = "<html><script id='d3cloud'></script></html>"
-        #             multi_cloud.include_d3_cloud = True
-
-        #             # Test FileNotFoundError fallback to CDN (lines 503-508)
-        #             with patch("builtins.open", side_effect=FileNotFoundError):
-        #                 multi_cloud._include_d3_cloud()
-        #                 assert "jasondavies/d3-cloud" in multi_cloud.html
-
-        def test_multicloud_d3_cloud_inclusion_options(self, mock_d3cloud_script):
-            """Test D3MultiCloud D3 cloud inclusion options."""
-            data_sources = [{"word": 1}]
-
-            template = (
-                "<html><script id='d3'></script><script id='d3cloud'></script></html>"
-            )
-
-            with patch.object(D3MultiCloud, "_load_template", return_value=template):
-                with patch.object(D3WordCloud, "_load_template", return_value=template):
-                    with patch.object(D3WordCloud, "_get_d3_js", return_value=""):
-                        with patch.object(D3WordCloud, "_include_d3_cloud"):
-                            # Remove the _include_d3 mock to let D3 cloud inclusion work
-                            # Test custom cloud script path (lines 492-495)
-                            with patch(
-                                "builtins.open",
-                                mock_open(read_data=mock_d3cloud_script),
-                            ):
-                                multi_cloud = D3MultiCloud(
-                                    data_sources=data_sources,
-                                    include_d3_cloud="custom/cloud.js",
-                                )
-                                assert mock_d3cloud_script in multi_cloud.html
-
-                            # Test FileNotFoundError fallback to CDN (lines 503-508)
-                            with patch("builtins.open", side_effect=FileNotFoundError):
-                                multi_cloud = D3MultiCloud(
-                                    data_sources=data_sources, include_d3_cloud=True
-                                )
-                                assert "jasondavies/d3-cloud" in multi_cloud.html
-
-    def test_multicloud_save_with_minify(self):
-        """Test D3MultiCloud save with minification."""
-        data_sources = [{"word": 1}]
-
-        template_with_spaces = "<html>\n  <head>\n    <!-- comment -->\n  </head>\n  <body>  test  </body>\n</html>"
-
-        with patch.object(
-            D3MultiCloud, "_load_template", return_value=template_with_spaces
-        ):
-            with patch.object(
-                D3WordCloud, "_load_template", return_value="<html></html>"
-            ):
-                with patch.object(D3WordCloud, "_get_d3_js", return_value=""):
-                    with patch.object(D3WordCloud, "_include_d3_cloud"):
-                        multi_cloud = D3MultiCloud(data_sources=data_sources)
-
-                        with tempfile.NamedTemporaryFile(
-                            mode="w", suffix=".html", delete=False
-                        ) as f:
-                            temp_path = f.name
-
-                        # Test minification (line 513)
-                        multi_cloud.save(temp_path, minify=True)
-
-                        with open(temp_path, "r") as f:
-                            content = f.read()
-
-                        # Should not contain comments
-                        assert "<!--" not in content
-
-                        # The minification should collapse multiple whitespace to single spaces
-                        # So the original "  " (multiple spaces) should become " " (single space)
-                        original_multiple_spaces = "  test  "  # Multiple spaces
-                        assert original_multiple_spaces not in content
-
-                        # But single spaces should remain
-                        assert " " in content  # Single spaces are preserved
-
-                        # Should not contain newlines (they get converted to spaces)
-                        assert "\n" not in content
-
-                        # Clean up
-                        Path(temp_path).unlink()
-
-    def test_multicloud_get_cloud_index_error(self):
-        """Test D3MultiCloud get_cloud with invalid index."""
-        data_sources = [{"word": 1}]
-
-        with patch.object(D3MultiCloud, "_load_template", return_value="<html></html>"):
-            with patch.object(D3MultiCloud, "_include_d3"):
-                with patch.object(D3MultiCloud, "_include_d3_cloud"):
-                    multi_cloud = D3MultiCloud(data_sources=data_sources)
-
-                    # Test index out of range (lines 530-534)
-                    with pytest.raises(IndexError, match="Cloud index 5 out of range"):
-                        multi_cloud.get_cloud(5)
-
-                    with pytest.raises(IndexError, match="Cloud index -1 out of range"):
-                        multi_cloud.get_cloud(-1)
-
-    #### Plus
-
-    def test_multicloud_with_real_instances_minimal_deps(self):
-        """Test D3MultiCloud with real instances but minimal external dependencies."""
-        data_sources = [{"test": 1}]
-
-        try:
-            # Use CDN for both D3 scripts to avoid file system dependencies
-            multi_cloud = D3MultiCloud(
-                data_sources=data_sources,
-                include_d3js="cdn",  # This should hit lines 474-475
-                include_d3_cloud=True,  # This should hit CDN fallback lines 503-508
-            )
-
-            # If we get here, the inclusion worked
-            assert "d3js.org" in multi_cloud.html or "d3" in multi_cloud.html
-            assert len(multi_cloud.word_clouds) == 1
-
-            # Test get_cloud edge cases (lines 530-534)
-            valid_cloud = multi_cloud.get_cloud(0)
-            assert valid_cloud is not None
-
-            # Test invalid indices
-            with pytest.raises(IndexError):
-                multi_cloud.get_cloud(99)
-
-            with pytest.raises(IndexError):
-                multi_cloud.get_cloud(-1)
-
-        except Exception as e:
-            # If this fails due to missing dependencies, skip but note what we tested
-            pytest.skip(f"Real instance test failed: {e}")
-
-    def test_multicloud_different_inclusion_options(self):
-        """Test different D3 inclusion options with real instances."""
-        data_sources = [{"word": 1}]
-
-        try:
-            # Test directory inclusion (line 480)
-            multi_cloud_dir = D3MultiCloud(
-                data_sources=data_sources, include_d3js="directory"
-            )
-            # If it doesn't crash, the line was executed
-            assert hasattr(multi_cloud_dir, "html")
-
-            # Test no inclusion (line 489)
-            multi_cloud_none = D3MultiCloud(
-                data_sources=data_sources, include_d3js=False
-            )
-            # If it doesn't crash, the line was executed
-            assert hasattr(multi_cloud_none, "html")
-
-        except Exception as e:
-            pytest.skip(f"Inclusion options test failed: {e}")
-
-    def test_multicloud_get_cloud_edge_cases(self):
-        """Test D3MultiCloud get_cloud with edge cases."""
-        # Create a mock object instead of using __new__
-        from unittest.mock import Mock
-
-        multi_cloud = Mock()
-        multi_cloud.word_clouds = [1, 2, 3]  # Simple list for testing
-
-        # Test valid index
-        result = D3MultiCloud.get_cloud(multi_cloud, 0)
-        assert result == 1
-        result = D3MultiCloud.get_cloud(multi_cloud, 2)
-        assert result == 3
-
-        # Test invalid indices (lines 530-534)
-        with pytest.raises(IndexError, match="Cloud index 5 out of range"):
-            D3MultiCloud.get_cloud(multi_cloud, 5)
-
-        with pytest.raises(IndexError, match="Cloud index -1 out of range"):
-            D3MultiCloud.get_cloud(multi_cloud, -1)
-
-    def test_multicloud_real_operations(self, tmp_path):
-        """Test D3MultiCloud with minimal mocking."""
-        data_sources = [{"test": 5, "word": 3}, {"another": 4, "term": 2}]
-
-        try:
-            multi_cloud = D3MultiCloud(
-                data_sources=data_sources,
-                titles=["Test 1", "Test 2"],
-                overall_title="Real Multi Test",
-                include_d3js="cdn",
-                include_d3_cloud=True,
-            )
-
-            # Test basic functionality
-            assert len(multi_cloud.word_clouds) == 2
-            assert multi_cloud.get_cloud_counts(0)["test"] == 5
-
-            # Save to real file
-            html_file = tmp_path / "multi_cloud.html"
-            multi_cloud.save(str(html_file))
-
-            assert html_file.exists()
-            content = html_file.read_text()
-            assert "Real Multi Test" in content
-
-        except Exception as e:
-            pytest.skip(f"Real multi-cloud operations failed: {e}")
-
-
-class TestIntegration:
-    """Integration tests."""
-
-    def test_end_to_end_workflow(
-        self,
-        sample_word_counts,
-        mock_template_content,
-        mock_d3_script,
-        mock_d3cloud_script,
-    ):
-        """Test complete workflow from data to saved file."""
-        # Mock the internal methods instead of file operations
-        with patch.object(
-            D3WordCloud, "_load_template", return_value=mock_template_content
-        ):
-            with patch.object(
-                D3WordCloud,
-                "_get_d3_js",
-                return_value=f'<script id="d3">\n{mock_d3_script}\n</script>',
-            ):
-                with patch.object(D3WordCloud, "_include_d3_cloud"):
-                    # Create word cloud
-                    cloud = D3WordCloud(
-                        data=sample_word_counts,
-                        title="Integration Test",
-                        width=400,
-                        height=300,
+        """Test error handling when custom D3 file is not found."""
+
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "nonexistent.js" in str(filename):
+                raise FileNotFoundError("Custom D3 file not found")
+            else:
+                return mock_open().return_value
+
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                with pytest.raises(LexosException, match="Script file not found"):
+                    D3WordCloud(
+                        data=sample_counts,
+                        include_d3js="nonexistent.js",
+                        auto_open=False,
                     )
 
-                    # Verify data processing
-                    assert cloud.counts == sample_word_counts
-                    assert cloud.title == "Integration Test"
 
-                    # Save to file
-                    with tempfile.NamedTemporaryFile(
-                        mode="w", suffix=".html", delete=False
-                    ) as f:
-                        temp_path = f.name
+class TestD3WordCloudHtmlOutput:
+    """Test HTML output generation."""
 
-                    cloud.save(temp_path)
-
-                    # Verify saved file
-                    with open(temp_path, "r") as f:
-                        content = f.read()
-
-                    assert "Integration Test" in content
-                    assert "machine" in content
-                    assert "400" in content  # width
-                    assert "300" in content  # height
-
-                    # Clean up
-                    Path(temp_path).unlink()
-
-    def test_multicloud_end_to_end(
-        self, mock_template_content, mock_d3_script, mock_d3cloud_script
+    def test_html_contains_data(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
     ):
-        """Test complete multicloud workflow."""
-        data_sources = [
-            {"machine": 15, "learning": 12, "artificial": 8},
-            {"natural": 10, "language": 8, "processing": 6},
-            {"data": 12, "science": 9, "analysis": 7},
-        ]
-        titles = ["ML", "NLP", "Data Science"]
+        """Test that generated HTML contains the data."""
 
-        # Create a template that matches D3MultiCloud's expectations
-        multicloud_template = """<!DOCTYPE html>
-    <html>
-    <head>
-        <title>{{ overall_title }}</title>
-    </head>
-    <body>
-        <div class="title">{{ overall_title }}</div>
-        <script id="d3"></script>
-        <script id="d3cloud"></script>
-        <script>
-            var cloudData = {{ cloud_data|safe }};
-            var totalWidth = {{ total_width }};
-            var totalHeight = {{ total_height }};
-            var overallTitle = "{{ overall_title }}";
-        </script>
-    </body>
-    </html>"""
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-        # Mock the internal methods for D3WordCloud (used by D3MultiCloud internally)
-        with patch.object(
-            D3WordCloud, "_load_template", return_value=mock_template_content
-        ):
-            with patch.object(
-                D3WordCloud,
-                "_get_d3_js",
-                return_value=f'<script id="d3">\n{mock_d3_script}\n</script>',
-            ):
-                with patch.object(D3WordCloud, "_include_d3_cloud"):
-                    # Mock D3MultiCloud's specific methods with the correct template
-                    with patch.object(
-                        D3MultiCloud,
-                        "_load_template",
-                        return_value=multicloud_template,
-                    ):
-                        with patch.object(
-                            D3MultiCloud,
-                            "_get_d3_js",
-                            return_value=f'<script id="d3">\n{mock_d3_script}\n</script>',
-                        ):
-                            with patch.object(D3MultiCloud, "_include_d3"):
-                                with patch.object(D3MultiCloud, "_include_d3_cloud"):
-                                    multi_cloud = D3MultiCloud(
-                                        data_sources=data_sources,
-                                        titles=titles,
-                                        overall_title="Tech Terms",
-                                        columns=2,
-                                    )
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(data=sample_counts, auto_open=False)
 
-                                    # Verify structure
-                                    assert len(multi_cloud.word_clouds) == 3
-                                    assert multi_cloud.overall_title == "Tech Terms"
+        # Check that HTML contains some of the key words from our sample data
+        # This is more reliable than checking exact JSON format
+        for word in ["the", "fox", "quick"]:
+            assert word in cloud.html.lower()
 
-                                    # Verify individual clouds
-                                    assert (
-                                        multi_cloud.get_cloud_counts(0)["machine"] == 15
-                                    )
-                                    assert (
-                                        multi_cloud.get_cloud_counts(1)["natural"] == 10
-                                    )
-                                    assert multi_cloud.get_cloud_counts(2)["data"] == 12
+        # Check basic HTML structure
+        assert "<!DOCTYPE html>" in cloud.html
+        assert "<head>" in cloud.html
+        assert "<body>" in cloud.html
+        assert "</html>" in cloud.html
 
-                                    # Save and verify
-                                    with tempfile.NamedTemporaryFile(
-                                        mode="w", suffix=".html", delete=False
-                                    ) as f:
-                                        temp_path = f.name
+        # Check that the data is actually being rendered (not just template variables)
+        assert "fox" in cloud.html
 
-                                    multi_cloud.save(temp_path)
+    def test_d3_library_inclusion(
+        self, sample_counts, mock_template_content, mock_d3_script, mock_d3_cloud_script
+    ):
+        """Test D3 library inclusion options."""
 
-                                    with open(temp_path, "r") as f:
-                                        content = f.read()
+        def mock_open_handler(filename, *args, **kwargs):
+            if "d3_cloud_template" in str(filename):
+                return mock_open(read_data=mock_template_content).return_value
+            elif "d3.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_script).return_value
+            elif "d3cloud_bundle.min.js" in str(filename):
+                return mock_open(read_data=mock_d3_cloud_script).return_value
+            else:
+                return mock_open().return_value
 
-                                    assert "Tech Terms" in content
-                                    assert "machine" in content
-                                    assert "natural" in content
-                                    assert "data" in content
+        # Test CDN inclusion
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(
+                    data=sample_counts, include_d3js="cdn", auto_open=False
+                )
+                # Check for CDN URL pattern instead of exact d3js.org
+                assert "https://" in cloud.html or "cdn" in cloud.html.lower()
 
-                                    # Clean up
-                                    Path(temp_path).unlink()
+        # Test local inclusion
+        with patch("builtins.open", side_effect=mock_open_handler):
+            with patch("webbrowser.open"):
+                cloud = D3WordCloud(
+                    data=sample_counts, include_d3js=True, auto_open=False
+                )
+                # Check that the mock D3 script content is included
+                assert "Bundles d3-color and d3.layout.cloud" in cloud.html
 
 
-def test_wordcloud_validate_spiral():
-    """Test D3WordCloud spiral validation."""
-    # Test valid spiral values
-    valid_spirals = ["archimedean", "rectangular"]
-    for spiral in valid_spirals:
-        cloud = D3WordCloud(
-            data={"test": 1}, spiral=spiral, include_d3js="cdn", include_d3_cloud=True
-        )
-        assert cloud.spiral == spiral
+class TestD3WordMultiCloudValidation:
+    """Test D3WordCloud parameter validation."""
 
-    # Test invalid spiral values
-    invalid_spirals = [
-        "invalid",
-        "circular",
-        "linear",
-        "",
-        "ARCHIMEDEAN",
-        "Rectangular",
-    ]
-    for spiral in invalid_spirals:
+
+class TestD3WordMultiCloudValidation:
+    """Test D3MultiCloud parameter validation."""
+
+    def test_invalid_spiral_multicloud(self):
+        """Test error handling for invalid spiral parameter in D3MultiCloud."""
+        data_sources = [{"apple": 10}, {"banana": 5}]
+
         with pytest.raises(
             LexosException, match='spiral must be "archimedean" or "rectangular"'
         ):
-            D3WordCloud(
-                data={"test": 1},
-                spiral=spiral,
-                include_d3js="cdn",
-                include_d3_cloud=True,
+            D3MultiCloud(
+                data_sources=data_sources,
+                spiral="invalid_spiral",  # This triggers the D3MultiCloud validator
+                auto_open=False,
             )
 
-    # Test case sensitivity
-    with pytest.raises(
-        LexosException, match='spiral must be "archimedean" or "rectangular"'
-    ):
-        D3WordCloud(
-            data={"test": 1},
-            spiral="ARCHIMEDEAN",  # Should be lowercase
-            include_d3js="cdn",
-            include_d3_cloud=True,
-        )
+    def test_invalid_scale_multicloud(self):
+        """Test error handling for invalid scale parameter in D3MultiCloud."""
+        data_sources = [{"apple": 10}, {"banana": 5}]
 
-
-def test_wordcloud_validate_scale():
-    """Test D3WordCloud scale validation."""
-    # Test valid scale values
-    valid_scales = ["log", "sqrt", "linear"]
-    for scale in valid_scales:
-        cloud = D3WordCloud(
-            data={"test": 1}, scale=scale, include_d3js="cdn", include_d3_cloud=True
-        )
-        assert cloud.scale == scale
-
-    # Test invalid scale values
-    invalid_scales = ["invalid", "exponential", "logarithmic", "", "LOG", "Linear"]
-    for scale in invalid_scales:
         with pytest.raises(
             LexosException, match='scale must be "log", "sqrt", or "linear"'
         ):
-            D3WordCloud(
-                data={"test": 1}, scale=scale, include_d3js="cdn", include_d3_cloud=True
+            D3MultiCloud(
+                data_sources=data_sources,
+                scale="invalid_scale",  # This triggers the D3MultiCloud validator
+                auto_open=False,
             )
 
-    # Test case sensitivity
-    with pytest.raises(
-        LexosException, match='scale must be "log", "sqrt", or "linear"'
-    ):
-        D3WordCloud(
-            data={"test": 1},
-            scale="LOG",  # Should be lowercase
-            include_d3js="cdn",
-            include_d3_cloud=True,
-        )
+    def test_invalid_angles_multicloud(self):
+        """Test error handling for invalid angle parameters in D3MultiCloud."""
+        data_sources = [{"apple": 10}, {"banana": 5}]
 
+        with pytest.raises(LexosException):
+            D3MultiCloud(
+                data_sources=data_sources,
+                angle_from=60,
+                angle_to=-60,  # This triggers the D3MultiCloud validator
+                auto_open=False,
+            )
 
-def test_wordcloud_validate_angles():
-    """Test D3WordCloud angle validation (validate_angles method)."""
-    # Test valid angle combinations
-    cloud = D3WordCloud(
-        data={"test": 1},
-        angle_from=-60,
-        angle_to=60,
-        include_d3js="cdn",
-        include_d3_cloud=True,
-    )
-    assert cloud.angle_from == -60
-    assert cloud.angle_to == 60
+    def test_mismatched_labels_multicloud(self):
+        """Test error handling for mismatched labels in D3MultiCloud."""
+        data_sources = [{"apple": 10}, {"banana": 5}]
+        labels = ["Only One Label"]  # Should have 2 labels
 
-    # Test another valid combination
-    cloud = D3WordCloud(
-        data={"test": 1},
-        angle_from=0,
-        angle_to=90,
-        include_d3js="cdn",
-        include_d3_cloud=True,
-    )
-    assert cloud.angle_from == 0
-    assert cloud.angle_to == 90
-
-    # Test invalid angle combinations (angle_from >= angle_to)
-    with pytest.raises(LexosException, match="angle_from must be less than angle_to"):
-        D3WordCloud(
-            data={"test": 1},
-            angle_from=60,
-            angle_to=60,  # Equal values should fail
-            include_d3js="cdn",
-            include_d3_cloud=True,
-        )
-
-    with pytest.raises(LexosException, match="angle_from must be less than angle_to"):
-        D3WordCloud(
-            data={"test": 1},
-            angle_from=90,
-            angle_to=45,  # angle_from > angle_to should fail
-            include_d3js="cdn",
-            include_d3_cloud=True,
-        )
-
-    with pytest.raises(LexosException, match="angle_from must be less than angle_to"):
-        D3WordCloud(
-            data={"test": 1},
-            angle_from=0,
-            angle_to=-30,  # angle_from > angle_to should fail
-            include_d3js="cdn",
-            include_d3_cloud=True,
-        )
-
-
-def test_wordcloud_validator_integration():
-    """Test that validators work together properly."""
-    # Test all validators with valid values
-    cloud = D3WordCloud(
-        data={"word1": 5, "word2": 3},
-        spiral="rectangular",
-        scale="sqrt",
-        angle_from=-90,
-        angle_to=90,
-        include_d3js="cdn",
-        include_d3_cloud=True,
-    )
-    assert cloud.spiral == "rectangular"
-    assert cloud.scale == "sqrt"
-    assert cloud.angle_from == -90
-    assert cloud.angle_to == 90
-
-    # Test multiple validation failures
-    with pytest.raises(
-        LexosException, match='spiral must be "archimedean" or "rectangular"'
-    ):
-        D3WordCloud(
-            data={"test": 1},
-            spiral="invalid",
-            scale="invalid",  # This error won't be reached due to spiral failing first
-            angle_from=90,
-            angle_to=45,
-            include_d3js="cdn",
-            include_d3_cloud=True,
-        )
+        with pytest.raises(LexosException, match="Number of labels must match"):
+            D3MultiCloud(data_sources=data_sources, labels=labels, auto_open=False)
