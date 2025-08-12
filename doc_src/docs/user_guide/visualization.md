@@ -21,6 +21,8 @@ wc = WordCloud(data=text, title="My Word Cloud")
 wc.show()
 ```
 
+<img src="" alt="Basic word cloud">
+
 Notice that you can optionally supply a title with the `title` keyword. The last line (`wc.show()`) will display the word cloud.
 
 The `WordCloud` class has a number of other useful parameters for modifying the appearance of the cloud. For instance, you can adjust the height and width of the image (in pixels), limit the number of terms that appear, or apply a round mask to make the word cloud appear circular.
@@ -28,6 +30,8 @@ The `WordCloud` class has a number of other useful parameters for modifying the 
 ```python
 wc = WordCloud(data=text, title="My Word Cloud", height=200, width=200, limit=10, round=100)
 ```
+
+<img src="" alt="Word cloud with parameters">
 
 !!! note
     Under the hood, word clouds are produced using the Python <code><a href="https://amueller.github.io/word_cloud/" target="_blank">WordCloud</a></code> and <code><a href="https://matplotlib.org/" target="_blank">matplotlib</a></code> libraries. Additional parameters can be passed to these libraries using the `opts` (`WordCloud`) and `figure_opts` (`matplotlib`). Parameters should be passed as dictionaries of keywords and values. For instance, you can set a light blue `wc = `WordCloud(data=text, opts={"background_color": "lightblue"})`.
@@ -53,11 +57,15 @@ bc.show()
 bc.save("my_bubble_chart.png")
 ```
 
+<img src="" alt="Basic bubble chart">
+
 Bubble charts must have the same height and width, so the figure dimensions are controlled with the `figsize` keyword with the value in inches.
 
 ```python
 bc = BubbleChart(data=text, figsize=6.5, title="My Bubble Chart")
 ```
+
+<img src="" alt="Bubble chart with parameters">
 
 !!! note
     Bubble charts do not have the `opts` and `figure_opts` keywords you can access in the `WordCloud` class
@@ -73,6 +81,8 @@ text = "This is a sample text to demonstrate how to produce a bubble chart."
 tokens = ["this", "sample", "text", "demonstrate", "produce", "bubble", "chart"]
 bc = BubbleChart(data=tokens)
 ```
+
+<img src="" alt="Bubble chart from list of tokens">
 
 You can also submit a spaCy `Doc` or list of spaCy `Doc` objects. However, you will most likely want to use spaCy to filter out unwanted tokens:
 
@@ -109,6 +119,8 @@ If you pass a list of documents, a `DTM` object, or a pandas DataFrame, you may 
 bc = BubbleChart(data=dtm, docs[0, 2])
 ```
 
+<img src="" alt="Bubble chart with first and third documents">
+
 Only terms from the first and third documents in the document-term matrix will appear in the chart.
 
 ## Making Interactive Word Clouds with D3.js
@@ -127,6 +139,8 @@ wc = D3WordCloud(data=text)
 wc.save("wordcloud.html")
 ```
 
+<img src="" alt="Basic D3 word cloud">
+
 By default, this will open a web browser with the HTML file in a temporary location. If you do not wish to open the file automatically, set `auto_open=False`.
 
 As with the static image classes, you can set a title and chart dimensions (in pixels), and you can limit the number of terms and docs with the `limit` and `docs` keywords.
@@ -134,6 +148,8 @@ As with the static image classes, you can set a title and chart dimensions (in p
 ```python
 wc = D3WordCloud(data=docs, docs=1, title="Custom Word Cloud", width=300, height=300, limit=30)
 ```
+
+<img src="" alt="D3 word cloud with parameters">
 
 The `D3WordCloud` class provides a number of other parameters for customising the appearance of the word cloud:
 
@@ -166,6 +182,8 @@ mc = D3MultiCloud(
 mc.save("multiclouds.html")
 ```
 
+<img src="" alt="D3 multiclouds">
+
 All the customisation parameters listed above for `D3WordCloud` are available. Notice, however, that few minor differences. You input your data using the `data_sources` keyword. Since each source document can have its own title, you can supply these titles as a list with the `labels` parameter (if you do not provide this, generic titles "Doc 1", "Doc 2", etc. will be used). Likewise, you can specify the dimensions of individual clouds (in pixels) with the `cloud_width` and `cloud_height` parameters. Finally, you can set the number of columns in the layout.
 
 To generate a D3 bubble chart, you use the following code:
@@ -177,10 +195,12 @@ bc = D3BubbleChart(data=text)
 bc.save("bubble_chart.html)
 ```
 
+<img src="" alt="Basic D3 bubble chart">
+
 Apart from the standard keywords, `D3BubbleChart` has two extra parameters for styling the chart.
 
 - `margin`: A dictionary with the keys "top", "right", "bottom", and "left", used to configure the margin around the chart in pixels.
-- `color`: The color scheme for the chart, either the name D3 color scheme or a list of custom colors. The default is "schemeCategory10". For other color schemes, see the <a href="https://d3js.org/d3-scale" target="_blank">d3-scale</a> documentation.
+- `color`: The colour scheme for the chart, either the name D3 colour scheme or a list of custom colours. The default is "schemeCategory10". For other colour schemes, see the <a href="https://d3js.org/d3-scale" target="_blank">d3-scale</a> documentation.
 
 ### Customising D3 Visualisations
 
@@ -189,4 +209,4 @@ D3 visualisations are standalone web pages, so they must be viewed in the browse
 The actual logic used to produce the visualisation is not loaded from the internet, and it is not minimised. This allows you to open the HTML file and modify the Javascript, as well as the CSS styling, if you are comfortable doing so.
 
 !!! note "Developer's Note"
-    The visualisations are designed for display as web pages. However, if you are planning to incorporate them in an application, you may want to make more extensive changes. Each visualisation is produced from an HTML template, which is populated with variables passed from Python. You can design your own templates appropriate for your application's layout and specify the path to your templates with the `template` parameter.
+    The visualisations are designed for display as web pages. However, if you are planning to incorporate them in an application, you may want to make more extensive changes to incorporate the charts into your layout. Each visualisation is produced from an HTML template, which is populated with variables passed from Python. You can design your own templates appropriate for your application and specify the path to your templates with the `template` parameter.
