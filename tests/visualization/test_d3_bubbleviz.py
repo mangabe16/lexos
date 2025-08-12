@@ -1,18 +1,16 @@
-"""test_bubbleviz.py.
+"""test_d3_bubbleviz.py.
 
 Coverage 98%. Line 150 is skipped because tests were run in WSL. At some point, this should be run in an environment that can find the pytest temporary directory.
 
 Last Update: August 12, 2025
 """
 
-import tempfile
 from pathlib import Path
 from unittest.mock import mock_open, patch
 
 import pandas as pd
 import pytest
 import spacy
-from spacy.tokens import Doc
 
 from lexos.dtm import DTM
 from lexos.exceptions import LexosException
