@@ -11,7 +11,7 @@ from itertools import chain
 from typing import Any, Iterator, Optional
 
 import pandas as pd
-from pydantic import ConfigDict, validate_call
+from pydantic import ConfigDict, Field, validate_call
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Span, Token
 
@@ -20,10 +20,13 @@ from lexos.exceptions import LexosException
 from lexos.util import ensure_list
 
 
+@validate_call(config=ConfigDict(allow_arbitrary_types=True))
 def process_data(
     data: Any,
     docs: Optional[int | str | list[int] | list[str]] = None,
-    limit: Optional[int] = None,
+    limit: Optional[int] = Field(
+        None, gt=0, description="Limit on number of terms to return"
+    ),
 ) -> dict[str, int]:
     """Process any supported data type into a consistent format of term counts.
 
@@ -94,7 +97,13 @@ def _process_list_data(
     if not data:
         return Counter()
 
+    # Ensure all items in the list are of the same type
     first_item = data[0]
+    first_type = type(first_item)
+    if not all(isinstance(x, first_type) for x in data):
+        raise LexosException(
+            f"Mixed types found in list: {first_type} and {[type(x) for x in data]}"
+        )
 
     # List of lists
     if isinstance(first_item, list):
@@ -189,13 +198,13 @@ def process_dtm(
     )
 )
 def process_list(
-    data: list[list[Doc] | list[Span] | list[str] | list[Token]],
+    data: list[list[Doc | Span] | list[str] | list[Token]],
     docs: Optional[int | list[int]],
 ) -> dict[str, int]:
     """Process a list of docs, spans, strings, or tokens.
 
     Args:
-        data (list[list[Doc | Span | str | Token]]): The data.
+        data (list[list[Doc | Span] | list[str] | list[Token]]): The data.
         docs (Optional[int | list[int]]): A list of document indices to be selected from the DTM.
 
     Returns:
@@ -319,21 +328,27 @@ def multicloud_processor(
                 )
             else:
                 data = [item for i, item in enumerate(data) if i in docs]
-        # Docs and Spans
-        if isinstance(data[0], (Doc, Span)):
-            return [dict(Counter([token.text for token in doc])) for doc in data]
+        try:
+            # Docs and Spans
+            if isinstance(data[0], (Doc, Span)):
+                return [dict(Counter([token.text for token in doc])) for doc in data]
 
-        # Lists of dicts
-        elif isinstance(data, list) and isinstance(data[0], dict):
-            return data
+            # Lists of dicts
+            elif isinstance(data, list) and isinstance(data[0], dict):
+                return data
 
-        # Lists of strings
-        elif isinstance(data[0][0], str):
-            return [dict(Counter(doc)) for doc in data]
+            # Lists of strings
+            elif isinstance(data[0][0], str):
+                return [dict(Counter(doc)) for doc in data]
 
-        # Lists of Tokens
-        elif isinstance(data[0][0], Token):
-            return [dict(Counter([token.text for token in doc])) for doc in data]
+            # Lists of Tokens
+            elif isinstance(data[0][0], Token):
+                return [dict(Counter([token.text for token in doc])) for doc in data]
+        except IndexError:
+            raise LexosException(
+                "Data is empty or not in the expected format. "
+                "Ensure you are passing a non-empty list of documents, spans, or strings."
+            )
 
 
 def get_rows(lst, n) -> Iterator[int]:
