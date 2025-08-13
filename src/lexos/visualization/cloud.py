@@ -99,6 +99,7 @@ class WordCloud(BaseModel):
         # Process the data into a consistent format
         self.counts = processors.process_data(self.data, self.docs, self.limit)
         self.cloud = PythonWordCloud(**self.opts).generate_from_frequencies(self.counts)
+        self.fig = plt.gcf()
         plt.close()
 
     @validate_call
