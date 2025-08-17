@@ -1,7 +1,7 @@
 """cloud.py.
 
-Last Update: August 12, 2025
-Last Tested: August 12, 2025
+Last Update: August 17, 2025
+Last Tested: August 17, 2025
 """
 
 from collections import Counter
@@ -98,16 +98,27 @@ class WordCloud(BaseModel):
 
         # Process the data into a consistent format
         self.counts = processors.process_data(self.data, self.docs, self.limit)
+
+        # Generate the word cloud
         self.cloud = PythonWordCloud(**self.opts).generate_from_frequencies(self.counts)
-        self.fig = plt.gcf()
-        plt.close()
 
     @validate_call
-    def save(self, path: Path | str) -> None:
-        """Save the WordCloud to a file."""
+    def save(self, path: Path | str, **kwargs) -> None:
+        """Save the WordCloud to a file.
+
+        Args:
+            path (Path | str): The file path to save the WordCloud image.
+            **kwargs: Additional keyword arguments for `plt.savefig`.
+        """
         if self.cloud is None:
             raise LexosException("No WordCloud object to save.")
-        self.cloud.to_file(path)
+        self.fig = plt.figure(**self.figure_opts)
+        if self.title:
+            self.fig.suptitle(self.title)
+        plt.axis("off")
+        plt.imshow(self.cloud, interpolation="bilinear")
+        plt.savefig(path, **kwargs)
+        plt.close()
 
     def show(self) -> None:
         """Show the figure if it is hidden.
@@ -115,10 +126,11 @@ class WordCloud(BaseModel):
         This is a helper method. It will generally display in a
         Jupyter notebook.
         """
+        self.fig = plt.figure(**self.figure_opts)
         if self.title:
-            plt.title(self.title)
+            self.fig.suptitle(self.title)
         plt.axis("off")
-        plt.imshow(self.cloud)
+        plt.imshow(self.cloud, interpolation="bilinear")
 
 
 class MultiCloud(BaseModel):
@@ -350,11 +362,16 @@ class MultiCloud(BaseModel):
         plt.close()
 
     @validate_call
-    def save(self, path: Path | str) -> None:
-        """Save the MultiCloud figure to a file."""
+    def save(self, path: Path | str, **kwargs) -> None:
+        """Save the MultiCloud figure to a file.
+
+        Args:
+            path (Path | str): The file path to save the MultiCloud image.
+            **kwargs: Additional keyword arguments for `plt.savefig`.
+        """
         if self.fig is None:
             raise LexosException("No figure to save.")
-        self.fig.savefig(path)
+        self.fig.savefig(path, **kwargs)
 
     def get_clouds(self) -> list[WordCloud]:
         """Return the list of individual WordCloud objects."""

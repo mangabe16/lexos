@@ -2,13 +2,13 @@
 
 Coverage 100%
 
-Last Update: August 12, 2025
+Last Update: August 17, 2025
 """
 
 import tempfile
 from collections import Counter
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import Mock, patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -187,7 +187,7 @@ class TestWordCloud:
             patch("matplotlib.pyplot.axis") as mock_axis,
         ):
             wc.show()
-            mock_imshow.assert_called_once_with(wc.cloud)
+            mock_imshow.assert_called_once_with(wc.cloud, interpolation="bilinear")
             mock_axis.assert_called_once_with("off")
 
     def test_wordcloud_show_with_title(self):
@@ -198,12 +198,21 @@ class TestWordCloud:
         with (
             patch("matplotlib.pyplot.imshow") as mock_imshow,
             patch("matplotlib.pyplot.axis") as mock_axis,
-            patch("matplotlib.pyplot.title") as mock_title,
+            patch("matplotlib.pyplot.figure") as mock_figure,
         ):
+            # Create a mock figure object
+            mock_fig = Mock()
+            mock_figure.return_value = mock_fig
+
             wc.show()
-            mock_imshow.assert_called_once_with(wc.cloud)
+
+            # Assert basic matplotlib calls
+            mock_imshow.assert_called_once_with(wc.cloud, interpolation="bilinear")
             mock_axis.assert_called_once_with("off")
-            mock_title.assert_called_once_with(title)
+            mock_figure.assert_called_once_with(**wc.figure_opts)
+
+            # Assert that suptitle was called with the correct title
+            mock_fig.suptitle.assert_called_once_with(title)
 
 
 class TestMultiCloud:

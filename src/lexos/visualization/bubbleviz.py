@@ -1,7 +1,7 @@
 """bubbleviz.py.
 
-Last Update: August 12, 2025
-Last Tested: August 12, 2025
+Last Update: August 17, 2025
+Last Tested: August 17, 2025
 """
 
 from collections import Counter
@@ -298,17 +298,18 @@ class BubbleChart(BaseModel):
             )
 
     @validate_call(config=model_config)
-    def save(self, path: Path | str):
+    def save(self, path: Path | str, **kwargs):
         """Save the figure as a file.
 
         Args:
             path (Path | str): The path to the file to save.
+            **kwargs: Additional keyword arguments for `plt.savefig`.
         """
         if path == "":
             raise LexosException("You must provide a valid path.")
         if self.fig is None:
             raise LexosException("The figure has not yet been generated.")
-        self.fig.savefig(path)
+        self.fig.savefig(path, **kwargs)
 
     def show(self):
         """Show the figure if it is hidden.
