@@ -2,6 +2,8 @@
 
 Last Tested: June 8, 2025
 
+Coverage 99%: 447
+
 Test suite for lexos.scrubber.tags module.
 
 This suite tests the functionality of tag manipulation functions
@@ -627,7 +629,9 @@ class TestReplaceTag:
         )
         assert normalize_output(processed, "html") == normalize_output(expected, "html")
 
+
 ### PRIVATE FUNCTION TESTS ###
+
 
 # --- Tests for _match_value ---
 class TestMatchValue:
@@ -638,28 +642,41 @@ class TestMatchValue:
         [
             # Exact matches
             (["hello", "world"], "hello world", "exact", True),
-            (["hello", "world"], "hello", "exact", True), # "hello" in "hello world"
-            (["hello", "world"], "world", "exact", True), # "world" in "hello world"
+            (["hello", "world"], "hello", "exact", False),
+            (["hello", "world"], "world", "exact", False),
             (["singleword"], "singleword", "exact", True),
             (["hello", "world"], "goodbye", "exact", False),
-            (["test"], "testing", "exact", False), # "testing" not in "test"
-            ([], "anything", "exact", False), # "anything" not in ""
-            (["content"], "", "exact", True), # "" in "content" is True
-            ([], "", "exact", True), # "" in "" is True
+            (["test"], "testing", "exact", False),
+            ([], "anything", "exact", False),
+            (["content"], "", "exact", False),
+            ([], "", "exact", True),
+            # Contains matches
+            (["hello", "world"], "hello", "contains", True),
+            (["hello", "world"], "world", "contains", True),
+            (["hello", "world"], "o w", "contains", False),
+            (["hello", "world"], "o x", "contains", False),
+            (["singleword"], "single", "contains", False),
+            (["hello", "world"], "goodbye", "contains", False),
+            (["test"], "testing", "contains", False),
+            ([], "anything", "contains", False),
+            (["content"], "", "contains", False),
+            ([], "", "contains", False),
             # Regex matches
             (["hello", "world", "123"], r"world", "regex", True),
             (["hello", "world", "123"], r"\d+", "regex", True),
             (["item-001"], r"item-\d{3}", "regex", True),
             (["item-001"], r"item-\d{2}a", "regex", False),
             (["apple", "banana"], r"^apple", "regex", True),
-            (["apple", "banana"], r"na$", "regex", True), # Matches "banana"
+            (["apple", "banana"], r"na$", "regex", True),  # Matches "banana"
             (["apple", "banana"], r"orange", "regex", False),
             ([], r"anything", "regex", False),
-            (["content"], r"", "regex", True), # Empty pattern matches
-            ([], r"", "regex", True), # Empty pattern matches
+            (["content"], r"", "regex", True),  # Empty pattern matches
+            ([], r"", "regex", True),  # Empty pattern matches
         ],
     )
-    def test_matches(self, text_list: list[str], pattern: str, match_type: str, expected: bool):
+    def test_matches(
+        self, text_list: list[str], pattern: str, match_type: str, expected: bool
+    ):
         """Tests various scenarios for exact and regex matching.
 
         Args:
@@ -674,16 +691,42 @@ class TestMatchValue:
         """Tests that an invalid match type raises LexosException."""
         with pytest.raises(LexosException) as excinfo:
             _match_value(["test"], "pattern", "invalid_type")
-        assert "Type must be either 'exact' or 'regex'." in str(excinfo.value)
+        assert "match_type must be 'exact', 'contains', or 'regex'" in str(
+            excinfo.value
+        )
+
+    def test_match_value_invalid_regex(self):
+        """Test _match_value with invalid regex pattern (lines 126-128)."""
+        # Test with invalid regex patterns that will raise re.error
+        invalid_patterns = [
+            "[",  # Unclosed character class
+            "(",  # Unclosed group
+            "*",  # Nothing to repeat
+            "\\",  # Trailing backslash
+        ]
+
+        test_value = "bold italic"
+
+        for pattern in invalid_patterns:
+            # Should return False instead of raising an exception
+            result = _match_value(test_value, pattern, "regex")
+            assert result is False, (
+                f"Invalid regex pattern '{pattern}' should return False"
+            )
 
     def test_exact_match_substring_behavior(self):
         """Explicitly tests the 'pattern in joined_text' behavior for exact matches."""
-        assert _match_value(["longstring"], "str", "exact") is True
-        assert _match_value(["longstring"], "long", "exact") is True
-        assert _match_value(["longstring"], "ing", "exact") is True
+        assert _match_value(["longstring"], "str", "exact") is False
         assert _match_value(["longstring"], "longstring", "exact") is True
-        assert _match_value(["not", "in", "list"], "in list", "exact") is True # "in list" in "not in list"
+        assert _match_value(["not", "in", "list"], "list", "exact") is False
         assert _match_value(["not", "in", "list"], "notin", "exact") is False
+
+    def test_contains_match_substring_behavior(self):
+        """Explicitly tests the 'pattern in joined_text' behavior for exact matches."""
+        assert _match_value(["longstring"], "str", "contains") is False
+        assert _match_value(["longstring"], "longstring", "contains") is True
+        assert _match_value(["in", "list"], "list", "contains") is True
+        assert _match_value(["not", "in", "list"], "notin", "contains") is False
 
     def test_regex_match_special_characters(self):
         """Tests regex matching with special characters."""
@@ -693,10 +736,15 @@ class TestMatchValue:
 
     def test_default_match_type_is_exact(self):
         """Tests that the default match type is 'exact'."""
-        assert _match_value(["hello", "world"], "hello world") is True # type defaults to "exact"
-        assert _match_value(["hello", "world"], "goodbye") is False # type defaults to "exact"
+        assert (
+            _match_value(["hello", "world"], "hello world") is True
+        )  # type defaults to "exact"
+        assert (
+            _match_value(["hello", "world"], "goodbye") is False
+        )  # type defaults to "exact"
         # This regex pattern would match if type="regex", but should fail with default "exact"
         assert _match_value(["item-001"], r"item-\d{3}") is False
+
 
 # --- Test Data for _match_elements ---
 HTML_FOR_MATCH = """
@@ -767,7 +815,9 @@ class TestMatchElements:
 
     def test_match_html_attribute_presence(self):
         """Tests filtering by attribute presence in HTML."""
-        soup, elements = _match_elements("p", HTML_FOR_MATCH, mode="html", attribute="data-custom")
+        soup, elements = _match_elements(
+            "p", HTML_FOR_MATCH, mode="html", attribute="data-custom"
+        )
         assert len(elements) == 1
         assert elements[0].name == "p"
         assert elements[0].has_attr("data-custom")
@@ -775,14 +825,21 @@ class TestMatchElements:
 
     def test_match_xml_attribute_presence(self):
         """Tests filtering by attribute presence in XML."""
-        soup, elements = _match_elements("item", XML_FOR_MATCH, mode="xml", attribute="status")
+        soup, elements = _match_elements(
+            "item", XML_FOR_MATCH, mode="xml", attribute="status"
+        )
         assert len(elements) == 2
         assert all(el.has_attr("status") for el in elements)
 
     def test_match_html_attribute_exact_value(self):
         """Tests filtering by exact attribute value in HTML."""
         soup, elements = _match_elements(
-            "p", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value="para first", matcher_type="exact"
+            "p",
+            HTML_FOR_MATCH,
+            mode="html",
+            attribute="class",
+            attribute_value="para first",
+            matcher_type="exact",
         )
         assert len(elements) == 1
         assert "first" in elements[0].get("class", [])
@@ -790,7 +847,12 @@ class TestMatchElements:
     def test_match_xml_attribute_exact_value(self):
         """Tests filtering by exact attribute value in XML."""
         soup, elements = _match_elements(
-            "item", XML_FOR_MATCH, mode="xml", attribute="type", attribute_value="A", matcher_type="exact"
+            "item",
+            XML_FOR_MATCH,
+            mode="xml",
+            attribute="type",
+            attribute_value="A",
+            matcher_type="exact",
         )
         assert len(elements) == 2
         assert all(el["type"] == "A" for el in elements)
@@ -800,7 +862,12 @@ class TestMatchElements:
         # Assuming _match_value and _match_elements correctly use matcher_type="regex"
         # for attribute values.
         soup, elements = _match_elements(
-            "p", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value=r"para\s(first|second)", matcher_type="regex"
+            "p",
+            HTML_FOR_MATCH,
+            mode="html",
+            attribute="class",
+            attribute_value=r"para\s(first|second)",
+            matcher_type="regex",
         )
         assert len(elements) == 2
         classes = {" ".join(el.get("class", [])) for el in elements}
@@ -810,7 +877,12 @@ class TestMatchElements:
     def test_match_xml_attribute_regex_value(self):
         """Tests filtering by regex attribute value in XML."""
         soup, elements = _match_elements(
-            "item", XML_FOR_MATCH, mode="xml", attribute="status", attribute_value=r"active|inactive", matcher_type="regex"
+            "item",
+            XML_FOR_MATCH,
+            mode="xml",
+            attribute="status",
+            attribute_value=r"active|inactive",
+            matcher_type="regex",
         )
         assert len(elements) == 2
         statuses = {el["status"] for el in elements}
@@ -819,23 +891,32 @@ class TestMatchElements:
 
     def test_match_html_attribute_filter_presence(self):
         """Tests attribute_filter for attribute presence in HTML."""
-        soup, elements = _match_elements("div", HTML_FOR_MATCH, mode="html", attribute_filter="id")
-        assert len(elements) == 2 # main and footer
+        soup, elements = _match_elements(
+            "div", HTML_FOR_MATCH, mode="html", attribute_filter="id"
+        )
+        assert len(elements) == 2  # main and footer
         assert all(el.has_attr("id") for el in elements)
 
     def test_match_html_attribute_filter_with_value(self):
         """Tests attribute_filter with a specific value in HTML."""
         soup, elements = _match_elements(
-            "div", HTML_FOR_MATCH, mode="html", attribute_filter="class", attribute_value="container", matcher_type="exact"
+            "div",
+            HTML_FOR_MATCH,
+            mode="html",
+            attribute_filter="class",
+            attribute_value="container",
+            matcher_type="exact",
         )
         soup, elements = _match_elements(
-            "div", HTML_FOR_MATCH, mode="html",
+            "div",
+            HTML_FOR_MATCH,
+            mode="html",
             attribute="class",  # This is used by the _match_value call
-            attribute_filter="class", # This is used for el.has_attr(attribute_filter)
+            attribute_filter="class",  # This is used for el.has_attr(attribute_filter)
             attribute_value="container",
-            matcher_type="exact"
+            matcher_type="exact",
         )
-        assert len(elements) == 3 # main, inner div, footer
+        assert len(elements) == 3  # main, inner div, footer
         assert all("container" in el.get("class", []) for el in elements)
 
     def test_match_no_elements_found_tag(self):
@@ -846,7 +927,11 @@ class TestMatchElements:
     def test_match_no_elements_found_attribute(self):
         """Tests scenario where no elements match the attribute filter."""
         soup, elements = _match_elements(
-            "p", HTML_FOR_MATCH, mode="html", attribute="data-nonexistent", attribute_value="any"
+            "p",
+            HTML_FOR_MATCH,
+            mode="html",
+            attribute="data-nonexistent",
+            attribute_value="any",
         )
         assert len(elements) == 0
 
@@ -859,15 +944,19 @@ class TestMatchElements:
         """Tests behavior with empty string input."""
         soup, elements = _match_elements("p", EMPTY_STRING, mode="html")
         assert len(elements) == 0
-        assert str(soup) == "" # Or based on how BS4 handles empty string
+        assert str(soup) == ""  # Or based on how BS4 handles empty string
 
     def test_match_selector_priority_over_attribute_filter(self):
         """Tests that the main selector is applied first."""
         # Select only 'span' tags, then filter by class (which no span has)
         soup, elements = _match_elements(
-            "span", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value="container"
+            "span",
+            HTML_FOR_MATCH,
+            mode="html",
+            attribute="class",
+            attribute_value="container",
         )
-        assert len(elements) == 0 # No spans have class "container"
+        assert len(elements) == 0  # No spans have class "container"
 
     def test_attribute_vs_attribute_filter_precedence(self):
         """Tests the precedence: if attribute_filter is present, its block is used.
@@ -877,10 +966,12 @@ class TestMatchElements:
         # `attribute_filter` is "id", `attribute` is "class".
         # The filtering should happen based on "id".
         soup, elements = _match_elements(
-            "div", HTML_FOR_MATCH, mode="html",
-            attribute_filter="id", # This condition will be true
-            attribute="class", # This should be ignored for has_attr check if attribute_filter is used
-            attribute_value="main" # This value will be checked against el[attribute] (i.e. el["class"])
+            "div",
+            HTML_FOR_MATCH,
+            mode="html",
+            attribute_filter="id",  # This condition will be true
+            attribute="class",  # This should be ignored for has_attr check if attribute_filter is used
+            attribute_value="main",  # This value will be checked against el[attribute] (i.e. el["class"])
         )
 
         assert len(elements) == 1
@@ -888,7 +979,355 @@ class TestMatchElements:
     def test_invalid_matcher_type_raises_exception(self):
         """Tests that an exception is raised if matcher_type is None."""
         # `matcher_type` is None, so `_match_value` should use "exact"
-        with pytest.raises(LexosException, match="Type must be either 'exact' or 'regex'"):
+        with pytest.raises(
+            LexosException, match="match_type must be 'exact', 'contains', or 'regex'"
+        ):
             soup, elements = _match_elements(
-                "p", HTML_FOR_MATCH, mode="html", attribute="class", attribute_value="para first", matcher_type=None
+                "p",
+                HTML_FOR_MATCH,
+                mode="html",
+                attribute="class",
+                attribute_value="para first",
+                matcher_type=None,
             )
+
+
+# Additional tests for coverage
+
+
+def test_remove_attribute_with_attribute_filter_no_value():
+    """Test remove_attribute with attribute_filter but no attribute_value (line 162)."""
+    text = '<p class="a" id="x">Keep</p><p class="b">Remove attrs</p><div class="c" id="y">Keep</div>'
+    result = remove_attribute(text, "p", attribute="class", attribute_filter="id")
+    expected = '<p id="x">Keep</p><p class="b">Remove attrs</p><div class="c" id="y">Keep</div>'
+    assert result == expected
+
+
+def test_replace_attribute_regex_no_match():
+    """Test replace_attribute with regex that doesn't match (line 412)."""
+    text = '<p class="hello world">Test</p>'
+    result = replace_attribute(
+        text,
+        selector="p",
+        old_attribute="class",
+        new_attribute="class",
+        attribute_value="xyz.*",  # This won't match "hello" or "world"
+        replace_value="matched",
+        matcher_type="regex",
+    )
+    # Should remain unchanged because no regex match
+    expected = '<p class="hello world">Test</p>'
+    assert result == expected
+
+
+def test_replace_attribute_regex_match():
+    """Test replace_attribute with regex that matches (line 419)."""
+    text = '<p class="bolder italic">Test</p>'
+    result = replace_attribute(
+        text,
+        selector="p",
+        old_attribute="class",
+        new_attribute="class",
+        attribute_value="bold.*",  # This will match "bolder"
+        replace_value="happy",
+        matcher_type="regex",
+    )
+    expected = '<p class="happy italic">Test</p>'
+    assert result == expected
+
+
+def test_replace_attribute_exact_no_replace_value():
+    """Test replace_attribute without replace_value (line 425)."""
+    text = '<p class="bold italic" id="test">Test</p>'
+    # Change class to data-class but keep the same value
+    result = replace_attribute(
+        text,
+        selector="p",
+        old_attribute="class",
+        new_attribute="data-class",
+        # No replace_value specified - should keep original value
+    )
+    expected = '<p data-class="bold italic" id="test">Test</p>'
+    assert result == expected
+
+
+def test_replace_attribute_exact_string_replacement():
+    """Test replace_attribute with exact matching and string replacement (lines 438-444)."""
+    text = '<p class="bold">Test</p>'
+    result = replace_attribute(
+        text,
+        selector="p",
+        old_attribute="class",
+        new_attribute="class",
+        attribute_value="bold",  # Exact match
+        replace_value="happy",
+        matcher_type="exact",
+    )
+    expected = '<p class="happy">Test</p>'
+    assert result == expected
+
+
+def test_replace_attribute_contains_string_replacement():
+    """Test replace_attribute with contains matching and string replacement (lines 438-444)."""
+    text = '<p class="bold italic">Test</p>'
+    result = replace_attribute(
+        text,
+        selector="p",
+        old_attribute="class",
+        new_attribute="class",
+        attribute_value="bold",  # Contains match
+        replace_value="happy",
+        matcher_type="contains",
+    )
+    expected = '<p class="happy italic">Test</p>'
+    assert result == expected
+
+
+def test_replace_attribute_exact_no_match():
+    """Test replace_attribute with exact matching that doesn't match."""
+    text = '<p class="bolder italic">Test</p>'
+    result = replace_attribute(
+        text,
+        selector="p",
+        old_attribute="class",
+        new_attribute="class",
+        attribute_value="bold",  # Won't match "bolder" exactly
+        replace_value="happy",
+        matcher_type="exact",
+    )
+    # Should remain unchanged because "bold" != "bolder"
+    expected = '<p class="bolder italic">Test</p>'
+    assert result == expected
+
+
+def test_remove_attribute_with_filter_and_value_match():
+    """Test remove_attribute with attribute_filter and attribute_value using _match_value (lines 182-187)."""
+    # Test HTML with elements that have different attribute values
+    text = """
+    <div class="container main" data-role="primary">Keep this div</div>
+    <p class="text bold" data-role="secondary">Remove class from this p</p>
+    <p class="text italic" data-role="primary">Keep this p unchanged</p>
+    <span class="highlight" data-role="tertiary">Keep this span</span>
+    """
+
+    # Remove the 'class' attribute only from elements that have data-role="primary"
+    # This should trigger the highlighted code path with _match_value
+    result = remove_attribute(
+        text,
+        selector=None,  # Select all elements, regardless of tag name
+        attribute="class",
+        attribute_filter="data-role",
+        attribute_value="primary",  # This triggers the _match_value call
+        matcher_type="regex",
+    )
+
+    # Parse the result to check what happened
+    soup = BeautifulSoup(result, "html.parser")
+
+    # Elements with data-role="primary" should have their class attribute removed
+    div = soup.find("div")
+    assert not div.has_attr("class")  # class was removed
+    assert div.get("data-role") == "primary"  # data-role preserved
+
+    p_primary = soup.find("p", {"data-role": "primary"})
+    assert not p_primary.has_attr("class")  # class was removed
+    assert p_primary.get("data-role") == "primary"  # data-role preserved
+
+    # Elements without data-role="primary" should keep their class
+    p_secondary = soup.find("p", {"data-role": "secondary"})
+    assert p_secondary.get("class") == ["text", "bold"]  # class preserved
+
+    span = soup.find("span")
+    assert span.get("class") == ["highlight"]  # class preserved
+
+
+def test_remove_attribute_with_filter_regex_match():
+    """Test remove_attribute with attribute_filter using regex matching."""
+    text = """
+    <div id="header-main" class="container">Header</div>
+    <div id="header-sub" class="subcontainer">Subheader</div>
+    <div id="content-main" class="content">Content</div>
+    <div id="footer" class="footer">Footer</div>
+    """
+
+    # Remove class attribute from elements whose id starts with "header"
+    result = remove_attribute(
+        text,
+        selector="div",
+        attribute="class",
+        attribute_filter="id",
+        attribute_value="header.*",  # Regex pattern
+        matcher_type="regex",
+    )
+
+    soup = BeautifulSoup(result, "html.parser")
+
+    # Elements with id starting with "header" should have class removed
+    header_main = soup.find("div", {"id": "header-main"})
+    assert not header_main.has_attr("class")
+
+    header_sub = soup.find("div", {"id": "header-sub"})
+    assert not header_sub.has_attr("class")
+
+    # Elements not matching the regex should keep their class
+    content = soup.find("div", {"id": "content-main"})
+    assert content.get("class") == ["content"]
+
+    footer = soup.find("div", {"id": "footer"})
+    assert footer.get("class") == ["footer"]
+
+
+def test_remove_attribute_with_filter_contains_match():
+    """Test remove_attribute with attribute_filter using contains matching."""
+    text = """
+    <p class="text bold important">Paragraph 1</p>
+    <p class="text italic">Paragraph 2</p>
+    <p class="header bold">Paragraph 3</p>
+    <div class="text normal">Div</div>
+    """
+
+    # Remove class attribute from elements that have "bold" in their class
+    result = remove_attribute(
+        text,
+        selector="p",
+        attribute="class",
+        attribute_filter="class",
+        attribute_value="bold",  # Should match elements with "bold" as one of the class values
+        matcher_type="contains",
+    )
+
+    soup = BeautifulSoup(result, "html.parser")
+
+    # Elements with "bold" in their class should have class removed
+    paragraphs = soup.find_all("p")
+
+    # First and third paragraphs had "bold", so no class attribute
+    assert not paragraphs[0].has_attr("class")  # had "text bold important"
+    assert paragraphs[1].get("class") == ["text", "italic"]  # didn't have "bold"
+    assert not paragraphs[2].has_attr("class")  # had "header bold"
+
+    # Div didn't have "bold" so should keep class
+    div = soup.find("div")
+    assert div.get("class") == ["text", "normal"]
+
+
+def test_replace_attribute_with_filter_no_value():
+    """Test replace_attribute with attribute_filter but no filter_value (line 434)."""
+    text = """
+    <div class="container" id="main">Has both class and id</div>
+    <p class="text">Has class only</p>
+    <span id="sidebar">Has id only</span>
+    <article>Has neither</article>
+    """
+
+    # Replace 'class' with 'data-class' only on elements that have an 'id' attribute
+    # This should trigger line 434: elements = [el for el in elements if el.has_attr(attribute_filter)]
+    result = replace_attribute(
+        text,
+        selector=None,  # Select all elements
+        old_attribute="class",
+        new_attribute="data-class",
+        attribute_filter="id",  # Only elements that have an 'id' attribute
+        # No filter_value specified - this triggers line 434
+    )
+
+    soup = BeautifulSoup(result, "html.parser")
+
+    # Elements with both 'id' and 'class' should have class → data-class
+    div = soup.find("div")
+    assert not div.has_attr("class")  # class was removed
+    assert div.has_attr("data-class")  # data-class was added
+    assert div.get("data-class") == "container"  # value was preserved
+    assert div.get("id") == "main"  # id unchanged
+
+    # Elements with 'class' but no 'id' should be unchanged
+    p = soup.find("p")
+    assert p.has_attr("class")  # class still there
+    assert p.get("class") == ["text"]  # value unchanged
+    assert not p.has_attr("data-class")  # no data-class added
+
+    # Elements with 'id' but no 'class' should be unchanged (no class to replace)
+    span = soup.find("span")
+    assert span.get("id") == "sidebar"  # id unchanged
+    assert not span.has_attr("class")  # no class to begin with
+    assert not span.has_attr("data-class")  # no data-class added
+
+    # Elements with neither should be unchanged
+    article = soup.find("article")
+    assert not article.has_attr("class")  # no class
+    assert not article.has_attr("data-class")  # no data-class
+    assert not article.has_attr("id")  # no id
+
+
+###
+def test_replace_attribute_continue_with_empty_attribute():
+    """Test replace_attribute continues when attribute is empty (line 447)."""
+    text = """
+    <div class="">Empty class</div>
+    <div class="content">Has content</div>
+    <div>No class attribute</div>
+    """
+
+    # Try to replace class attribute, but the first div has an empty class=""
+    # This should trigger line 447 because check_match will be an empty string (falsy)
+    result = replace_attribute(
+        text,
+        selector="div",
+        old_attribute="class",
+        new_attribute="css-class",
+        attribute_value="content",  # Looking for "content"
+        replace_value="main-content",
+        matcher_type="exact",  # Non-regex path
+    )
+
+    soup = BeautifulSoup(result, "html.parser")
+    divs = soup.find_all("div")
+
+    # First div: empty class="" - should trigger continue (line 447)
+    assert divs[0].get("class") == []  # Empty but still has class attribute
+    assert not divs[0].has_attr("css-class")
+
+    # Second div: has "content" - should be processed
+    assert not divs[1].has_attr("class")
+    assert divs[1].get("css-class") is not None
+
+    # Third div: no class attribute - not processed by this logic path
+    assert not divs[2].has_attr("class")
+    assert not divs[2].has_attr("css-class")
+
+
+def test_replace_attribute_continue_regex_no_match():
+    """Test replace_attribute continues when regex doesn't match (line 447)."""
+    text = """
+    <span data-id="user-123">User</span>
+    <span data-id="admin-456">Admin</span>
+    <span data-id="guest">Guest</span>
+    """
+
+    # Use regex that won't match "guest" (no numbers)
+    result = replace_attribute(
+        text,
+        selector="span",
+        old_attribute="data-id",
+        new_attribute="user-id",
+        attribute_value=r"\d+",  # Regex: one or more digits
+        replace_value="matched",
+        matcher_type="regex",
+    )
+    # print(result)
+    # assert False
+
+    soup = BeautifulSoup(result, "html.parser")
+    spans = soup.find_all("span")
+
+    # First span: "user-123" matches \d+ - should be processed
+    assert not spans[0].has_attr("data-id")
+    assert spans[0].get("user-id") is not None
+
+    # Second span: "admin-456" matches \d+ - should be processed
+    assert not spans[1].has_attr("data-id")
+    assert spans[1].get("user-id") is not None
+
+    # Third span: "guest" doesn't match \d+ - should trigger continue (line 447)
+    assert spans[2].get("data-id") == "guest"  # Original attribute preserved
+    assert not spans[2].has_attr("user-id")  # No new attribute

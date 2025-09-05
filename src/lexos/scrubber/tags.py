@@ -4,11 +4,11 @@ This module provides functions to manipulate HTML/XML tags and attributes
 using BeautifulSoup. It allows for removing, replacing, and modifying tags
 and their attributes in HTML or XML documents.
 
-It supports both exact and regex matching for selectors and attributes,
-and can filter elements based on attributes and their values.
+It supports both exact, contains, and regex matching for selectors and
+attributes, and can filter elements based on attributes and their values.
 
-Last Updated: June 8, 2025
-Last Tested: June 8, 2025
+Last Updated: September 5, 2025
+Last Tested: September 5, 2025
 """
 
 import re
@@ -16,6 +16,7 @@ from typing import Optional
 
 from bs4 import BeautifulSoup, Comment
 
+# from wasabi import msg
 from lexos.exceptions import LexosException
 
 
@@ -34,7 +35,7 @@ def _match_elements(
         selector: Tag name or CSS selector to match elements
         text: HTML or XML text to process
         mode: Parser mode, either "html" or "xml"
-        matcher_type: Type of match to perform, either "exact" or "regex"
+        matcher_type: Type of match to perform, either "exact", "contains", or "regex"
         attribute: Optional attribute name to filter elements
         attribute_value: Optional value for the attribute filter
         attribute_filter: Optional attribute name to filter elements
@@ -51,11 +52,14 @@ def _match_elements(
     soup = BeautifulSoup(text, parser)
 
     # Find elements matching the selector
-    elements = (
-        soup.select(selector)
-        if selector.startswith(".") or selector.startswith("#")
-        else soup.find_all(selector)
-    )
+    if not selector:
+        elements = soup.find_all()  # Select all elements
+    else:
+        elements = (
+            soup.select(selector)
+            if selector.startswith(".") or selector.startswith("#")
+            else soup.find_all(selector)
+        )
 
     # Filter by attribute if specified using attribute_filter
     if attribute_filter:
@@ -65,7 +69,6 @@ def _match_elements(
                 el
                 for el in elements
                 if el.has_attr(attribute_filter)
-                # and _match_value(el[attribute], attribute_value, matcher_type)
                 and _match_value(el[attribute_filter], attribute_value, matcher_type)
             ]
         else:
@@ -89,26 +92,47 @@ def _match_elements(
     return soup, elements
 
 
-def _match_value(text: str | list[str], pattern: str, type: str = "exact") -> bool:
-    """Match a string exactly or by regex pattern.
+def _match_value(
+    attribute_value: str | list[str], pattern: str, match_type: str = "exact"
+) -> bool:
+    """Match attribute values using different matching strategies.
 
     Args:
-        text: HTML or XML text to process
-        pattern: Pattern to match against the text
-        type: Type of match to perform, either "exact" or "regex"
+        attribute_value: The attribute value(s) to match against (string or list)
+        pattern: The pattern/string to match
+        match_type: Type of matching - "exact", "contains", or "regex"
 
     Returns:
-        True if the text matches the specified type, False otherwise.
+        True if the pattern matches according to the specified type, False otherwise.
+
+    Raises:
+        LexosException: If match_type is not one of the valid options.
     """
-    if isinstance(text, list):
-        # Join list of strings into a single string for matching
-        text = " ".join(text)
-    if type == "exact":
-        return pattern in text
-    elif type == "regex":
-        return re.search(pattern, text) is not None
+    # Convert list to space-separated string if needed
+    if isinstance(attribute_value, list):
+        attribute_value = " ".join(attribute_value)
+
+    if match_type == "exact":
+        # Exact match - pattern must match the entire attribute value
+        return pattern == attribute_value
+
+    elif match_type == "contains":
+        # Includes match - pattern must exactly match one of the space-separated values
+        values = attribute_value.split()
+        return pattern in values
+
+    elif match_type == "regex":
+        # Regex match - pattern is treated as a regex
+        try:
+            return re.search(pattern, attribute_value) is not None
+        except re.error:
+            # Invalid regex pattern
+            return False
+
     else:
-        raise LexosException("Type must be either 'exact' or 'regex'.")
+        raise LexosException(
+            f"match_type must be 'exact', 'contains', or 'regex', got '{match_type}'"
+        )
 
 
 def remove_attribute(
@@ -130,7 +154,7 @@ def remove_attribute(
         selector: Tag name or CSS selector to match elements
         attributes: List of attribute names to remove. If None, removes all attributes
         mode: Parser mode, either "html" or "xml"
-        matcher_type: Type of match to perform, either "exact" or "regex"
+        matcher_type: Type of match to perform, either "exact", "contains", or "regex"
         attribute_value: Optional value for the attribute filter
         attribute_filter: Optional attribute name to filter elements
 
@@ -151,22 +175,21 @@ def remove_attribute(
     """
     # Get matching elements
     soup, elements = _match_elements(
-        selector, text, mode, matcher_type, attribute, attribute_value
+        selector, text, mode, matcher_type, attribute, attribute_value, attribute_filter
     )
 
     # Filter by attribute if specified
-    if attribute_filter:
-        if attribute_value:
-            # Filter elements that have the attribute with the specific value
-            elements = [
-                el
-                for el in elements
-                if el.has_attr(attribute_filter)
-                and attribute_value in el[attribute_filter]
-            ]
-        else:
-            # Filter elements that have the attribute regardless of value
-            elements = [el for el in elements if el.has_attr(attribute_filter)]
+    # if attribute_filter:
+    #     if attribute_value:
+    #         elements = [
+    #             el
+    #             for el in elements
+    #             if el.has_attr(attribute_filter)
+    #             and _match_value(el[attribute_filter], attribute_value, matcher_type)
+    #         ]
+    #     else:
+    #         # Filter elements that have the attribute regardless of value
+    #         elements = [el for el in elements if el.has_attr(attribute_filter)]
 
     # Remove specified attributes from matching elements
     for element in elements:
@@ -262,7 +285,7 @@ def remove_element(
         text: HTML or XML text to process
         selector: Tag name or CSS selector to match elements for removal
         mode: Parser mode, either "html" or "xml"
-        matcher_type: Type of match to perform, either "exact" or "regex"
+        matcher_type: Type of match to perform, either "exact", "contains", or "regex"
         attribute: Optional attribute name to filter elements
         attribute_value: Optional value for the attribute filter
 
@@ -309,7 +332,7 @@ def remove_tag(
         text: HTML or XML text to process
         selector: Tag name or CSS selector to match elements for unwrapping
         mode: Parser mode, either "html" or "xml"
-        matcher_type: Type of match to perform, either "exact" or "regex"
+        matcher_type: Type of match to perform, either "exact", "contains", or "regex"
         attribute: Optional attribute name to filter elements
         attribute_value: Optional value for the attribute filter
 
@@ -363,7 +386,7 @@ def replace_attribute(
         old_attribute: Name of the attribute to replace
         new_attribute: Name of the new attribute (or same name if only changing value)
         mode: Parser mode, either "html" or "xml"
-        matcher_type: Type of match to perform, either "exact" or "regex"
+        matcher_type: Type of match to perform, either "exact", "contains", or "regex"
         attribute_value: Only replace attributes with this specific value
         replace_value: New value to use (keeps original value if None)
         attribute_filter: Optional attribute name to filter elements
@@ -410,30 +433,53 @@ def replace_attribute(
             # Filter elements that have the attribute regardless of value
             elements = [el for el in elements if el.has_attr(attribute_filter)]
 
+    result = []
+
     # Replace attributes in matching elements
     for element in elements:
+        result.append(element)
         if element.has_attr(old_attribute):
+            # NOTE: It appears that this block is not needed
             # Only process attributes with the specific value if provided
-            if attribute_value is not None and attribute_value not in " ".join(
-                element[old_attribute]
-            ):
-                continue
+            # if matcher_type == "regex":
+            #     check_match = re.search(
+            #         attribute_value, " ".join(element[old_attribute])
+            #     )
+            # else:
+            #     check_match = " ".join(element[old_attribute])
+            # if attribute_value is not None and check_match is None:
+            #     continue # Never reached because check_match is always a string
 
             # Keep original value unless a replacement is specified
             if replace_value:
-                print(
-                    f"Detected replace_value '{replace_value}'. Replacing '{old_attribute}' with '{new_attribute}' in '{element.name}'"
-                )
-                print(f"attribute_value: {attribute_value}")
+                # For debugging
+                # msg.text(
+                #     f"Detected attribute value '{attribute_value}' in '{element.name}'."
+                # )
+                # msg.text(f"Replaced '{old_attribute}' with '{new_attribute}'.")
+                # msg.text(f"Replaced '{attribute_value}' with '{replace_value}'.")
                 # If the old attribute is a string, split it into a list
                 old_attribute_str = " ".join(element[old_attribute])
-                replace_value = old_attribute_str.replace(
-                    attribute_value, replace_value
-                ).split(" ")
+                if matcher_type == "regex":
+                    new_values = []
+                    for value in element[old_attribute]:
+                        if re.search(attribute_value, value):
+                            new_values.append(replace_value)
+                        else:
+                            new_values.append(value)
+                    replace_value = new_values
+                else:
+                    # Use string replacement (current logic)
+                    replace_value = old_attribute_str.replace(
+                        attribute_value, replace_value
+                    ).split(" ")
 
             value = (
                 replace_value if replace_value is not None else element[old_attribute]
             )
+            if isinstance(value, list):
+                value = [str(v) for v in value if v]  # Remove empty strings
+                value = " ".join(value)
 
             # Remove old attribute if the names are different
             if old_attribute != new_attribute:
@@ -463,7 +509,7 @@ def replace_tag(
         selector: Tag name or CSS selector to match elements for replacement
         replacement: New tag name to replace the matched elements with
         mode: Parser mode, either "html" or "xml"
-        matcher_type: Type of match to perform, either "exact" or "regex"
+        matcher_type: Type of match to perform, either "exact", "contains", or "regex"
         attribute: Optional attribute name to filter elements
         attribute_value: Optional value for the attribute filter
         preserve_attributes: Whether to preserve original tag attributes
