@@ -469,6 +469,8 @@ def replace_attribute(
                             new_values.append(value)
                     replace_value = new_values
                 else:
+                    if len(replace_value) == 1:
+                        replace_value = replace_value[0]
                     # Use string replacement (current logic)
                     replace_value = old_attribute_str.replace(
                         attribute_value, replace_value

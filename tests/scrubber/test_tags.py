@@ -439,6 +439,24 @@ class TestReplaceAttribute:
                 HTML_FOR_ATTR_REPLACE, "div", "class", "id", mode="invalid"
             )
 
+    def test_replace_attribute_contains_single_value(self):
+        """Ensures that contains works with a single attribute value."""
+        html = '<div class="a">Target</div><div class="a b">Other</div>'
+        processed = replace_attribute(
+            html,
+            "div",
+            "class",
+            "class",
+            mode="html",
+            attribute_value="a",
+            replace_value="replaced",
+            matcher_type="contains",
+        )
+        expected = (
+            '<div class="replaced">Target</div><div class="replaced b">Other</div>'
+        )
+        assert normalize_output(processed, "html") == normalize_output(expected, "html")
+
 
 # --- Tests for remove_attribute ---
 class TestRemoveAttribute:
