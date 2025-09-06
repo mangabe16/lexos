@@ -15,7 +15,7 @@ Here is a list of the currently available tutorials, organised by module:
 ## Corpus
 
 - Making and Using a Corpus
-  
+
 ## Cutter
 
 - Cutting Text Strings
@@ -23,11 +23,11 @@ Here is a list of the currently available tutorials, organised by module:
 
 ## DTM
 
-- Making and Using a Document-Term Matrix
+- Making and Using a Document-Term Matrix [📓 Notebook](../../tutorials/dtm/tutorial.ipynb) | [🗄️ Data](../../tutorials/dtm/txt_files.zip)
 
 ## IO
 
-- Loading Data
+- Loading Data [📓 Notebook](../../tutorials/io/tutorial.ipynb)
 
 ## Rolling Windows
 
@@ -35,11 +35,12 @@ Here is a list of the currently available tutorials, organised by module:
 
 ## Scrubber
 
-- Using Scrubber
+- Using Scrubber [📓 Notebook](../../tutorials/scrubber/scrubber_tutorial.ipynb)
+- Scrubbing Markup Tags [📓 Notebook](../../tutorials/scrubber/tags_tutorial.ipynb)
 
 ## Tokenizer
 
-- Using Tokenizer
+- Using Tokenizer [📓 Notebook](../../tutorials/tokenizer/tutorial.ipynb)
 
 ## TopWords
 
@@ -48,7 +49,4 @@ Here is a list of the currently available tutorials, organised by module:
 
 ## Visualization
 
-- Generating Static Word Clouds
-- Generating Dynamic Word Clouds
-- Generating BubbleChart Diagrams
-- 
+- Word Clouds [📓 Notebook](../../tutorials/visualization/tutorial.ipynb)
