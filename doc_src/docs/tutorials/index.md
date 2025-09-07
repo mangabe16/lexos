@@ -27,7 +27,7 @@ Here is a list of the currently available tutorials, organised by module:
 
 ## IO
 
-- Loading Data [📓 Notebook](../../tutorials/io/tutorial.ipynb)
+- Loading Data [📓 Notebook](../../tutorials/io/tutorial.ipynb) | [🗄️ Data](../../tutorials/io/sample_files.zip)
 
 ## Rolling Windows
 
