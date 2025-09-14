@@ -1,7 +1,7 @@
 """plotly_plotter.py.
 
-Last Update: February 13, 2025
-Last Tested: February 13, 2025
+Last Update: September 13, 2025
+Last Tested: September 13, 2025
 """
 
 from pathlib import Path
@@ -37,6 +37,7 @@ class MilestonesModel(BaseModel):
 
     @model_validator(mode="after")
     def check_empty_dict(self):
+        """Check that the milestone_labels dict is not empty."""
         if not self.milestone_labels or len(self.milestone_labels) == 0:
             raise ValueError("`milestone_labels` dictionary is empty.")
         return self
@@ -47,6 +48,9 @@ class PlotlyPlotter(BasePlotter):
 
     id: ClassVar[str] = "rw_plotly_plotter"
 
+    df: pd.DataFrame = Field(
+        ..., description="A dataframe containing the data to plot."
+    )
     width: Optional[int] = Field(
         default=700, description="The width of the plot in pixels."
     )
@@ -99,10 +103,6 @@ class PlotlyPlotter(BasePlotter):
         },
         description="A dict containing the styling information for the milestone labels. For valid properties, see https://plotly.com/python/reference/layout/annotations/#layout-annotations-items-annotation-font.",
     )
-    show_plot: Optional[bool] = Field(
-        default=True,
-        description="Whether to show the plot when the instance is called.",
-    )
     fig: Optional[Figure] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
@@ -110,6 +110,7 @@ class PlotlyPlotter(BasePlotter):
     @field_validator("milestone_label_rotation", mode="after")
     @classmethod
     def is_valid_rotation(cls, value: float) -> float:
+        """Ensure that the milestone label rotation is between 0 and 90 degrees."""
         if value > 90:
             raise LexosException(
                 "Milestone labels can only be rotated clockwise a maximum of 90 degrees."
@@ -118,117 +119,35 @@ class PlotlyPlotter(BasePlotter):
 
     def _validate_edge_cases(self) -> None:
         """Validate edge cases for the PlotlyPlotter."""
-        if self.show_milestones or self.show_milestone_labels:
+        if self.show_milestones is True or self.show_milestone_labels is True:
             try:
                 MilestonesModel(milestone_labels=self.milestone_labels)
             except ValidationError:
                 if not self.milestone_labels or len(self.milestone_labels) == 0:
                     raise LexosException("`milestone_labels` dictionary is empty.")
-                else:
-                    raise LexosException(
-                        "The `show_milestones` and `show_milestone_labels` parameters require a value for `milestone_labels`. It should be a list of dicts where the keys are labels and the values are points on the x axis."
-                    )
 
     def __init__(self, **kwargs) -> None:
         """Initialise the instance with arbitrary keywords."""
         super().__init__(**kwargs)
         self._validate_edge_cases()
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+
+        # Massage the DataFrame for Plotly Express
+        self.df["id"] = self.df.index
 
     @validate_call(config=model_config)
-    def __call__(
-        self,
-        df: pd.DataFrame = Field(
-            ..., description="A dataframe containing the data to plot."
-        ),
-        width: Optional[int] = Field(
-            default=700, description="The width of the plot in pixels."
-        ),
-        height: Optional[int] = Field(
-            default=450,
-            description="The height of the plot in pixels. Note that if you change the height, you will need to adjust the `titelpad` manually to show the title above milestone labels.",
-        ),
-        title: Optional[dict | str] = Field(
-            default="Rolling Windows Plot",
-            description="The title to use for the plot. It can be styled with a dict containing any of the keywords listed at https://plotly.com/python/reference/layout/#layout-title.",
-        ),
-        xlabel: Optional[str] = Field(
-            default="Token Count", description="The text to display along the x axis."
-        ),
-        ylabel: Optional[str] = Field(
-            default="Average Frequency",
-            description="The text to display along the y axis.",
-        ),
-        line_color: Optional[list[str] | str] = Field(
-            default=px.colors.qualitative.Plotly,
-            description="The colour pattern to use for lines on the plot.",
-        ),
-        showlegend: Optional[bool] = Field(
-            default=True, description="Show the legend."
-        ),
-        titlepad: Optional[float] = Field(
-            default=None,
-            description="The margin in pixels between the title and the top of the plot.",
-        ),
-        show_milestones: Optional[bool] = Field(
-            default=False, description="Whether to show the milestone markers."
-        ),
-        milestone_marker_style: Optional[dict] = Field(
-            default={"width": 1, "color": "teal"},
-            description="A dict containing the styles to apply to the milestone marker. For valid properties, see https://plotly.com/python-api-reference/generated/plotly.graph_objects.layout.shape.html#plotly.graph_objects.layout.shape.Line.",
-        ),
-        show_milestone_labels: Optional[bool] = Field(
-            default=False, description="Whether to show the milestone labels."
-        ),
-        milestone_labels: Optional[dict[str, int]] = Field(
-            default=None,
-            description="A dict containing the milestone labels and their values on the x-axis.",
-        ),
-        milestone_label_rotation: Optional[float] = Field(
-            default=0.0,
-            description="The number of degrees clockwise to rotate the milestone labels (maximum 90).",
-        ),
-        milestone_label_style: Optional[dict] = Field(
-            default={
-                "size": 10.0,
-                "family": "Open Sans, verdana, arial, sans-serif",
-                "color": "teal",
-            },
-            description="A dict containing the styling information for the milestone labels. For valid properties, see https://plotly.com/python/reference/layout/annotations/#layout-annotations-items-annotation-font.",
-        ),
-        show_plot: Optional[bool] = Field(
-            default=True,
-            description="Whether to show the plot when the instance is called.",
-        ),
-        **kwargs,
+    def plot(
+        self, show: Optional[bool] = True, config: Optional[dict] = None, **kwargs
     ) -> None:
         """Initialise object.
 
         Args:
+            show (Optional[bool]): Whether to display the plot immediately.
+            config (Optional[dict]): A dictionary supply Plotly configuration values.
             **kwargs: Additional keyword arguments accepted by plotly.express.line.
 
         """
-        self._set_attrs(
-            width=width,
-            height=height,
-            title=title,
-            xlabel=xlabel,
-            ylabel=ylabel,
-            line_color=line_color,
-            showlegend=showlegend,
-            titlepad=titlepad,
-            show_milestones=show_milestones,
-            milestone_marker_style=milestone_marker_style,
-            show_milestone_labels=show_milestone_labels,
-            milestone_labels=milestone_labels,
-            milestone_label_rotation=milestone_label_rotation,
-            milestone_label_style=milestone_label_style,
-            fig=None,
-        )
-        self._validate_edge_cases()
-
         # Massage the DataFrame for Plotly Express
+        df = self.df.copy()
         df["id"] = df.index
         df = pd.melt(df, id_vars="id", value_vars=df.columns[:-1])
 
@@ -237,10 +156,12 @@ class PlotlyPlotter(BasePlotter):
             df,
             x="id",
             y="value",
+            color="variable",
             color_discrete_sequence=ensure_list(self.line_color),
             width=self.width,
             height=self.height,
         )
+
         title_dict, xlabel_dict, ylabel_dict = self._get_axis_and_title_labels()
         self.fig.update_layout(
             title=title_dict,
@@ -265,9 +186,10 @@ class PlotlyPlotter(BasePlotter):
             titlepad = self._get_titlepad(self.milestone_labels)
             self.fig.update_layout(margin=dict(t=titlepad))
 
-        if show_plot:
-            # The config dict can be modified by calling the show method directly.
-            self.fig.show(config={"displaylogo": False})
+        if show:
+            if not config:
+                config = {"displaylogo": False}
+            self.fig.show(config=config)
 
     def _get_axis_and_title_labels(self) -> tuple[bool, str]:
         """Ensure that the title, xlabel, and ylabel values are dicts."""
@@ -358,7 +280,7 @@ class PlotlyPlotter(BasePlotter):
             yref="y",
             xref="x",
             x0=x,
-            y0=df_val_min,
+            y0=0,  # df_val_min,
             x1=x,
             y1=df_val_max,
             line=self.milestone_marker_style,
@@ -383,10 +305,12 @@ class PlotlyPlotter(BasePlotter):
             pio.write_image(self.fig, path)
 
     @validate_call(config=model_config)
-    def show(self, config: Optional[dict] = {"displaylogo": False}, **kwargs) -> None:
+    def show(self, config: Optional[dict] = None) -> None:
         """Display a plot.
 
         Args:
             config (Optional[dict]): A dictionary supply Plotly configuration values.
         """
+        if not config:
+            config = {"displaylogo": False}
         self.fig.show(config=config)

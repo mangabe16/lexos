@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Update: 5 August, 2025
-Last Tested: 16 February, 2025
+Last Update: 8 September, 2025
+Last Tested: 9 September, 2025
 
 Credits:
 
@@ -10,6 +10,7 @@ Credits:
     The code was reviewed by Cole  Crawford (Harvard University) and Ryan Muther (Harvard University).
 """
 
+import itertools
 from typing import Iterator, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, validate_call
@@ -95,8 +96,8 @@ class Windows(BaseModel):
         )
         if self.window_type not in ["characters", "spans", "tokens"]:
             raise LexosException("Window type must be 'characters' or 'tokens'.")
-        if self.output not in ["strings", "tokens"]:
-            raise LexosException("Output must be 'strings' or 'tokens'.")
+        if self.output not in ["spans", "strings", "tokens"]:
+            raise LexosException("Output must be 'spans', 'strings' or 'tokens'.")
         if isinstance(self.input, str):
             self.windows = self._get_string_windows(self.input)
         elif isinstance(self.input, list):
@@ -110,6 +111,15 @@ class Windows(BaseModel):
             self.windows = self._get_doc_windows(self.input)
         return self
 
+    @property
+    def length(self):
+        """Create a temporary copy of the windows and calculate the length."""
+        if self.windows is None:
+            return 0
+
+        temp_windows, self.windows = itertools.tee(self.windows)
+        return sum(1 for _ in temp_windows)
+
     def _get_doc_windows(self, input: Doc | Span) -> Iterator[list[Span | str | Token]]:
         """Generate windows from a Doc or Span object with output as Spans, strings, or Tokens.
 
@@ -120,7 +130,7 @@ class Windows(BaseModel):
             Iterator[list[Span | str | Token]]: A generator of windows.
         """
         if self.output not in ["spans", "strings", "tokens"]:
-            raise LexosException("Output must be 'strings', or 'tokens'.")
+            raise LexosException("Output must be 'spans', 'strings', or 'tokens'.")
         # Process a Span as a Doc
         if isinstance(input, Span):
             input = input.as_doc()
@@ -155,7 +165,7 @@ class Windows(BaseModel):
         Yields:
             Iterator[list[Span | str | Token]]: A generator of windows.
         """
-        if self.output not in ["strings", "tokens"]:
+        if self.output not in ["spans", "strings", "tokens"]:
             raise LexosException("Output must be 'strings', or 'tokens'.")
         if self.window_type != "characters":
             length = len(input)
@@ -167,11 +177,11 @@ class Windows(BaseModel):
                 if slice is not None:
                     if self.output == "strings":
                         yield [token.text for token in slice]
-                    else:  # assuming self.output == "tokens"
+                    elif self.output == "tokens":  # assuming self.output == "tokens"
                         yield [token for token in slice]
                     # appears to be unreachable code as output must be 'strings' or 'tokens'
-                    # else:
-                    # yield slice
+                    else:
+                        yield slice
         else:
             # Merge spans into a single Doc object
             input = Doc.from_docs([span.as_doc() for span in input])

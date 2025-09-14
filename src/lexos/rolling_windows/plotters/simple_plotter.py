@@ -1,7 +1,7 @@
 """simple_plotter.py.
 
-Last Update: August 5, 2025
-Last Tested: February 10, 2025
+Last Update: September 13, 2025
+Last Tested: September 13, 2025
 """
 
 from pathlib import Path
@@ -74,6 +74,9 @@ class SimplePlotter(BasePlotter):
     """Simple plotter using pyplot."""
 
     id: ClassVar[str] = "rw_simple_plotter"
+    df: pd.DataFrame = Field(
+        ..., description="A dataframe containing the data to plot."
+    )
     width: Optional[float | int] = Field(
         default=6.4, description="The width in inches."
     )
@@ -145,7 +148,7 @@ class SimplePlotter(BasePlotter):
         default="baseline",
         description="The vertical alignment of the milestone labels. See pyplot.annotate().",
     )
-    milestone_labels_rotation: Optional[int] = Field(
+    milestone_label_rotation: Optional[int] = Field(
         default=45,
         description="The rotation of the milestone labels. See pyplot.annotate().",
     )
@@ -167,6 +170,7 @@ class SimplePlotter(BasePlotter):
         default="pchip", description="Algorithm to use for interpolation."
     )
     fig: Optional[plt.Figure] = None
+    ax: Optional[plt.Axes] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -183,155 +187,22 @@ class SimplePlotter(BasePlotter):
     def __init__(self, **kwargs) -> None:
         """Initialise the instance with arbitrary keywords."""
         super().__init__(**kwargs)
-        for k, v in kwargs.items():
-            setattr(self, k, v)
         self._validate_edge_cases()
 
-    @validate_call(config=model_config)
-    def __call__(
-        self,
-        df: pd.DataFrame = Field(
-            ..., description="A dataframe containing the data to plot."
-        ),
-        width: Optional[float | int] = Field(
-            default=6.4, description="The width in inches."
-        ),
-        height: Optional[float | int] = Field(
-            default=4.8, description="The height in inches."
-        ),
-        figsize: Optional[tuple[float | int, float | int]] = Field(
-            default=None,
-            description="A tuple containing the width and height in inches (overrides the previous keywords).",
-        ),
-        hide_spines: Optional[list[str]] = Field(
-            default=["top", "right"],
-            description="A list of ['top', 'right', 'bottom', 'left'] indicating which spines to hide.",
-        ),
-        title: Optional[str] = Field(
-            default="Rolling Windows Plot", description="The title to use for the plot."
-        ),
-        titlepad: Optional[float | int] = Field(
-            default=6.0,
-            description="The padding in points to place between the title and the plot. May need to be increased if you are showing milestone labels.",
-        ),
-        title_position: Optional[str] = Field(
-            default="top",
-            description="Show the title on the 'bottom' or the 'top' of the figure.",
-        ),
-        show_legend: Optional[bool] = Field(
-            default=True, description="Whether to show the legend."
-        ),
-        show_grid: Optional[bool] = Field(
-            default=False, description="Whether to show the grid."
-        ),
-        xlabel: Optional[str] = Field(
-            default="Token Count", description="The text to display along the x axis."
-        ),
-        ylabel: Optional[str] = Field(
-            default="Average Frequency",
-            description="The text to display along the y axis.",
-        ),
-        show_milestones: Optional[bool] = Field(
-            default=False, description="Whether to show the milestone markers."
-        ),
-        milestone_colors: Optional[list[str] | str] = Field(
-            default="teal",
-            description="The colour or colours to use for milestone markers. See pyplot.vlines().",
-        ),
-        milestone_style: Optional[str] = Field(
-            default="--",
-            description="The style of the milestone markers. See pyplot.vlines().",
-        ),
-        milestone_width: Optional[int] = Field(
-            default=1,
-            description="The width of the milestone markers. See pyplot.vlines().",
-        ),
-        show_milestone_labels: Optional[bool] = Field(
-            default=False, description="Whether to show the milestone labels."
-        ),
-        milestone_labels: Optional[dict] = Field(
-            default=None,
-            description="A dict with keys as milestone labels and values as token indexes.",
-        ),
-        milestone_labels_ha: Optional[str] = Field(
-            default="left",
-            description="The horizontal alignment of the milestone labels. See pyplot.annotate().",
-        ),
-        milestone_labels_va: Optional[str] = Field(
-            default="baseline",
-            description="The vertical alignment of the milestone labels. See pyplot.annotate().",
-        ),
-        milestone_labels_rotation: Optional[int] = Field(
-            default=45,
-            description="The rotation of the milestone labels. See pyplot.annotate().",
-        ),
-        milestone_labels_offset: Optional[tuple] = Field(
-            default=(-8, 4),
-            description="A tuple containing the number of pixels along the x and y axes to offset the milestone labels. See pyplot.annotate().",
-        ),
-        milestone_labels_textcoords: Optional[str] = Field(
-            default="offset pixels",
-            description="Whether to offset milestone labels by pixels or points. See pyplot.annotate(str).",
-        ),
-        use_interpolation: Optional[bool] = Field(
-            default=False, description="Whether to use interpolation on values."
-        ),
-        interpolation_num: Optional[int] = Field(
-            default=500, description="Number of values to add between points."
-        ),
-        interpolation_kind: Optional[str] = Field(
-            default="pchip", description="Algorithm to use for interpolation."
-        ),
-        show_plot: Optional[bool] = Field(
-            default=True,
-            description="Whether to show the plot when the instance is called.",
-        ),
-        **kwargs,
-    ) -> None:
-        """Call the plotter.
+        # Drop the id column if it exists
+        self.df.drop("id", axis=1, inplace=True, errors="ignore")
 
-        Args:
-            **kwargs: Additional keyword arguments accepted by matplotlib.pyplot.plot().
-        """
-        self._set_attrs(
-            width=width,
-            height=height,
-            figsize=figsize,
-            hide_spines=hide_spines,
-            title=title,
-            titlepad=titlepad,
-            title_position=title_position,
-            show_legend=show_legend,
-            show_grid=show_grid,
-            xlabel=xlabel,
-            ylabel=ylabel,
-            show_milestones=show_milestones,
-            milestone_colors=milestone_colors,
-            milestone_style=milestone_style,
-            milestone_width=milestone_width,
-            show_milestone_labels=show_milestone_labels,
-            milestone_labels=milestone_labels,
-            milestone_labels_ha=milestone_labels_ha,
-            milestone_labels_va=milestone_labels_va,
-            milestone_labels_rotation=milestone_labels_rotation,
-            milestone_labels_offset=milestone_labels_offset,
-            milestone_labels_textcoords=milestone_labels_textcoords,
-            use_interpolation=use_interpolation,
-            interpolation_num=interpolation_num,
-            interpolation_kind=interpolation_kind,
-        )
-        self._validate_edge_cases()
         # Get the plot dimensions and title position
         width, height = self._get_width_height()
         titlepad = self.titlepad
         titlepad = self._adjust_titlepad(titlepad, width, height)
 
         # Generate the plot
-        fig, ax = plt.subplots(figsize=(width, height))
+        self.fig, self.ax = plt.subplots(figsize=(width, height))
 
         # Set the spines
         for spine in self.hide_spines:
-            ax.spines[spine].set_visible(False)
+            self.ax.spines[spine].set_visible(False)
 
         # Labels and title
         plt.margins(x=0, y=0)
@@ -343,30 +214,6 @@ class SimplePlotter(BasePlotter):
         # TODO: plt.xlabel(self.xlabel, fontsize=10)
         plt.xlabel(self.xlabel)
         plt.ylabel(self.ylabel)
-
-        # Grid
-        if self.show_grid:
-            plt.grid(visible=True)
-
-        # Interpolation
-        if self.use_interpolation:
-            self._plot_interpolated(df, **kwargs)
-        else:
-            for term in df.columns:
-                plt.plot(df[term].values.tolist(), label=term, **kwargs)
-        if self.show_legend:
-            plt.legend()
-
-        # If milestones have been set, plot them
-        if self.show_milestones or self.show_milestone_labels:
-            self._show_milestones(df, ax)
-
-        # Assign the plot
-        self.fig = fig
-
-        # Show the plot by default
-        if not show_plot:
-            plt.close()
 
     def _adjust_titlepad(self, titlepad: float, width: float, height: float) -> None:
         """Hack to move the title above the labels.
@@ -382,18 +229,18 @@ class SimplePlotter(BasePlotter):
             # Only override self.titlepad if it is the default value
             if self.titlepad == 6.0:
                 titlepad = self._get_label_height(
-                    self.milestone_labels, self.milestone_labels_rotation
+                    self.milestone_labels, self.milestone_label_rotation
                 )
         return titlepad
 
     def _get_label_height(
-        self, milestone_labels: dict, milestone_labels_rotation: int
+        self, milestone_labels: dict, milestone_label_rotation: int
     ) -> float:
         """Calculate the height of the longest milestone label.
 
         Args:
             milestone_labels (dict): A dict containing milestone labels and x-axis positions.
-            milestone_labels_rotation (int): The rotation in degrees of the labels
+            milestone_label_rotation (int): The rotation in degrees of the labels
 
         Returns:
             float: The height of the longest label.
@@ -410,7 +257,7 @@ class SimplePlotter(BasePlotter):
                 xy=(0, 0),
                 xytext=(0, 0),
                 textcoords="offset points",
-                rotation=milestone_labels_rotation,
+                rotation=milestone_label_rotation,
             )
             bb = t.get_window_extent(renderer=r)
             heights.add(bb.height)
@@ -470,10 +317,38 @@ class SimplePlotter(BasePlotter):
                     xy=(v, ymax),
                     ha=self.milestone_labels_ha,
                     va=self.milestone_labels_va,
-                    rotation=self.milestone_labels_rotation,
+                    rotation=self.milestone_label_rotation,
                     xytext=self.milestone_labels_offset,
                     textcoords=self.milestone_labels_textcoords,
                 )
+
+    @validate_call(config=model_config)
+    def plot(self, show: Optional[bool] = True, **kwargs) -> None:
+        """Call the plotter.
+
+        Args:
+            show (Optional[bool]): Whether to show the plot after generating it.
+            **kwargs: Additional keyword arguments accepted by matplotlib.pyplot.plot().
+        """
+        # Grid
+        if self.show_grid:
+            plt.grid(visible=True)
+
+        # Interpolation
+        if self.use_interpolation:
+            self._plot_interpolated(self.df, **kwargs)
+        else:
+            for term in self.df.columns:
+                plt.plot(self.df[term].values.tolist(), label=term, **kwargs)  # self.ax
+        if self.show_legend:
+            plt.legend()
+
+        # If milestones have been set, plot them
+        if self.show_milestones or self.show_milestone_labels:
+            self._show_milestones(self.df, self.ax)
+
+        if not show:
+            plt.close()
 
     @validate_call
     def save(self, path: Path | str, **kwargs) -> None:
@@ -491,7 +366,7 @@ class SimplePlotter(BasePlotter):
             )
         self.fig.savefig(path, **kwargs)
 
-    def show(self, **kwargs) -> None:
+    def show(self) -> None:
         """Display a plot.
 
         Note:
@@ -501,7 +376,4 @@ class SimplePlotter(BasePlotter):
             raise LexosException(
                 "There is no plot to show. You must first call `plotter(data)`."
             )
-        try:
-            self.fig.show(**kwargs)
-        except UserWarning:
-            return self.fig
+        return self.fig

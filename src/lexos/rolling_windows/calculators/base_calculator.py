@@ -1,6 +1,6 @@
 """base_calculator.py.
 
-Last update: August 5, 2025
+Last update: September 11, 2025
 Last tested: February 16, 2025
 """
 
@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from spacy.language import Language
 from spacy.matcher import Matcher
 from spacy.schemas import DocJSONSchema
-from spacy.tokens import Span
+from spacy.tokens import Doc, Span, Token
 
 from lexos.exceptions import LexosException
 from lexos.rolling_windows import Windows
@@ -277,7 +277,7 @@ class BaseCalculator(ABC, BaseModel):
         return count
 
     def _count_in_token_window(
-        self, window: list[str] | Span, pattern: list | str
+        self, window: list[str] | list[Token] | Doc | Span, pattern: list | str
     ) -> int:
         """Choose function for counting matches in token windows.
 
@@ -288,13 +288,14 @@ class BaseCalculator(ABC, BaseModel):
         Returns:
             The number of occurrences of the pattern in the window.
         """
-        if isinstance(window, (list, str)):
-            if self.mode in ["multi_token", "spacy_rule"]:
-                raise LexosException(
-                    "You cannot use spaCy rules or perform multi-token searches with a string or list of token strings."
-                )
+        if isinstance(window, (list)) and self.mode in ["multi_token", "spacy_rule"]:
+            raise LexosException(
+                "You cannot use spaCy rules or perform multi-token searches with a string or list of token strings."
+            )
+        elif isinstance(window, list) and all(isinstance(i, str) for i in window):
+            # Match in single tokens
             return self._count_token_patterns_in_token_lists(window, pattern)
-        elif isinstance(window, Span):
+        elif isinstance(window, Doc | Span):
             # Iterate over the full text with token boundary alignment
             if self.mode.startswith("multi_token"):
                 return self._count_token_patterns_in_span_text(window, pattern)
