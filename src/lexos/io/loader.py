@@ -1,7 +1,7 @@
 """loader.py.
 
-Last Update: 2025-06-29
-Tested: 2025-06-29
+Last Update: 2025-09-13
+Tested: 2025-09-13
 """
 
 import mimetypes
@@ -164,11 +164,11 @@ class Loader(BaseLoader):
         self.texts = self.texts + dataset.texts
 
     @validate_call(config=model_config)
-    def load(self, paths: list[Path | str]) -> None:
+    def load(self, paths: Path | str | list[Path | str]) -> None:
         """Load a list of paths.
 
         Args:
-            paths (list[Path | str]): The list of paths to load.
+            paths (Path | str | list[Path | str]): The list of paths to load.
         """
         paths = ensure_list(paths)
         for path in paths:
