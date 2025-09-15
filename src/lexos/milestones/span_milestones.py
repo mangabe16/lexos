@@ -136,7 +136,7 @@ class SpanMilestones(BaseModel):
         return milestone_dicts
 
     def _reset(self) -> None:
-        """Reset token attributes"""
+        """Reset token attributes."""
         self.doc.spans["milestones"] = []
         for i, _ in enumerate(self.doc):
             self.doc[i]._.milestone_iob = "O"
