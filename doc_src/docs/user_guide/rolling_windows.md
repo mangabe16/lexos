@@ -13,7 +13,7 @@ The first step is to generate a set of windows with the `Windows` class based on
 
 The results of the calculations can be viewed in a Pandas DataFrame or CSV file, but it can be useful to visualize them on a line graph so that you can see peaks and valleys in the occurrence of your search terms. Lexos provides built-in plotter classes to do this. The `SimplePlotter` class produces static images, and the `PlotlyPlotter` class produces interactive ones. The latter may be better for presentations and the latter can sometimes be easier to read.
 
-### Generating Windows
+## Generating Windows
 
 When creating windows, you can use data as `input` in a number of formats:
 
@@ -117,7 +117,7 @@ The `Averages` and `Ratios` calculators work in a similar fashion. Rolling avera
 
 Rolling ratios compares the frequencies of exactly **two** patterns. A statistic of `0.0` means that only the second pattern appears in a window. `0.5` means that both patterns appear equally. `1.0` means that only the first pattern appears in the window. Values closer 0 favor the second pattern. Values closer to 1 favor the first pattern.
 
-### Plotting the Results
+## Plotting the Results
 
 Once you have a pandas DataFrame, you can also use the pandas interface to save it, for instance, as a CSV file: `calculator.to_df().to_csv("filename")`. You can also the built-in pandas plotting function to generate charts based on the results. See <a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.plot.html" target="_blanket">pandas.DataFrame.plot</a> for further information.
 
