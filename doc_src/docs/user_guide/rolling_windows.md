@@ -1,171 +1,136 @@
-# Rolling Windows
+# The Rolling Window Tool
 
-## Overview
+Rolling window analysis is a method for tracing the frequency of terms within a designated window of tokens over the course of a document. It can be used to identify small- and large-scale patterns of individual features or to compare these patterns for multiple features. Rolling window analysis tabulates term frequency as part of a continuously moving metric, rather than in discrete segments. Beginning with the selection of a window, say 100 tokens, rolling window analysis traces the frequency of a term's occurrence first within tokens 1-100, then 2 to 101, then 3, 102, and so on until the end of the document is reached. The result can be plotted as a line graph so that it is possible to observe gradual changes in a token’s frequency as the text progresses. Plotting different tokens on the same graph allows us to compare their frequencies over the progression of a document.
 
-!!! important
-    This page is currently under construction.
+!!! note
+    Rolling Windows only works on a single document. If you would like to perform an analysis on a sequence of documents, you must first merge them into a single document.
 
-The Rolling Windows module is a powerful text analysis tool that tracks how patterns change throughout documents. It creates a "moving spotlight" that slides through your text, counting specific words or patterns in each section to reveal temporal dynamics and narrative structures.
+## Basic Terminology
 
-### What Does Rolling Windows Do?
+In a Rolling Window analysis, you search for specific *units* within *windows* of *n* units. A unit can be a character, a token (span of characters), or a span of tokens. If you are using a spaCy language model, spans can correspond to semantic units, such as words or sentences. Lexos can perform complex searches of units within different types of windows, so it is important to have in mind what kind of search you want to perform.
 
-Imagine reading a novel and tracking how often "love" appears versus "conflict" as the story progresses. Rolling Windows automates this process, creating visual timelines that show:
+The first step is to generate a set of windows with the `Windows` class based on your desired units. You will then want to calculate how often your desired search terms occur in these windows. "How often" can be understood mathematically in a number of ways. The most obvious is a rolling count of the number of times a search term occurs in each window. But you can also understand this as the average number of times it occurs relative to the overall vocabulary, or the ratio of averages between two search terms. To obtain this information, you apply a calculator class. Lexos has three built-in calculator classes `Counts`, `Averages`, and `Ratios`, but you can also add custom calculator classes if the built-in ones do not provide the information you need.
 
-- **Thematic Evolution**: How central themes rise and fall throughout a text
-- **Character Arcs**: When characters appear most prominently in narratives
-- **Stylistic Patterns**: Changes in writing style, punctuation usage, or linguistic features
-- **Emotional Journeys**: Tracking sentiment-related words to map emotional trajectories
-- **Structural Analysis**: Identifying patterns in document organization
+The results of the calculations can be viewed in a Pandas DataFrame or CSV file, but it can be useful to visualize them on a line graph so that you can see peaks and valleys in the occurrence of your search terms. Lexos provides built-in plotter classes to do this. The `SimplePlotter` class produces static images, and the `PlotlyPlotter` class produces interactive ones. The latter may be better for presentations and the latter can sometimes be easier to read.
 
-The module generates frequency plots that help researchers, students, and analysts understand how language patterns evolve within texts.
+### Generating Windows
 
-## Key Components
+When creating windows, you can use data as `input` in a number of formats:
 
-### 1. The `Windows` Class
+- A string or list of strings (the latter might correspond words)
+- A spaCy Doc or Span object
+- A list of spaCy Token or Span objects
 
-The foundation of the module, this class segments your text into overlapping "windows" - chunks of text that slide through your document one step at a time.
+You will need to specify the size of your window (`n`) and the type of unit used (`window_type`): "characters", "spans", or "tokens". In other words, if you choose `n=1000`, that will produce windows of 1000 characters, spans, or tokens, dependingo on what you choose for `window` type. Finally, you must choose an `output` type, which can be "strings" or "tokens".
+
+Here is a sample setup.
 
 ```python
+# Import the Windows class
 from lexos.rolling_windows import Windows
 
-windows = Windows()
-rw = windows(input=doc, n=100, window_type="tokens", output="strings")
+# Assume that you have a raw text string
+windows = Windows(input=text, n=1000, window_type="characters", output="strings")
 ```
 
-**Key Parameters:**
+This will produce windows where each window is 1000 characters long. Here's another example:
 
-- `n`: Size of each window (e.g., 100 tokens)
-- `window_type`: How to measure windows ("tokens", "characters", or "lines")
-- `output`: Format of results ("strings" or "tokens")
+```python
+# Assume that you have a spaCy Doc
+windows = Windows(input=doc, n=1000, window_type="tokens", output="tokens")
+```
+
+This will produce windows where each window is 1000 tokens long. If you chance `output` to strings, each window will be the character length of a window of 1000 tokens. In other words, since not all tokens are the same length in chararacters, the length of your windows will not be consistent.
+
+!!! note
+    Some combinations of `input`, `window type`, and `output` are not possible. If Lexos cannot combine your choices, it will raise an error.
+
+You will then need to generate the instance with `windows()`. Alternatively, you can configure your `Windows` object and generate the windows at the same time like this:
+
+```python
+# Assume that you have a spaCy Doc
+windows = Windows()
+windows(input=doc, n=1000, window_type="tokens", output="tokens")
+```
+
+You can view the windows with `list(windows)`.
+
+!!! important
+    The `Windows` class creates a generator, not a list of windows. If you try to access it in any way, the generator will be exhausted, and you will not be able to access them again. In this case, you will have to call `windows()` again to re-create the windows.
+
+### Choosing Window Type and Size
+
+The are no hard and fast rules to how to select window types and sizes. To some degree, it will depend on your data type and research question. It is always best to try several options to see what is most revealing. The following general guidelines may be helpful.
+
+| Doc  Type | Window Type | Suggested Size | Reasoning |
+|-----------|-------------|----------------|-----------|
+| Short story | characters | 200-500 | May capture local patterns |
+| Novel/Book | characters | 500-2000 | May balance detail and trends |
+| Short text | tokens | 20-50 | Enough words for patterns |
+| Novel/Book | tokens | 50-200 | May captures thematic shifts |
+| Poetry | tokens (lines) | 5-20 | May respects verse structure |
+
+### Aligning Window Boundaries to Token Boundaries
+
+Imagine you had a spaCy Doc object from which you wanted to generate windows of characters. Since windows simply slide one unit at a time, in most cases window boundaries will not correspond to token boundaries. To make this clearer, consider a simple document with five tokens: "The", "cat", "in", "the", "hat". If we wanted windows of three tokens, the first window would be "The", but the second would be "he c". Perhaps this does not matter for your analysis, but, if it does, Lexos provides the possibility of aligning your windows on token boundaries with the `alignment_mode` keyword. "Strict" alignment (the default) behaves exactly as we have just observed, but, if you set `alignment_mode` to `None`, Lexos will attempt to snap the windows to token boundaries. It is recommended that you play with different alignment modes and examine the results to make sure they are satisfactory before you continue your analysis.
+
+## Using Calculators
+
+We can now import a calculator and perform a search on our windows. Each search term is considered a "pattern", which we can pass as a list using the `patterns` keyword.
+
+```python
+from lexos.rolling_windows.calculators.counts import Counts
+
+# Using the `windows` object previously created
+calculator = Counts(
+    windows=windows,
+    patterns=["a", "e"],
+    case_sensitive=False,
+    mode="exact"
+)
+```
+
+Here we are searching for the patterns "a" and "e" in our windows. Set `case_sensitive` to `True` if you want the search to distinguish between "A" and "a".
+
+Lexos can search for patterns using five different modes. The default "exact" mode will search for the exact character pattern in each unit in the window. The "regex" mode will interpret your pattern as a regular expression. In other words, if your window contains "The end", a search for "e." will not find a match in "exact" mode. In "regex" mode, it will find that the pattern occurs twice, once followed by a space and once followed by "n". The "spacy_rule" setting employs spaCy's `Matcher` class, which allows you to set up powerful rules to do all sorts of complex token matching. The "multi_token" mode allows you to search for sequences of tokens without matching the exact token boundaries (for this, use "multi_token_exact"). It is recommended that you play with these settings to determine what best suits your research question.
+
+!!! "Technical Note"
+
+    - `exact` mode uses Python's string `count()` method.
+    - `regex` mode uses `re.findall()` with appropriate flags.
+    - `spacy_rule` mode requires spaCy Token objects, not strings.
+
+If you wish to see the numerical data produced by the calculator, use the `to_df()` method to display it as a Pandas DataFrame. You can also use Pandas to save it to a CSV file (or other format), as shown below:
+
+```python
+calculator = Counts(
+    windows=windows,
+    patterns=["a", "e"],
+    case_sensitive=False,
+    mode="exact"
+)
+df = calculator.to_df()
+df.to_csv("filename.csv")
+```
+
+The `Averages` and `Ratios` calculators work in a similar fashion. Rolling averages provides a useful statistic if you have windows of different sizes or you need a normalized frequency statistic.
+
+Rolling ratios compares the frequencies of exactly **two** patterns. A statistic of `0.0` means that only the second pattern appears in a window. `0.5` means that both patterns appear equally. `1.0` means that only the first pattern appears in the window. Values closer 0 favor the second pattern. Values closer to 1 favor the first pattern.
+
+### Plotting the Results
+
+Once you have a pandas DataFrame, you can also use the pandas interface to save it, for instance, as a CSV file: `calculator.to_df().to_csv("filename")`. You can also the built-in pandas plotting function to generate charts based on the results. See <a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.plot.html" target="_blanket">pandas.DataFrame.plot</a> for further information.
+
+### Plotter Classes
+
+Lexos has its own built-in plotting classes, `SimplePlotter` and `PlotlyPlotter`, which are specifically designed for the type of data produced by Rolling Windows. Each of the plotter classes has numerous parameters you can use to change the appearance of the plot, including the size of the image, title, and access label. Only some of the options are shown below. See the API documentation for explanations of all of the available parameters.
 
 !!! note "Developer's Note"
-    The `Windows` class yields a generator for efficient memory usage. Convert it to a list only if needed.
+    If one of these plotters does not suit your need, you can also write your own custom calculator class that inherits from `BasePlotter`.
 
-    **Accepted input types:**
+### `SimplePlotter`
 
-    - `str` (plain text)
-    - spaCy `Doc` objects
-    - `list` of strings or tokens
-
-    **Important: Windows Are Consumed!**
-    After using a windows object once (like converting to a list), you need to create fresh windows for each calculator. This is why you'll need to create new windows for each analysis.
-
-### 2. Calculator Classes
-
-Calculators analyze the patterns within each window. The module includes several calculator types:
-
-## Choosing Your Analysis Type
-
-| Calculator | Use When | What it measures | Output |
-|------------|----------|------------------|--------|
-| `Counts` | You need raw occurrence numbers | Total number of matches per window | Raw frequencies |
-| `Averages` | Comparing texts of different lengths or standardizing | Matches per unit (normalized) | Frequency rates |
-| `Ratios` | Comparing balance between exactly 2 patterns | Relative proportion | Values from 0.0 to 1.0 |
-
-### `Counts` Calculator
-
-Provides raw occurrence counts without normalization.
-
-```python
-from lexos.rolling_windows.calculators import Counts
-
-counter = Counts()
-counter(
-    patterns=["love", "death"],
-    windows=rw,
-    mode="exact",
-    case_sensitive=False
-)
-```
-
-### `Averages` Calculator
-
-Calculates the average frequency of patterns across windows, normalizing for window size.
-
-```python
-from lexos.rolling_windows.calculators import Averages
-
-averages = Averages()
-averages(
-    patterns=["love", "death"],
-    windows=rw,
-    mode="exact",
-    case_sensitive=False
-)
-```
-
-**When to use Averages instead of Counts:**
-
-- Comparing texts of different lengths
-- Comparing different window sizes
-- Creating standardized measurements
-- Academic/scientific analysis
-
-### `Ratios` Calculator
-
-Computes the ratio between two patterns (e.g., positive vs. negative words).
-
-```python
-from lexos.rolling_windows.calculators import Ratios
-
-ratio_calc = Ratios()
-ratio_calc(
-    patterns=["positive", "negative"],  # Exactly 2 patterns required
-    windows=rw,
-    mode="exact",
-    case_sensitive=False
-)
-```
-
-**Understanding Ratios:**
-
-- **0.0** = Only the second pattern appears
-- **0.5** = Both patterns appear equally
-- **1.0** = Only the first pattern appears
-- Values closer to 0 favor the second pattern
-- Values closer to 1 favor the first pattern
-
-## Search Modes
-
-A search mode determines how the Rolling Windows module matches your specified patterns within each window of text. It controls whether the search looks for exact string matches, uses regular expressions for flexible pattern matching, applies linguistic rules with spaCy, or detects multi-word phrases.
-
-### Available Search Modes
-
-- `"exact"`: Precise string matching
-- `"regex"`: Regular expression patterns
-- `"spacy_rule"`: Advanced linguistic pattern matching
-- `"multi_token"`: Phrase detection
-
-### Pattern Matching Examples
-
-| Pattern Type | Example | Mode | Use Case |
-|--------------|---------|------|----------|
-| Exact match | `["love", "hate"]` | `"exact"` | Simple word counting |
-| Word starts with | `[r"\bsh\w*"]` | `"regex"` | Words starting with "sh" |
-| Word ends with | `[r".*ing$"]` | `"regex"` | Words ending in "-ing" |
-| Numbers | `[r"\d+"]` | `"regex"` | Numeric content |
-| Capitalized words | `[r"\b[A-Z]\w*"]` | `"regex"` | Proper nouns, sentence starts |
-| Multi-word phrases | `["sherlock holmes"]` | `"exact"` | Exact phrase detection |
-| All proper nouns | `[[{"POS": "PROPN"}]]` | `"spacy_rule"` | Linguistic analysis |
-| All verbs | `[[{"POS": "VERB"}]]` | `"spacy_rule"` | Grammatical patterns |
-
-!!! important "Important Tip"
-    After creating a calculator, use the `.to_df()` method to convert results into a pandas DataFrame for further analysis or plotting.
-
-    **SpaCy Requirements:**
-    - spaCy patterns require `window_type="tokens"` and `output="tokens"`
-    - Regex patterns use raw strings (e.g., `r"\bsh\w*"`)
-    - Use `case_sensitive=False` for case-insensitive matching
-
-### 3. Plotter Classes
-
-Visualize your results with two plotting options:
-
-#### `SimplePlotter`
-
-Generates high-quality static plots suitable for publications using Matplotlib.
-
-**Best for:** Reports, publications, presentations
+The `SimplePlotter` class generates high-quality static plots suitable for publications using Python's `matplotlib` library. This well-suited for reports, publications, presentations.
 
 ```python
 from lexos.rolling_windows.plotters import SimplePlotter
@@ -174,11 +139,17 @@ plotter = SimplePlotter(title="Word Frequencies Over Time")
 plotter.plot(averages.to_df())
 ```
 
-#### `PlotlyPlotter`
+To save the plot use the `save()` method:
 
-Generates interactive web-based visualizations with hover tooltips and zoom capabilities.
+```python
+plotter.save("filename.png")
+```
 
-**Best for:** Exploration, web presentation, detailed analysis with hover information
+Files can be saved in `.jpg`, `.svg`, and `.pdf` formats by changing the file extension.
+
+### `PlotlyPlotter`
+
+The `PlotlyPlotter` class generates interactive web-based visualizations with hover tooltips and zoom capabilities. `PlotlyPlotter` is best for exploration, web presentation, detailed analysis with hover information.
 
 ```python
 from lexos.rolling_windows.plotters import PlotlyPlotter
@@ -187,7 +158,7 @@ interactive_plotter = PlotlyPlotter()
 interactive_plotter.plot(averages.to_df(), show_plot=True)
 ```
 
-**Interactive Features:**
+Hovering over the top of the diagram displays a menu bar with the following interactive features:
 
 - **Hover** over points to see exact values
 - **Zoom** in/out with mouse wheel or zoom controls
@@ -195,196 +166,21 @@ interactive_plotter.plot(averages.to_df(), show_plot=True)
 - **Toggle** lines on/off by clicking legend items
 - **Download** plot as PNG using the camera icon
 
-## Window Size Guidelines
+### Using Milestones
 
-| Text Type | Window Type | Suggested Size | Reasoning |
-|-----------|-------------|----------------|-----------|
-| Short story | characters | 200-500 | Captures local patterns |
-| Novel/Book | characters | 500-2000 | Balances detail and trends |
-| Short text | tokens | 20-50 | Enough words for patterns |
-| Novel/Book | tokens | 50-200 | Captures thematic shifts |
-| Poetry | tokens (lines) | 5-20 | Respects verse structure |
+When tracing rolling windows patterns over the course of a document, it can be useful to see how the patterns occur with respect to structural divisions in the text. For instance, if you are analyzing a novel, you may wish to know the changes in the rolling average over a feature in each chapter. The point of transition between one section of the text and the next is known as a "milestone". Both rolling windows plotters allow you to display milestones using `show_milestones=True`, which places a vertical line on the graph at the milestone location. If `show_milestone_labels=True`, the graph will additionally display labels such as "chapter", "scene", "line", etc. above each line.
 
-## How It Works
-
-1. **Text Preparation**: Load your text and optionally preprocess it (lowercase, remove punctuation)
-2. **Window Creation**: Segment text into overlapping windows of specified size
-3. **Pattern Analysis**: Count occurrences of your search terms in each window
-4. **Calculation**: Compute averages, counts, or ratios based on your needs
-5. **Visualization**: Generate plots showing pattern frequencies across the document
-
-!!! note "Tip"
-    For a detailed, step-by-step walkthrough—including code examples and explanations—see the accompanying tutorial Jupyter notebook.
-
-## Quick Start Example
-
-```python
-import spacy
-from lexos.rolling_windows import Windows
-from lexos.rolling_windows.calculators import Averages
-from lexos.rolling_windows.plotters import SimplePlotter
-
-# Load text and create spaCy doc
-nlp = spacy.load("en_core_web_sm")
-with open("your_text.txt", "r", encoding="utf-8") as f:
-    raw_text = f.read()
-
-# Basic text cleaning (optional)
-text = raw_text.lower()
-doc = nlp(text)
-
-# Create 100-token windows
-windows = Windows()
-rw = windows(input=doc, n=100, window_type="tokens", output="strings")
-
-# Calculate pattern frequencies
-calc = Averages()
-calc(patterns=["love", "war"], windows=rw, mode="exact", case_sensitive=False)
-
-# Generate visualization
-plotter = SimplePlotter(title="Love vs War")
-plotter.plot(calc.to_df())
-
-# Save results
-calc.to_df().to_csv("analysis_results.csv")
-plotter.save("analysis_plot.png")
-```
-
-## Complete Workflow Example
-
-```python
-# 1. Load and prepare text
-with open("A_Scandal_in_Bohemia.txt", "r", encoding="utf-8") as f:
-    text = f.read().lower()
-
-# 2. Create windows (1000 characters each)
-windows = Windows()
-analysis_windows = windows(input=text, n=1000, window_type="characters", output="strings")
-
-# 3. Calculate average frequencies of 'a' and 'e'
-calculator = Averages()
-calculator(patterns=["a", "e"], windows=analysis_windows, mode="exact", case_sensitive=False)
-results = calculator.to_df()
-
-# 4. Create visualization
-plotter = SimplePlotter(title="Letter Frequencies: 'a' vs 'e'")
-plotter(df=results)
-
-# 5. Save everything
-plotter.save("analysis.png")
-results.to_csv("analysis_data.csv")
-```
-
-## Practical Applications
-
-### Literary Analysis
-
-Track character mentions, themes, or stylistic elements throughout novels:
-
-```python
-# Track protagonist vs antagonist presence
-patterns = ["elizabeth", "wickham"]
-```
-
-### Historical Documents
-
-Analyze changing terminology or concepts over time:
-
-```python
-# Track evolution of political terms
-patterns = ["liberty", "freedom", "rights"]
-```
-
-### Linguistic Research
-
-Study language features and their distribution:
-
-```python
-# Analyze punctuation patterns
-patterns = ["!", "?", "..."]
-```
-
-### Content Analysis
-
-Examine emotional or thematic content in texts:
-
-```python
-# Sentiment tracking
-patterns = ["happy", "sad", "angry", "peaceful"]
-```
-
-## Advanced Features
-
-### Milestone Markers
-
-Add vertical lines to mark important sections (chapters, scenes, etc.):
+You can manually create milestones dictionary consisting of labels and token locations (which will be character locations, if your windows are composed of characters). An example is shown below:
 
 ```python
 milestones = {"Chapter 1": 0, "Chapter 2": 500, "Chapter 3": 1000}
-plotter = SimplePlotter(show_milestones=True, milestone_labels=milestones)
+plotter = SimplePlotter(
+    milestone_labels=milestones
+    show_milestones=True,
+    show_milestone_labels=True,
+    milestone_label_rotation=45
+)
 ```
 
-### Custom Window Alignment
-
-Control how character-based windows snap to token boundaries:
-
-```python
-windows = Windows()
-rw = windows(input=doc, n=500, window_type="characters",
-             alignment_mode="contract")  # or "expand", "strict"
-```
-
-### Export Options
-
-Save results in various formats:
-
-- PNG/SVG (static plots)
-- HTML (interactive plots)
-- CSV (raw data)
-
-## Troubleshooting Common Issues
-
-**Problem:** "Windows are consumed" error
-**Solution:** Create fresh windows for each calculator call
-
-**Problem:** spaCy patterns don't work
-**Solution:** Ensure `window_type="tokens"` and `output="tokens"` for spaCy rules
-
-**Problem:** No matches found
-**Solution:** Check case sensitivity, try `case_sensitive=False`
-
-**Problem:** Regex not working
-**Solution:** Use raw strings (`r"pattern"`) and escape special characters
-
-**Problem:** Memory issues with large texts
-**Solution:** Reduce window size or limit text length (e.g., `text[:1000000]`)
-
-## Dependencies
-
-The Rolling Windows module requires:
-
-- `spacy` (with language model, e.g., `en_core_web_sm`)
-- `pandas`
-- `numpy`
-- `matplotlib` (for static plots)
-- `plotly` (for interactive plots)
-- `pydantic` (for data validation)
-
-!!! note "Developer's Note"
-    Install the spaCy language model separately:
-
-    ```bash
-    python -m spacy download en_core_web_sm
-    ```
-
-## Testing
-
-The module includes comprehensive test coverage (100% as of 6/2/2025):
-
-```bash
-# Run all tests
-uv run pytest tests/rolling_windows/
-
-# Generate coverage report
-uv run pytest --cov=src/lexos/rolling_windows tests/rolling_windows/
-```
+!!! note
+    The Lexos `milestones` module allows you to detect milestone locations and create a milestone dictionary. This can be much easier than constructing a milestone dictionary yourself.
