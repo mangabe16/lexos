@@ -19,8 +19,7 @@ Here is a list of the currently available tutorials, organised by module:
 
 ## Cutter
 
-- Cutting Text Strings
-- Cutting spaCy Documents and Lists of Tokens
+- Text Cutter and Token Cutter: [📓 Notebook](../../tutorials/cutter/tutorial.ipynb) | [🗄️ Data](../../tutorials/cutter/Austen_Pride.txt)
 
 ## DTM
 
