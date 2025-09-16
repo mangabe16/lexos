@@ -9,8 +9,9 @@ Here is a list of the currently available tutorials, organised by module:
 ## Cluster
 
 - Dendrograms (Hierarchical Agglomerative Clustering): [📓 Notebook](../../tutorials/cluster/dendrogram_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/data.zip)
-- Bootstrap Consenus Trees (Hierarchical Agglomerative Clustering)
-- K-Means Clustering
+- Clustermaps (Hierarchical Agglomerative Clustering): [📓 Notebook](../../tutorials/cluster/clustermap_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/data.zip)
+- Bootstrap Consenus Trees (Hierarchical Agglomerative Clustering): [📓 Notebook](../../tutorials/cluster/bct_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/FilesToUse.zip)
+- K-Means Clustering: [📓 Notebook](../../tutorials/cluster/kmeans_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/FilesToUse.zip)
 
 ## Corpus
 
@@ -29,9 +30,13 @@ Here is a list of the currently available tutorials, organised by module:
 
 - Loading Data [📓 Notebook](../../tutorials/io/tutorial.ipynb) | [🗄️ Data](../../tutorials/io/sample_files.zip)
 
+## Milestones
+
+- Using Milestones [📓 Notebook](../../tutorials/milestones/tutorial.ipynb)
+
 ## Rolling Windows
 
-- Using Rolling Windows
+- Using Rolling Windows [📓 Notebook](../../tutorials/rolling_windows/rolling_windows_tutorial.ipynb) | [🗄️ Data](../../tutorials/rolling_windows/A_Scandal_in_Bohemia.txt)
 
 ## Scrubber
 
