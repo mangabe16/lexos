@@ -30,6 +30,10 @@ Here is a list of the currently available tutorials, organised by module:
 
 - Loading Data [📓 Notebook](../../tutorials/io/tutorial.ipynb) | [🗄️ Data](../../tutorials/io/sample_files.zip)
 
+## Keywords in Context (KWIC)
+
+- Keywords in Context (KWIC) [📓 Notebook](../../tutorials/kwic/tutorial.ipynb)
+
 ## Milestones
 
 - Using Milestones [📓 Notebook](../../tutorials/milestones/tutorial.ipynb)
