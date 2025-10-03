@@ -5,6 +5,11 @@ Last Tested: TBD.
 """
 
 from lexos.classification.trainer import predict_labels, train_classifier
-from lexos.classification.utils import PredictionSaver
+from lexos.classification.utils import PredictionSaver, save_predictions
 
-__all__ = ["train_classifier", "predict_labels", "PredictionSaver"]
+__all__ = [
+    "train_classifier",
+    "predict_labels",
+    "PredictionSaver",
+    "save_predictions",
+]

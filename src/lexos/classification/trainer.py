@@ -16,7 +16,7 @@ from sklearn.tree import DecisionTreeClassifier  # type:ignore
 
 # Function to train and evaluate a classifier
 def train_classifier(
-    feature_matrix, target_labels, model="svc", test_size=0.4, random_state=None
+    feature_matrix, target_labels, model: str = "svc", test_size: float = 0.4, random_state=None
 ):
     """Train the classifier.
 
@@ -35,22 +35,28 @@ def train_classifier(
     """
     # Split features and labels into training and test sets
     features_train, features_test, labels_train, labels_test = train_test_split(
-        feature_matrix, target_labels, test_size=test_size, random_state=random_state
+        feature_matrix,
+        target_labels,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=target_labels if len(set(target_labels)) > 1 else None,
     )
 
     # Initialize the chosen classifier
     if model == "svc":
-        clf = SVC(kernel="linear")
+        clf = SVC(kernel="linear", random_state=random_state)
     elif model == "logistic":
-        clf = LogisticRegression(max_iter=1000)
+        clf = LogisticRegression(max_iter=1000, random_state=random_state)
     elif model == "decision_tree":
-        clf = DecisionTreeClassifier()
+        clf = DecisionTreeClassifier(random_state=random_state)
     elif model == "random_forest":
-        clf = RandomForestClassifier()
+        clf = RandomForestClassifier(random_state=random_state)
     elif model == "knn":
         clf = KNeighborsClassifier()
+    elif model == "naive_bayes":
+        clf = MultinomialNB()
     else:
-        raise ValueError(f"Unknown model: {model}")
+        raise ValueError(f"Unsupported model: {model}")
 
     # Fit the classifier to the training data
     clf.fit(features_train, labels_train)

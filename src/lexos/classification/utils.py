@@ -5,7 +5,7 @@ Last Tested: TBD.
 """
 
 import csv
-from typing import List, Union
+from typing import List, Union, Sequence
 
 import pandas as pd
 from spacy.tokens import Doc
@@ -27,6 +27,24 @@ def save_predictions(filenames: list, predictions: list, output_file: str) -> No
     df.to_csv(output_file, index=False)
     print(f"Predictions saved to {output_file}")
 
+
+class PredictionSaver:
+    """Simple wrapper class to save predictions (kept for API compatibility)."""
+
+    def __init__(self, default_output: str = "predictions.csv"):
+        self.default_output = default_output
+
+    def save(
+        self,
+        filenames: Sequence[str],
+        predictions: Sequence[str],
+        output_file: str | None = None,
+    ):
+        target = output_file or self.default_output
+        save_predictions(list(filenames), list(predictions), target)
+
+
+__all__ = ["save_predictions", "PredictionSaver"]
 
 # def save_predictions(
 #     labels: List[str],
