@@ -81,3 +81,26 @@ def predict_labels(clf, new_feature_matrix):
         predicted_labels: list of predicted labels
     """
     return clf.predict(new_feature_matrix)
+
+
+# Function to fit a classifier on a pre-split feature matrix
+def fit_classifier(feature_matrix, target_labels, model: str = "svc", **kwargs):
+    """
+    Fit a classifier on a pre-split feature matrix (no internal train/test split).
+    Returns the fitted sklearn estimator.
+    """
+    
+    registry = {
+        "svc": SVC,
+        "decision_tree": DecisionTreeClassifier,
+        "logistic_regression": LogisticRegression,
+        "random_forest": RandomForestClassifier,
+        "naive_bayes": MultinomialNB,
+    }
+    key = model.lower()
+    if key not in registry:
+        raise ValueError(f"Unknown model '{model}'. Choose from {sorted(registry.keys())}.")
+    Estimator = registry[key]
+    clf = Estimator(**kwargs)
+    clf.fit(feature_matrix, target_labels)
+    return clf
