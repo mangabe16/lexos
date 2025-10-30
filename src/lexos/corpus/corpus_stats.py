@@ -48,6 +48,11 @@ class CorpusStats(BaseModel):
     dtm: DTM = Field(
         default=None, description="Document-Term Matrix (DTM) for the Corpus."
     )
+    # New: accept optional raw texts for accurate CharCount (includes spaces/punct)
+    raw_texts: dict[str, str] | list[str] | None = Field(
+        default=None,
+        description="Optional raw text per document (by id or list aligned with docs). Enables exact CharCount."
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -57,6 +62,16 @@ class CorpusStats(BaseModel):
         # Separate the ids and labels from the docs
         object.__setattr__(self, "ids", [doc[0] for doc in self.docs])
         object.__setattr__(self, "labels", [doc[1] for doc in self.docs])
+
+        # Normalize raw_texts into a map {id: raw_text}
+        raw_map: dict[str, str] = {}
+        if isinstance(self.raw_texts, list):
+            if len(self.raw_texts) != len(self.docs):
+                raise ValueError("raw_texts list must align with docs length.")
+            raw_map = {self.ids[i]: self.raw_texts[i] for i in range(len(self.docs))}
+        elif isinstance(self.raw_texts, dict):
+            raw_map = self.raw_texts
+        object.__setattr__(self, "raw_text_map", raw_map)
 
         # Configure the DTM vectorizer with the provided settings
         vectorizer_kwargs = {}
@@ -274,6 +289,37 @@ class CorpusStats(BaseModel):
 
         # Add hapax dislegomena (words appearing exactly twice)
         file_stats["hapax_dislegomena"] = df.eq(2).sum(axis=1)
+
+        # New features
+        # CharCount: prefer exact raw text length if provided; otherwise approximate by joining tokens with spaces
+        char_counts: list[int] = []
+        for i, (doc_id, _label, toks) in enumerate(self.docs):
+            if hasattr(self, "raw_text_map") and doc_id in getattr(self, "raw_text_map", {}):
+                cc = len(self.raw_text_map[doc_id])
+            else:
+                # Approximation when raw text isn't available (tokens joined with single spaces)
+                cc = sum(len(t) for t in toks) + max(0, len(toks) - 1)
+            char_counts.append(cc)
+        file_stats["char_count"] = pd.Series(char_counts, index=file_stats.index, dtype="int64")
+
+        # WordCount and UniqueWordCount align with total_tokens/total_terms
+        file_stats["word_count"] = file_stats["total_tokens"].astype("int64")
+        file_stats["unique_word_count"] = file_stats["total_terms"].astype("int64")
+
+        # AvgWordLength = CharCount / WordCount (safe divide)
+        file_stats["avg_word_length"] = (
+            file_stats["char_count"] / file_stats["word_count"].replace({0: np.nan})
+        ).fillna(0.0)
+
+        # TTR = UniqueWordCount / WordCount
+        file_stats["ttr"] = (
+            file_stats["unique_word_count"] / file_stats["word_count"].replace({0: np.nan})
+        ).fillna(0.0)
+
+        # HapaxLegomenonRate = hapax_legomena / WordCount
+        file_stats["hapax_legomenon_rate"] = (
+            file_stats["hapax_legomena"] / file_stats["word_count"].replace({0: np.nan})
+        ).fillna(0.0)
 
         return file_stats
 
