@@ -1,16 +1,17 @@
 """cloud.py.
 
-Last Update: August 17, 2025
-Last Tested: August 17, 2025
+Last Update: November 7, 2025
+Last Tested: November 7, 2025
 """
 
-from collections import Counter
+import math
 from pathlib import Path
 from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Span, Token
@@ -21,7 +22,7 @@ from lexos.exceptions import LexosException
 from lexos.visualization import processors
 
 # Valid input types
-single_doc_types = dict[str, int] | Doc | Span | str | list[str] | list[Token]
+single_doc_types = dict[str, int | float] | Doc | Span | str | list[str] | list[Token]
 multi_doc_types = (
     str
     | list[str]
@@ -29,7 +30,7 @@ multi_doc_types = (
     | list[Doc]
     | list[Span]
     | list[list[Token]]
-    | dict[str, int]
+    | dict[str, int | float]
     | pd.DataFrame
     | DTM
 )
@@ -134,7 +135,237 @@ class WordCloud(BaseModel):
 
 
 class MultiCloud(BaseModel):
-    """A Pydantic model for creating multiple WordClouds arranged in a grid."""
+    """A Pydantic model for creating multiple WordClouds arranged in a grid using the topic_clouds approach."""
+
+    data: list[str] | list[list[str]] | list[Doc] | list[Span] | DTM | pd.DataFrame = (
+        Field(
+            ...,
+            description="The data to generate word clouds from. Accepts list of documents, DTM, or DataFrame.",
+        )
+    )
+    docs: Optional[int | str | list[int] | list[str]] = Field(
+        None, description="A list of documents to be selected from the DTM/DataFrame."
+    )
+    limit: Optional[int] = Field(
+        None, description="The maximum number of terms to plot per cloud."
+    )
+    figsize: tuple[int, int] = Field(
+        (10, 10), description="The size of the overall figure."
+    )
+    layout: Optional[str | tuple[int, int]] = Field(
+        "auto",
+        description="The number of rows and columns in the figure. Default is 'auto'.",
+    )
+    opts: Optional[dict[str, Any]] = Field(
+        {
+            "background_color": "white",
+            "max_words": 2000,
+            "contour_width": 0,
+            "contour_color": "steelblue",
+        },
+        description="The WordCloud() options applied to each word cloud.",
+    )
+    round: Optional[int] = Field(
+        0,
+        description="An integer to apply a mask that rounds each word cloud. It is best to use 100 or higher for a circular mask.",
+    )
+    title: Optional[str] = Field(None, description="Overall title for the figure.")
+    labels: Optional[list[str]] = Field(
+        None, description="Labels for each subplot/word cloud."
+    )
+    doc_data: Optional[list[dict[str, int | float]]] = Field(
+        None, description="Processed document data for each word cloud."
+    )
+    fig: Optional[plt.Figure] = Field(
+        None, description="The matplotlib figure object for the multi-cloud plot."
+    )
+    wordcloud: Optional[PythonWordCloud] = Field(
+        None, description="The WordCloud object used for generating clouds."
+    )
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
+    )
+
+    def __init__(self, **data: Any) -> None:
+        """Initialize the MultiCloud model."""
+        super().__init__(**data)
+
+        # Process different data types to get individual document data
+        self.doc_data = self._process_data()
+
+        # Setup the WordCloud object
+        self.wordcloud = self._setup_wordcloud()
+
+        # Render the figure
+        self._render()
+
+    def _process_data(self) -> list[dict[str, int | float]]:
+        """Process the input data into individual document dictionaries."""
+        if isinstance(self.data, DTM):
+            # Make sure there is data
+            if (
+                self.data.doc_term_matrix is None
+                or self.data.doc_term_matrix.shape[0] == 0
+            ):
+                raise LexosException("Empty DTM provided.")
+            # Extract documents from DTM
+            doc_data = []
+            selected_docs = (
+                self.docs
+                if self.docs is not None
+                else range(self.data.doc_term_matrix.shape[0])
+            )
+            if isinstance(selected_docs, (int, str)):
+                selected_docs = [selected_docs]
+
+            for doc_idx in selected_docs:
+                # Get term frequencies for this document
+                if isinstance(doc_idx, str):
+                    doc_idx = self.data.labels.index(doc_idx)
+                doc_counts = {}
+
+                # Get the row as a 1D array and convert to list/scalar values
+                doc_row = self.data.doc_term_matrix[doc_idx]
+                if hasattr(doc_row, "toarray"):  # sparse matrix
+                    doc_row = doc_row.toarray().flatten()
+
+                for term_idx, count in enumerate(doc_row):
+                    # Convert to scalar value before comparison
+                    count_value = (
+                        float(count.item()) if hasattr(count, "item") else float(count)
+                    )
+                    if count_value > 0:
+                        doc_counts[self.data.vectorizer.terms_list[term_idx]] = (
+                            count_value
+                        )
+                doc_data.append(doc_counts)
+
+        elif isinstance(self.data, pd.DataFrame):
+            # Make sure there is data
+            if self.data.empty:
+                raise LexosException("Empty DataFrame provided.")
+            # Process DataFrame - assume it's a document-term matrix
+            doc_data = []
+            selected_docs = (
+                self.docs if self.docs is not None else range(len(self.data))
+            )
+            if isinstance(selected_docs, (int, str)):
+                selected_docs = [selected_docs]
+
+            for doc_idx in selected_docs:
+                if isinstance(doc_idx, str):
+                    doc_idx = self.data.index.get_loc(doc_idx)
+                doc_counts = self.data.iloc[doc_idx].to_dict()
+                # Filter out zero counts and convert to float
+                doc_counts = {
+                    k: float(v.item() if hasattr(v, "item") else v)
+                    for k, v in doc_counts.items()
+                    if (float(v.item()) if hasattr(v, "item") else float(v)) > 0
+                }
+                doc_data.append(doc_counts)
+
+        elif isinstance(self.data, list):
+            # Make sure the data is not empty
+            if not self.data or len(self.data) == 0:
+                raise LexosException("No valid data provided for MultiCloud.")
+            # Process list of documents using the processors module
+            doc_data = [
+                processors.process_data(doc, None, self.limit) for doc in self.data
+            ]
+
+        else:
+            raise LexosException("Unsupported data type for MultiCloud.")
+
+        return doc_data
+
+    def _setup_wordcloud(self) -> PythonWordCloud:
+        """Configure a single WordCloud object to be reused."""
+        # Set the mask if using round
+        if self.round > 0:
+            x, y = np.ogrid[:300, :300]
+            mask = (x - 150) ** 2 + (y - 150) ** 2 > self.round**2
+            mask = 255 * mask.astype(int)
+            self.opts["mask"] = mask
+
+        # Set max_words if limit is specified
+        if self.limit:
+            self.opts["max_words"] = self.limit
+
+        return PythonWordCloud(**self.opts)
+
+    def _render(self) -> None:
+        """Generate and display the multi-cloud figure."""
+        # Set parameters for plotting
+        sns.set_theme()
+        plt.rcParams["figure.figsize"] = self.figsize
+
+        # Calculate layout
+        n = len(self.doc_data)
+        if self.layout == "auto":
+            columns = math.floor(math.sqrt(n))
+            rows = math.ceil(n / columns)
+        elif isinstance(self.layout, tuple):
+            rows, columns = self.layout
+        else:
+            raise LexosException("Invalid layout specification.")
+
+        # Create the figure
+        self.fig = plt.figure(figsize=self.figsize)
+
+        # Add overall title
+        if self.title:
+            self.fig.suptitle(self.title, fontsize=16)
+
+        # Generate the word clouds
+        for i, doc_counts in enumerate(self.doc_data):
+            self.wordcloud.generate_from_frequencies(doc_counts)
+            plt.subplot(rows, columns, i + 1)
+            plt.imshow(self.wordcloud, interpolation="bilinear")
+            plt.axis("off")
+
+            # Add label if provided
+            if self.labels and i < len(self.labels):
+                plt.title(self.labels[i])
+            else:
+                plt.title(f"Doc {i}")
+
+        # Get the figure and close to prevent automatic display
+        self.fig = plt.gcf()
+        plt.close()
+
+    @validate_call
+    def save(self, path: Path | str, **kwargs) -> None:
+        """Save the MultiCloud figure to a file.
+
+        Args:
+            path (Path | str): The file path to save the MultiCloud image.
+            **kwargs: Additional keyword arguments for `plt.savefig`.
+        """
+        if self.fig is None:
+            raise LexosException("No figure to save.")
+        self.fig.savefig(path, **kwargs)
+
+    def show(self) -> None:
+        """Display the multi-cloud figure."""
+        if self.fig is None:
+            raise LexosException("No figure to show.")
+        # Use IPython display for Jupyter notebooks
+        try:
+            from IPython.display import display
+
+            display(self.fig)
+        except ImportError:
+            # Fallback for non-Jupyter environments
+            plt.figure(self.fig.number)
+            plt.show()
+
+
+class MultiCloudOld(BaseModel):
+    """A Pydantic model for creating multiple WordClouds arranged in a grid.
+
+    # NOTE: This Class is deprecated.
+    """
 
     data: list[str] | list[list[str]] | list[Doc] | list[Span] | DTM | pd.DataFrame = (
         Field(

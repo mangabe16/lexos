@@ -63,7 +63,6 @@ def import_data_file(file: Path | str) -> list[str]:
         file (Path | str) A file containing the documents to import.
 
     Returns:
-
         list[str]: The training data.
     """
     # Retrieve the data from each file
@@ -86,7 +85,6 @@ def import_dirs(dirs: Path | str | list[Path | str]) -> list[str]:
         dirs (Path | str | list[Path | str]) A directory or list of directories to import.
 
     Returns:
-
         list[str]: The training data.
     """
     # Ensure dirs is a list
@@ -116,7 +114,6 @@ def import_docs(docs: list[str | Doc]) -> list[str]:
         docs (list[str | Doc]) List of documents to import. Each document can be a string or a Doc object.
 
     Returns:
-
         list[str]: The training data.
 
     """
@@ -138,7 +135,6 @@ def import_files(files: Path | str | list[Path | str]) -> list[str]:
         files (Path | str | list[Path | str]) A file or list of directories to import.
 
     Returns:
-
         list[str]: The training data.
     """
     # Ensure dirs is a list
@@ -160,6 +156,8 @@ def import_files(files: Path | str | list[Path | str]) -> list[str]:
 
 
 class Mallet(BaseModel):
+    """A class for training and using MALLET topic models."""
+
     path_to_mallet: str = Field(
         MALLET_BINARY_PATH,
         json_schema_extra={"description": "The path to the MALLET binary file."},
@@ -340,7 +338,9 @@ class Mallet(BaseModel):
                         progress.update(task, completed=this_iter)
                         last_progress = current_progress
                     if current_progress == 100:
-                        progress.update(task, description="[green]Complete", completed=100)
+                        progress.update(
+                            task, description="[green]Complete", completed=100
+                        )
                 except AttributeError:  # Not every line will match.
                     pass
 
@@ -472,7 +472,9 @@ class Mallet(BaseModel):
         """
         # Save the training data file in the model directory or use the provided path to create a new one
         if "model_directory" not in self.metadata:
-            self.metadata["model_directory"] = Path(path_to_training_data).parent.as_posix()
+            self.metadata["model_directory"] = Path(
+                path_to_training_data
+            ).parent.as_posix()
         else:
             model_dir = Path(self.metadata["model_directory"])
             model_dir.mkdir(exist_ok=True)
@@ -514,6 +516,7 @@ class Mallet(BaseModel):
         cmd = f"{self.path_to_mallet} import-file --input {path_to_training_data} --output {path_to_formatted_training_data} --keep-sequence --preserve-case"
         if use_pipe_from:
             cmd += f" --use-pipe-from {use_pipe_from}"
+        print(cmd)
         os.system(cmd)
 
     def load_topic_term_distributions(self) -> dict[str, float]:
@@ -696,6 +699,51 @@ class Mallet(BaseModel):
             plt.close()
             return fig
 
+    @validate_call(config=model_config)
+    def multi_clouds(
+        self,
+        topics: Optional[int | list[int]] = None,
+        max_terms: Optional[int] = 30,
+        figsize: Optional[tuple[int, int]] = (10, 10),
+        output_path: Optional[str] = None,
+        show: Optional[bool] = True,
+        round_mask: Optional[bool] = True,
+        **kwargs,
+    ) -> Figure:
+        """Get a MultiCloud object for the topic-term distributions."""
+        sns.set_theme()
+        from lexos.util import ensure_list
+        from lexos.visualization.cloud import MultiCloud
+
+        # Load the topic_term_probability_dict
+        topic_term_probability_dict = self.load_topic_term_distributions()
+
+        # Convert the dict to a DataFrame
+        df = pd.DataFrame.from_dict(topic_term_probability_dict, orient="index")
+        df = df.fillna(0)
+
+        # Filter the DataFrame to include only the specified topics
+        if topics:
+            df = df.iloc[ensure_list(topics)]
+
+        # Create the MultiCloud object
+        mc = MultiCloud(
+            data=df, round=round_mask, max_words=max_terms, figsize=figsize, **kwargs
+        )
+
+        # Save the file if requested
+        if output_path:
+            mc.save(output_path)
+
+        # Show the file if requested
+        if show:
+            mc.show()
+            return None
+        # Otherwise return the figure
+        else:
+            return mc.fig
+
+    # Deprecated: use multi_clouds instead
     @validate_call(config=model_config)
     def topic_clouds(
         self,
