@@ -10,6 +10,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
+
 """ZTest.py.
 
 Last Updated: June 25, 2025
@@ -25,10 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc
 
-from spacy.tokens import Doc
-
 from lexos.tokenizer import Tokenizer
-from lexos.topwords import TopWords
 from lexos.topwords import TopWords
 from lexos.topwords.comparison_handler import ComparisonHandler
 
@@ -130,7 +128,6 @@ class ZTest(TopWords):
                 tokens.extend(self._get_ngrams(doc, n))
         return tokens
 
-    def __call__(self) -> dict | list | pd.DataFrame | list[dict] | list[tuple]:
     def __call__(self) -> dict | list | pd.DataFrame | list[dict] | list[tuple]:
         """Calculate top distinguishing words using Z-test for significance.
 
@@ -258,7 +255,8 @@ class ZTestComparison(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
     output_format: str = Field(
-        "dict", description = "Output format: 'dict, 'dataframe', 'list_of_dicts', 'list_of_tuples'"
+        "dict",
+        description="Output format: 'dict, 'dataframe', 'list_of_dicts', 'list_of_tuples'",
     )
 
     def model_post_init(self, __context):
@@ -284,7 +282,10 @@ class ZTestComparison(BaseModel):
             )
 
     def compare_docs_to_corpus(
-        self, docs: list[Doc | str], background_cats: Optional[list[str]] = None,  **kwargs
+        self,
+        docs: list[Doc | str],
+        background_cats: Optional[list[str]] = None,
+        **kwargs,
     ) -> list[dict[str, str | ZTest]]:
         """Compare each document against a filtered background (by categories if specified).
 
@@ -307,26 +308,26 @@ class ZTestComparison(BaseModel):
         doc_labels = self._get_doc_labels(docs)
         results = []
 
-        for label,doc in zip(doc_labels,docs):
+        for label, doc in zip(doc_labels, docs):
             # build background set
             if background_cats is not None and self.cats is not None:
                 background_docs = [
-                    d for d, c in zip(self.corpus, self.cats)
+                    d
+                    for d, c in zip(self.corpus, self.cats)
                     if c in background_cats and d != doc
                 ]
             else:
                 background_docs = [d for d in self.corpus if d != doc]
-            
+
             if not background_docs:
                 raise ValueError("No background documents available for comparison.")
-            
+
             ztest_instance = ZTest(
                 target_documents=[doc], background_documents=background_docs, **kwargs
             )
             results.append({"label": label, "result": ztest_instance})
-        
+
         return results
-    
 
     def compare_cat_to_corpus(
         self, cat: str, background_cats: Optional[list[str]] = None, **kwargs
@@ -425,15 +426,15 @@ class ZTestComparison(BaseModel):
                 continue
 
         return results
-  
-    def compare_each_doc_to_other_classes(self, **kwargs) -> dict[str,list[dict]]:
+
+    def compare_each_doc_to_other_classes(self, **kwargs) -> dict[str, list[dict]]:
         """For each class, compare each document in that class to all documentes in otehr classes.
 
         Returns a dict mapping class name to a list of results for each document in that class.
         """
         if self.cats is None:
             raise ValueError("Categories (cats) must be provided for this comparison")
-      
+
         # Build mapping from class to docs
         class_to_docs = {}
         for doc, cat in zip(self.corpus, self.cats):
@@ -443,27 +444,31 @@ class ZTestComparison(BaseModel):
 
         results = {}
         for cat, docs_in_class in class_to_docs.items():
-            #Background: all docs not in this class
-            background_docs = [doc for doc, c in zip(self.corpus,self.cats) if c != cat]
+            # Background: all docs not in this class
+            background_docs = [
+                doc for doc, c in zip(self.corpus, self.cats) if c != cat
+            ]
             results[cat] = []
             for doc in docs_in_class:
                 ztest_instance = ZTest(
                     target_documents=[doc],
                     background_documents=background_docs,
-                    **kwargs
+                    **kwargs,
                 )
                 label = self._get_doc_labels([doc])[0]
                 results[cat].append({"label": label, "result": ztest_instance})
         return results
 
-    def compare_each_class_to_each_other_class(self, **kwargs) -> dict[str,dict[str,dict]]:
+    def compare_each_class_to_each_other_class(
+        self, **kwargs
+    ) -> dict[str, dict[str, dict]]:
         """For each class, compare it to every other class individually.
-        
+
         Returns a nested dict: {target_class: {background_class: result_dict}}
         """
         if self.cats is None:
             raise ValueError("Categories (cats) must be provided for this comparison.")
-        
+
         # build mapping from class to docs
         class_to_docs = {}
         for doc, cat in zip(self.corpus, self.cats):
@@ -483,14 +488,14 @@ class ZTestComparison(BaseModel):
                 if not target_docs or not background_docs:
                     continue
                 ztest_instance = ZTest(
-                    target_documents = target_docs,
-                    background_documents = background_docs,
-                    **kwargs
+                    target_documents=target_docs,
+                    background_documents=background_docs,
+                    **kwargs,
                 )
                 results[target_class][background_class] = {
                     "target_category": target_class,
                     "background_category": background_class,
-                    "result": ztest_instance
+                    "result": ztest_instance,
                 }
         return results
 
@@ -589,7 +594,7 @@ class ZTestComparison(BaseModel):
             )
 
         return target_documents, background_documents
-    
+
     def _format_output(self, results):
         """Format the output according to the output_format"""
         if self.output_format == "dict":
@@ -601,7 +606,7 @@ class ZTestComparison(BaseModel):
         elif self.output_format == "list_of_tuples":
             return self.to_list_of_tuples(results)
         else:
-            return results # fallback to raw results
+            return results  # fallback to raw results
 
     @staticmethod
     def to_df(results):
@@ -631,11 +636,20 @@ class ZTestComparison(BaseModel):
             # Try to handle dicts of the form {cat: {category, background_categories, result}}
             for group, comparison_result in results.items():
                 # If nested dict with 'result', use group as label
-                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                if (
+                    isinstance(comparison_result, dict)
+                    and "result" in comparison_result
+                ):
                     extract_rows(group, comparison_result["result"])
                 # If dict with 'label' and 'result'
-                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
-                    extract_rows(comparison_result["label"], comparison_result["result"])
+                elif (
+                    isinstance(comparison_result, dict)
+                    and "label" in comparison_result
+                    and "result" in comparison_result
+                ):
+                    extract_rows(
+                        comparison_result["label"], comparison_result["result"]
+                    )
                 # If already a ZTest instance
                 elif hasattr(comparison_result, "topwords"):
                     extract_rows(group, comparison_result)
@@ -666,9 +680,16 @@ class ZTestComparison(BaseModel):
                     extract(label, result)
         elif isinstance(results, dict):
             for group, comparison_result in results.items():
-                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                if (
+                    isinstance(comparison_result, dict)
+                    and "result" in comparison_result
+                ):
                     extract(group, comparison_result["result"])
-                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                elif (
+                    isinstance(comparison_result, dict)
+                    and "label" in comparison_result
+                    and "result" in comparison_result
+                ):
                     extract(comparison_result["label"], comparison_result["result"])
                 elif hasattr(comparison_result, "topwords"):
                     extract(group, comparison_result)
@@ -698,9 +719,16 @@ class ZTestComparison(BaseModel):
                     extract(label, result)
         elif isinstance(results, dict):
             for group, comparison_result in results.items():
-                if isinstance(comparison_result, dict) and "result" in comparison_result:
+                if (
+                    isinstance(comparison_result, dict)
+                    and "result" in comparison_result
+                ):
                     extract(group, comparison_result["result"])
-                elif isinstance(comparison_result, dict) and "label" in comparison_result and "result" in comparison_result:
+                elif (
+                    isinstance(comparison_result, dict)
+                    and "label" in comparison_result
+                    and "result" in comparison_result
+                ):
                     extract(comparison_result["label"], comparison_result["result"])
                 elif hasattr(comparison_result, "topwords"):
                     extract(group, comparison_result)

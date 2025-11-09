@@ -1,9 +1,16 @@
+"""comparison_handler.py.
+
+Last Update: November 8, 2025
+Last Tested: TBD
+
 # --- ADDITION FOR ALL COMPARISON METHODS SUPPORT ---
 # Can be used in both keyterms.py and ztest.py
+"""
+
+from collections import defaultdict
+from typing import Any, Optional
 
 import pandas as pd
-from collections import defaultdict
-from typing import Optional, Any
 
 
 class ComparisonHandler:
@@ -16,23 +23,19 @@ class ComparisonHandler:
         doc_content_to_label_map: Optional[
             dict[str, str]
         ] = None,  # Added new parameter
-        output_format: str = "dict", **kwargs,
+        output_format: str = "dict",
+        **kwargs,
     ):
         """Initialize the ComparisonHandler with a comparison class, output format, and optional keyword arguments.
 
-        Parameters
-        ----------
-        cls : Any
-            The comparison class (e.g., ZTest) to be used for comparisons.
-        labels : list of str, optional
-            A list of labels corresponding to the documents for `compare_each_doc_to_corpus`.
-            If not provided, documents will be numbered (e.g., "Doc 1", "Doc 2").
-        doc_content_to_label_map : dict of str to str, optional
-            A dictionary mapping document content (as a string) to its desired label.
-            This is used by `compare_each_doc_to_other_classes` to provide
-            more descriptive labels than just "ClassName Doc X".
-        **kwargs : dict
-            Additional keyword arguments to pass to the comparison class constructor.
+        Args:
+            cls (Any): The comparison class (e.g., ZTest) to be used for comparisons.
+            labels (list[str], optional): A list of labels corresponding to the documents for `compare_each_doc_to_corpus`.
+                If not provided, documents will be numbered (e.g., "Doc 1", "Doc 2").
+            doc_content_to_label_map (dict[str, str], optional): A dictionary mapping document content (as a string) to its desired label.
+                This is used by `compare_each_doc_to_other_classes` to provide
+                more descriptive labels than just "ClassName Doc X".
+            **kwargs (dict, optional): Additional keyword arguments to pass to the comparison class constructor.
         """
         self.cls = cls
         self.labels = labels
@@ -43,14 +46,11 @@ class ComparisonHandler:
     def compare_each_doc_to_corpus(self, documents: list[str]) -> list[dict]:
         """Compare each document to the rest of the corpus (all other documents).
 
-        Parameters
-        ----------
-        documents : list of str
-            List of documents to compare.
+        Args:
+            documents (list[str]): List of documents to compare.
 
         Returns:
-        -------
-        list of dict
+            list[dict]: List of dictionaries containing comparison results.
             List of dictionaries, each containing a 'label' and the comparison 'result'
             for each document compared to the rest of the corpus.
         """
@@ -74,7 +74,7 @@ class ComparisonHandler:
             label = (
                 self.labels[i]
                 if self.labels is not None and i < len(self.labels)
-                else f"Doc {i+1}"
+                else f"Doc {i + 1}"
             )
             result = instance()
             # Attach label to result dict
@@ -90,14 +90,11 @@ class ComparisonHandler:
     ) -> dict[str, list[dict]]:
         """Compare each document in each class to all documents in other classes.
 
-        Parameters
-        ----------
-        class_docs : dict of str to list of str
-            Dictionary mapping class names to lists of documents.
+        Args:
+            class_docs (dict[str, list[str]]): Dictionary mapping class names to lists of documents.
 
         Returns:
-        -------
-        dict of str to list of dict
+            dict[str, list[dict]]: Dictionary mapping class names to lists of dictionaries.
             Dictionary mapping class names to lists of dictionaries. Each inner
             dictionary contains a 'label' (derived from class name and document number)
             and the comparison 'result' for each document compared to all documents in other classes.
@@ -135,16 +132,12 @@ class ComparisonHandler:
     ) -> dict[str, dict]:
         """Compare each class (group of documents) to all documents in other classes.
 
-        Parameters
-        ----------
-        class_docs : dict of str to list of str
-            Dictionary mapping class names to lists of documents.
+        Args:
+            class_docs (dict[str, list[str]]): Dictionary mapping class names to lists of documents.
 
         Returns:
-        -------
-        dict of str to dict
-            Dictionary mapping class names to results for each class compared to all documents in other classes.
-            The class names themselves serve as the labels for these comparisons.
+            dict[str, dict]: Dictionary mapping class names to results for each class compared to all documents in other classes.
+                The class names themselves serve as the labels for these comparisons.
         """
         results = {}
         for cls_name, docs in class_docs.items():
@@ -162,26 +155,44 @@ class ComparisonHandler:
             # The class name is the natural label for this comparison type
             results[cls_name] = instance()
         return self._format_output(results)
-    
-    def _format_output(self, results):
-        """Format the output according to the output_format."""
+
+    def _format_output(self, results: Any) -> Any:
+        """Format the output according to the output_format.
+
+        Args:
+            results (Any): The raw results from the comparison methods.
+
+        Returns:
+            Any: The formatted results based on the specified output format.
+        """
         if self.output_format == "dict":
-            return results 
+            return results
         elif self.output_format == "dataframe":
             return self.to_df(results)
         elif self.output_format == "list_of_dicts":
             return self.to_list_of_dicts(results)
         else:
-            return results # fallback to raw results
-    
+            return results  # fallback to raw results
+
     @staticmethod
-    def to_df(results):
-        """Return results as a pandas DataFrame, flattened so each row is a single topword."""
+    def to_df(results: Any) -> pd.DataFrame:
+        """Return results as a pandas DataFrame, flattened so each row is a single topword.
+
+        Args:
+            results (Any): The raw results from the comparison methods.
+
+        Returns:
+            pd.DataFrame: The results formatted as a pandas DataFrame.
+        """
         rows = []
         # Handle list of dicts (e.g., from compare_each_doc_to_corpus)
         if isinstance(results, list):
             for i, res in enumerate(results):
-                label = res.get("label", f"Doc {i+1}") if isinstance(res, dict) else f"Doc {i+1}"
+                label = (
+                    res.get("label", f"Doc {i + 1}")
+                    if isinstance(res, dict)
+                    else f"Doc {i + 1}"
+                )
                 # Support both {'topwords': [...]} and just a list of dicts
                 topwords = res.get("topwords", []) if isinstance(res, dict) else []
                 for tw in topwords:
@@ -203,8 +214,14 @@ class ComparisonHandler:
                 # existing code for dict of lists
                 for group, group_results in results.items():
                     for res in group_results:
-                        label = res.get("label", group) if isinstance(res, dict) else group
-                        topwords = res.get("result", {}).get("topwords", []) if isinstance(res, dict) else []
+                        label = (
+                            res.get("label", group) if isinstance(res, dict) else group
+                        )
+                        topwords = (
+                            res.get("result", {}).get("topwords", [])
+                            if isinstance(res, dict)
+                            else []
+                        )
                         for tw in topwords:
                             row = {"group": group, "label": label}
                             row.update(tw)
@@ -212,11 +229,18 @@ class ComparisonHandler:
         else:
             raise ValueError("Unsupported results format for DataFrame conversion.")
         return pd.DataFrame(rows)
-        
+
     @staticmethod
-    def to_list_of_dicts(results):
-        """Return results as a list of dicts."""
-        if isinstance(results,list):
+    def to_list_of_dicts(results: Any) -> list[dict]:
+        """Return results as a list of dicts.
+
+        Args:
+            results (Any): The raw results from the comparison methods.
+
+        Returns:
+            list[dict]: The results formatted as a list of dictionaries.
+        """
+        if isinstance(results, list):
             return results
         elif isinstance(results, dict):
             all_dicts = []
@@ -227,7 +251,9 @@ class ComparisonHandler:
                         d.update(res)
                         all_dicts.append(d)
                     elif isinstance(res, (list, tuple)) and len(res) == 2:
-                        all_dicts.append({"group": group, "term": res[0], "score": res[1]})
+                        all_dicts.append(
+                            {"group": group, "term": res[0], "score": res[1]}
+                        )
             return all_dicts
         else:
             raise ValueError("Unsupported results format for list_of_dicts conversion.")
