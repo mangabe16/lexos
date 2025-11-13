@@ -1645,6 +1645,8 @@ class TestCorpusStatsPlottingFunctions:
             if "column" in str(e).lower() or "title" in str(e).lower():
                 pytest.fail(f"Valid parameters were rejected: {e}")
         
+
+        
         print("✓ get_seaborn_boxplot parameters work")
 
     def test_get_plotly_boxplot_parameters(self, sample_docs):
@@ -1774,3 +1776,116 @@ if __name__ == "__main__":
     test = TestCorpusStatsBugSummary()
     test.test_bug_summary_for_pm()
     test.test_corpus_stats_readiness_report()
+
+
+class TestCorpusStatsNewFeatureColumns:
+    """Tests for newly added per-document feature columns."""
+
+    def test_doc_stats_new_feature_columns(self, sample_docs):
+        """Verify new columns exist and computed values are correct for a sample doc."""
+        stats = CorpusStats(docs=sample_docs)
+        df = stats.doc_stats_df
+
+        # Required new columns
+        required = [
+            "char_count",
+            "word_count",
+            "unique_word_count",
+            "avg_word_length",
+            "ttr",
+            "hapax_legomenon_rate",
+        ]
+        for col in required:
+            assert col in df.columns, f"Missing column: {col}"
+
+        # Pick first document ("Document 1")
+        row = df.loc["Document 1"]
+
+        # Tokens for first sample doc
+        tokens_doc1 = ["This", "is", "the", "first", "document", "."]
+        sum_token_lengths = sum(len(t) for t in tokens_doc1)  # 4+2+3+5+8+1 = 23
+        spaces = len(tokens_doc1) - 1  # 5
+        expected_char_count = sum_token_lengths + spaces  # 28 (approx mode)
+        expected_word_count = len(tokens_doc1)  # 6
+        expected_unique = len(set(tokens_doc1))  # 6
+        expected_avg_word_length = expected_char_count / expected_word_count  # 28/6
+        expected_ttr = expected_unique / expected_word_count  # 1.0
+        # hapax_legomena = 6 (all unique) => rate = 6 / 6 = 1.0
+        expected_hapax_rate = 1.0
+
+        assert row["char_count"] == expected_char_count
+        assert row["word_count"] == expected_word_count
+        assert row["unique_word_count"] == expected_unique
+        assert row["ttr"] == pytest.approx(expected_ttr)
+        assert row["avg_word_length"] == pytest.approx(expected_avg_word_length)
+        assert row["hapax_legomenon_rate"] == pytest.approx(expected_hapax_rate)
+
+    def test_char_count_uses_raw_texts_over_approximation(self):
+        """Ensure raw_texts provides exact char_count (including multiple spaces/punctuation)."""
+        docs = [
+            ("d1", "Doc 1", ["alpha", "beta"]),
+            ("d2", "Doc 2", ["gamma"]),
+        ]
+        raw_texts = [
+            "Alpha   beta!!!",  # 5 + 3 spaces + 7 = 15
+            "gamma",            # 5
+        ]
+        stats_with_raw = CorpusStats(docs=docs, raw_texts=raw_texts)
+        df_raw = stats_with_raw.doc_stats_df
+
+        assert df_raw.loc["Doc 1", "char_count"] == len(raw_texts[0])
+        assert df_raw.loc["Doc 2", "char_count"] == len(raw_texts[1])
+
+        # Without raw_texts: fallback approximation (tokens joined by single space)
+        stats_no_raw = CorpusStats(docs=docs)
+        df_no_raw = stats_no_raw.doc_stats_df
+        # Approx char_count for d1: len("alpha") + len("beta") + 1 space = 5 + 4 + 1 = 10
+        assert df_no_raw.loc["Doc 1", "char_count"] == 10
+        # Single-token doc: no spaces
+        assert df_no_raw.loc["Doc 2", "char_count"] == 5
+
+        # Check derived metrics still coherent
+        assert df_raw.loc["Doc 1", "word_count"] == 2
+        assert df_raw.loc["Doc 1", "unique_word_count"] == 2
+        assert df_raw.loc["Doc 1", "ttr"] == 1.0
+        assert df_raw.loc["Doc 1", "hapax_legomenon_rate"] == 1.0
+        assert df_raw.loc["Doc 1", "avg_word_length"] == pytest.approx(len(raw_texts[0]) / 2)
+
+    def test_hapax_legomenon_rate_partial(self):
+        """Test hapax_legomenon_rate with repeated token scenario."""
+        docs = [
+            ("x1", "Doc X1", ["a", "a", "b", "c"]),  # hapax tokens: b,c (2)
+        ]
+        stats_obj = CorpusStats(docs=docs)
+        df = stats_obj.doc_stats_df
+        row = df.loc["Doc X1"]
+        assert row["hapax_legomena"] == 2
+        assert row["word_count"] == 4
+        assert row["hapax_legomenon_rate"] == pytest.approx(2 / 4)
+
+    def test_feature_internal_consistency(self, sample_docs):
+        """Cross-validate relationships between new feature columns."""
+        stats = CorpusStats(docs=sample_docs)
+        df = stats.doc_stats_df
+
+        for label, row in df.iterrows():
+            # avg_word_length * word_count ≈ char_count (allowing float rounding)
+            reconstructed = row["avg_word_length"] * row["word_count"]
+            assert reconstructed == pytest.approx(row["char_count"], rel=1e-6, abs=1e-6)
+
+            # ttr = unique_word_count / word_count
+            if row["word_count"] > 0:
+                assert row["ttr"] == pytest.approx(
+                    row["unique_word_count"] / row["word_count"]
+                )
+            else:
+                assert row["ttr"] == 0.0
+
+            # hapax_legomenon_rate = hapax_legomena / word_count
+            if row["word_count"] > 0:
+                assert row["hapax_legomenon_rate"] == pytest.approx(
+                    row["hapax_legomena"] / row["word_count"]
+                )
+            else:
+                assert row["hapax_legomenon_rate"] == 0.0
+
