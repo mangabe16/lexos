@@ -1,13 +1,8 @@
 """Tests for compare.py module.
 
-Coverage: 95%: Missing 348-349, 365, 490, 517, 602, 608, 635, 641-642
+Coverage: 99%: Missing: 200
 
-Last Update: November 8, 2025
-
-Refactored to use instance-based API:
-- Comparison now accepts comparison_instance (a pre-configured instance)
-- Instead of passing class type + kwargs, users configure an instance first
-- Example: ZTest(target_docs=[], comparison_docs=[], topn=3) then pass to Comparison
+Last Update: November 14, 2025
 """
 
 import pandas as pd
@@ -17,7 +12,7 @@ from pydantic import ValidationError
 from spacy.tokens import Doc
 
 from lexos.exceptions import LexosException
-from lexos.topwords.compare import Comparison
+from lexos.topwords.compare import Compare
 from lexos.topwords.ztest import ZTest
 
 # ---------------- Fixtures ----------------
@@ -48,850 +43,660 @@ def sample_docs(nlp, sample_texts):
 
 
 @pytest.fixture
-def class_texts():
-    """Create sample class-based texts."""
-    return {
-        "Shakespeare": [
-            "To be or not to be, that is the question.",
-            "All the world's a stage, and all the men and women merely players.",
-        ],
-        "Marlowe": [
-            "Is this the face that launched a thousand ships?",
-            "Come live with me and be my love.",
-        ],
-        "Jonson": [
-            "Drink to me only with thine eyes.",
-            "Soul of the age, the applause, delight, the wonder of our stage.",
-        ],
-    }
-
-
-@pytest.fixture
-def class_docs(nlp, class_texts):
-    """Create sample class-based spaCy Doc objects."""
-    return {
-        class_name: [nlp(text) for text in texts]
-        for class_name, texts in class_texts.items()
-    }
-
-
-@pytest.fixture
-def docs_with_author_extension(nlp):
-    """Create spaCy Docs with custom author extension."""
-    # Set up the custom extension
-    if not Doc.has_extension("author"):
-        Doc.set_extension("author", default=None, force=True)
-
-    shakespeare_texts = [
-        "To be or not to be, that is the question.",
-        "All the world's a stage.",
-    ]
-    marlowe_texts = [
-        "Is this the face that launched a thousand ships?",
-        "Come live with me and be my love.",
-    ]
-
-    docs = []
-    for text in shakespeare_texts:
-        doc = nlp(text)
-        doc._.author = "Shakespeare"
-        docs.append(doc)
-
-    for text in marlowe_texts:
-        doc = nlp(text)
-        doc._.author = "Marlowe"
-        docs.append(doc)
-
-    return docs
-
-
-@pytest.fixture
-def mock_comparison_class():
-    """Create a mock comparison class for testing."""
-
-    class MockTopWords:
-        """Mock TopWords class that returns predictable results."""
-
-        def __init__(self, target_docs, comparison_docs, **kwargs):
-            self.target_docs = target_docs
-            self.comparison_docs = comparison_docs
-            self.kwargs = kwargs
-
-        def __call__(self):
-            """Return mock topwords results."""
-            return {
-                "topwords": [
-                    {"term": "word1", "score": 0.95},
-                    {"term": "word2", "score": 0.85},
-                    {"term": "word3", "score": 0.75},
-                ]
-            }
-
-    return MockTopWords
+def calculator():
+    """Create a basic ZTest calculator for testing."""
+    return ZTest(target_docs=[], comparison_docs=[], topn=5)
 
 
 # ---------------- Basic Initialization Tests ----------------
 
 
-class TestComparisonInitialization:
-    """Test initialization of Comparison class."""
+class TestCompareInitialization:
+    """Test initialization of Compare class."""
 
-    def test_comparison_init_with_ztest_instance(self):
-        """Test Comparison initialization with ZTest instance."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=10)
-        comparison = Comparison(comparison_instance=ztest_instance)
+    def test_compare_init_minimal(self, calculator):
+        """Test Compare initialization with just a calculator."""
+        compare = Compare(calculator=calculator)
 
-        assert comparison is not None
-        assert comparison.comparison_instance == ztest_instance
-        assert comparison.output_format == "dict"
-        assert comparison.document_labels is None
+        assert compare is not None
+        assert compare.calculator == calculator
+        assert compare.data == []
+        assert compare.results == {}
 
-    def test_comparison_init_with_custom_output_format(self):
-        """Test Comparison initialization with custom output format."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=10)
-        comparison = Comparison(
-            comparison_instance=ztest_instance, output_format="dataframe"
-        )
+    def test_compare_init_validates_calculator_type(self):
+        """Test that Compare requires a TopWords calculator."""
+        with pytest.raises(ValidationError):
+            Compare(calculator="not_a_calculator")
 
-        assert comparison.output_format == "dataframe"
+    def test_calculator_configuration_preserved(self):
+        """Test that calculator configuration is preserved."""
+        calc = ZTest(target_docs=[], comparison_docs=[], topn=20)
+        compare = Compare(calculator=calc)
 
-    def test_comparison_init_with_document_labels(self):
-        """Test Comparison initialization with document labels."""
-        labels = ["Doc A", "Doc B", "Doc C"]
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=10)
-        comparison = Comparison(
-            comparison_instance=ztest_instance, document_labels=labels
-        )
-
-        assert comparison.document_labels == labels
-
-    def test_comparison_instance_configuration_preserved(self):
-        """Test that instance configuration is preserved."""
-        ztest_instance = ZTest(
-            target_docs=[], comparison_docs=[], topn=20, ngrams=2, case_sensitive=False
-        )
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        # The instance configuration should be accessible
-        assert comparison.comparison_instance.topn == 20
-        assert comparison.comparison_instance.ngrams == 2
-        assert comparison.comparison_instance.case_sensitive is False
+        assert compare.calculator.topn == 20
 
 
-# ---------------- compare_each_doc_to_corpus Tests ----------------
+# ---------------- document_to_corpus Tests ----------------
 
 
-class TestCompareEachDocToCorpus:
-    """Test compare_each_doc_to_corpus method."""
+class TestDocumentToCorpus:
+    """Test document_to_corpus method."""
 
-    def test_compare_with_string_documents(self, sample_texts):
+    def test_document_to_corpus_with_strings(self, calculator, nlp):
         """Test comparing each document to corpus with strings."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
+        texts = [
+            "The cat sat on the mat.",
+            "The dog barked loudly.",
+            "A bird sang sweetly.",
+        ]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
 
-        result = comparison.compare_each_doc_to_corpus(sample_texts[:3])
+        result = compare.document_to_corpus(docs)
+
+        assert isinstance(result, dict)
+        assert len(result) == 3
+        assert "Doc 1" in result
+        assert "Doc 2" in result
+        assert "Doc 3" in result
+        assert all(isinstance(v, list) for v in result.values())
+
+    def test_document_to_corpus_with_custom_labels(self, calculator, nlp):
+        """Test document_to_corpus with custom doc labels."""
+        texts = ["Text one.", "Text two.", "Text three."]
+        docs = [nlp(text) for text in texts]
+        labels = ["Article A", "Article B", "Article C"]
+        compare = Compare(calculator=calculator)
+
+        result = compare.document_to_corpus(docs, doc_labels=labels)
+
+        assert "Article A" in result
+        assert "Article B" in result
+        assert "Article C" in result
+
+    def test_document_to_corpus_dataframe_output(self, calculator, nlp):
+        """Test document_to_corpus with dataframe output."""
+        texts = ["Cat meow.", "Dog bark.", "Bird chirp."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
+
+        result = compare.document_to_corpus(docs, output_format="dataframe")
+
+        assert isinstance(result, pd.DataFrame)
+        assert "doc_label" in result.index.name or "doc_label" in result.columns
+
+    def test_document_to_corpus_list_of_dicts_output(self, calculator, nlp):
+        """Test document_to_corpus with list_of_dicts output."""
+        texts = ["Cat meow.", "Dog bark.", "Bird chirp."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
+
+        result = compare.document_to_corpus(docs, output_format="list_of_dicts")
 
         assert isinstance(result, list)
-        assert len(result) == 3
-        assert all("label" in r for r in result)
-        assert all("topwords" in r for r in result)
+        assert all(isinstance(item, dict) for item in result)
+        if result:
+            assert "doc_label" in result[0]
+            assert "term" in result[0]
+            assert "score" in result[0]
 
-    def test_compare_with_doc_objects(self, sample_docs):
-        """Test comparing each document to corpus with spaCy Docs."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
+    def test_document_to_corpus_requires_min_two_docs(self, calculator, nlp):
+        """Test that document_to_corpus requires at least 2 documents."""
+        docs = [nlp("Only one document.")]
+        compare = Compare(calculator=calculator)
 
-        result = comparison.compare_each_doc_to_corpus(sample_docs[:3])
+        with pytest.raises(LexosException, match="at least two documents"):
+            compare.document_to_corpus(docs)
 
-        assert isinstance(result, list)
-        assert len(result) == 3
+    def test_document_to_corpus_caches_results(self, calculator, nlp):
+        """Test that document_to_corpus caches results."""
+        texts = ["Cat meow.", "Dog bark."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
 
-    def test_compare_with_document_labels(self, sample_texts):
-        """Test comparing with custom document labels."""
-        labels = ["Article 1", "Article 2", "Article 3"]
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(
-            comparison_instance=ztest_instance, document_labels=labels
+        compare.document_to_corpus(docs)
+
+        assert compare.results != {}
+        assert len(compare.results) == 2
+
+    def test_document_to_corpus_stores_data(self, calculator, nlp):
+        """Test that document_to_corpus stores data attribute."""
+        texts = ["Cat meow.", "Dog bark."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
+
+        compare.document_to_corpus(docs)
+
+        assert compare.data != []
+        assert len(compare.data) == 2
+        assert all("doc_label" in item for item in compare.data)
+        assert all("doc" in item for item in compare.data)
+
+
+# ---------------- documents_to_classes Tests ----------------
+
+
+class TestDocumentsToClasses:
+    """Test documents_to_classes method."""
+
+    def test_documents_to_classes_basic(self, calculator, nlp):
+        """Test comparing documents to classes."""
+        texts = [
+            "Shakespeare wrote plays.",
+            "Shakespeare wrote sonnets.",
+            "Marlowe wrote plays.",
+            "Marlowe wrote poetry.",
+        ]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["Shakespeare", "Shakespeare", "Marlowe", "Marlowe"]
+        compare = Compare(calculator=calculator)
+
+        result = compare.documents_to_classes(docs, class_labels=class_labels)
+
+        assert isinstance(result, dict)
+        assert len(result) == 4  # One result per document
+
+    def test_documents_to_classes_with_custom_labels(self, calculator, nlp):
+        """Test documents_to_classes with custom doc labels."""
+        texts = ["Text A.", "Text B.", "Text C.", "Text D."]
+        docs = [nlp(text) for text in texts]
+        doc_labels = ["Doc1", "Doc2", "Doc3", "Doc4"]
+        class_labels = ["ClassA", "ClassA", "ClassB", "ClassB"]
+        compare = Compare(calculator=calculator)
+
+        result = compare.documents_to_classes(
+            docs, doc_labels=doc_labels, class_labels=class_labels
         )
 
-        result = comparison.compare_each_doc_to_corpus(sample_texts[:3])
+        assert "Doc1" in result
+        assert "Doc2" in result
+        assert "Doc3" in result
+        assert "Doc4" in result
 
-        assert result[0]["label"] == "Article 1"
-        assert result[1]["label"] == "Article 2"
-        assert result[2]["label"] == "Article 3"
+    def test_documents_to_classes_dataframe_output(self, calculator, nlp):
+        """Test documents_to_classes with dataframe output."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
 
-    def test_compare_with_mismatched_labels(self, sample_texts):
-        """Test that mismatched label count raises error."""
-        labels = ["Article 1", "Article 2"]  # Only 2 labels for 3 docs
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(
-            comparison_instance=ztest_instance, document_labels=labels
-        )
-
-        with pytest.raises(LexosException, match="Document labels count"):
-            result = comparison.compare_each_doc_to_corpus(sample_texts[:3])
-
-    def test_compare_with_output_format_override(self, sample_texts):
-        """Test output format override parameter."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(
-            comparison_instance=ztest_instance, output_format="dict"
-        )
-
-        result = comparison.compare_each_doc_to_corpus(
-            sample_texts[:3], output_format="dataframe"
+        result = compare.documents_to_classes(
+            docs, class_labels=class_labels, output_format="dataframe"
         )
 
         assert isinstance(result, pd.DataFrame)
-        assert "label" in result.columns
+        assert "doc_label" in result.columns
+        assert "comparison_class" in result.columns
         assert "term" in result.columns
+        assert "score" in result.columns
 
+    def test_documents_to_classes_list_of_dicts_output(self, calculator, nlp):
+        """Test documents_to_classes with list_of_dicts output."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
 
-# ---------------- compare_each_doc_to_other_classes Tests ----------------
-
-
-class TestCompareEachDocToOtherClasses:
-    """Test compare_each_doc_to_other_classes method."""
-
-    def test_compare_with_class_documents_dict_strings(self, class_texts):
-        """Test comparing with class_documents dict containing strings."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        result = comparison.compare_each_doc_to_other_classes(
-            class_documents=class_texts
+        result = compare.documents_to_classes(
+            docs, class_labels=class_labels, output_format="list_of_dicts"
         )
 
-        assert isinstance(result, dict)
-        assert "Shakespeare" in result
-        assert "Marlowe" in result
-        assert "Jonson" in result
+        assert isinstance(result, list)
+        assert all(isinstance(item, dict) for item in result)
+        if result:
+            assert "doc_label" in result[0]
+            assert "comparison_class" in result[0]
+            assert "term" in result[0]
+            assert "score" in result[0]
 
-    def test_compare_with_class_documents_dict_docs(self, class_docs):
-        """Test comparing with class_documents dict containing Docs."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
+    def test_documents_to_classes_requires_min_two_docs(self, calculator, nlp):
+        """Test that documents_to_classes requires at least 2 documents."""
+        docs = [nlp("Only one.")]
+        class_labels = ["ClassA"]
+        compare = Compare(calculator=calculator)
 
-        result = comparison.compare_each_doc_to_other_classes(
-            class_documents=class_docs
-        )
+        with pytest.raises(LexosException, match="At least two documents"):
+            compare.documents_to_classes(docs, class_labels=class_labels)
 
-        assert isinstance(result, dict)
+    def test_documents_to_classes_requires_min_two_classes(self, calculator, nlp):
+        """Test that documents_to_classes requires at least 2 different classes."""
+        texts = ["A.", "B.", "C."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["ClassA", "ClassA", "ClassA"]  # All same class
+        compare = Compare(calculator=calculator)
 
-    def test_compare_with_docs_and_class_names(self, docs_with_author_extension):
-        """Test comparing using docs and class_names parameters."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
+        with pytest.raises(LexosException, match="At least two different classes"):
+            compare.documents_to_classes(docs, class_labels=class_labels)
 
-        result = comparison.compare_each_doc_to_other_classes(
-            docs=docs_with_author_extension, class_names=["author"]
-        )
+    def test_documents_to_classes_requires_class_labels(self, calculator, nlp):
+        """Test that documents_to_classes requires class_labels parameter."""
+        texts = ["A.", "B."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
 
-        assert isinstance(result, dict)
-        assert "Shakespeare" in result
-        assert "Marlowe" in result
+        with pytest.raises(LexosException, match="must be provided"):
+            compare.documents_to_classes(docs)
 
-    def test_compare_with_multiple_class_names(self, nlp):
-        """Test with multiple class_names (uses first found)."""
-        # Set up multiple extensions
-        if not Doc.has_extension("author"):
-            Doc.set_extension("author", default=None, force=True)
-        if not Doc.has_extension("genre"):
-            Doc.set_extension("genre", default=None, force=True)
+    def test_documents_to_classes_result_structure(self, calculator, nlp):
+        """Test the structure of documents_to_classes results."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
 
-        doc1 = nlp("Text one")
-        doc1._.genre = "Poetry"
-        doc2 = nlp("Text two")
-        doc2._.genre = "Drama"
+        result = compare.documents_to_classes(docs, class_labels=class_labels)
 
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        result = comparison.compare_each_doc_to_other_classes(
-            docs=[doc1, doc2], class_names=["author", "genre"]
-        )
-
-        assert isinstance(result, dict)
-        assert "Poetry" in result or "Drama" in result
-
-    def test_compare_missing_extension_raises_error(self, nlp):
-        """Test that missing extensions raise appropriate error."""
-        docs = [nlp("Text one"), nlp("Text two")]
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        with pytest.raises(
-            LexosException, match="does not have any of the specified custom extensions"
-        ):
-            result = comparison.compare_each_doc_to_other_classes(
-                docs=docs, class_names=["nonexistent"]
-            )
-
-    def test_compare_conflicting_parameters_raises_error(self, class_docs, nlp):
-        """Test that providing both class_documents and docs raises error."""
-        docs = [nlp("Text one")]
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        with pytest.raises(
-            LexosException, match="Cannot provide both 'class_documents' and 'docs'"
-        ):
-            result = comparison.compare_each_doc_to_other_classes(
-                class_documents=class_docs, docs=docs, class_names=["author"]
-            )
-
-    def test_compare_docs_without_class_names_raises_error(self, nlp):
-        """Test that docs without class_names raises error."""
-        docs = [nlp("Text one"), nlp("Text two")]
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        with pytest.raises(LexosException, match="you must also provide 'class_names'"):
-            result = comparison.compare_each_doc_to_other_classes(docs=docs)
-
-    def test_compare_empty_docs_raises_error(self):
-        """Test that empty docs list raises error."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        with pytest.raises(LexosException, match="Empty list of documents"):
-            result = comparison.compare_each_doc_to_other_classes(
-                docs=[], class_names=["author"]
-            )
-
-    def test_compare_no_parameters_raises_error(self):
-        """Test that calling without parameters raises error."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        with pytest.raises(
-            LexosException,
-            match="You must provide either 'class_documents' .* or both 'docs' and 'class_names'",
-        ):
-            result = comparison.compare_each_doc_to_other_classes()
+        # Check that results have comparison_class and topwords
+        for doc_result in result.values():
+            assert "comparison_class" in doc_result
+            assert "topwords" in doc_result
+            assert isinstance(doc_result["topwords"], list)
 
 
-# ---------------- compare_each_class_to_other_classes Tests ----------------
+# ---------------- classes_to_classes Tests ----------------
 
 
-class TestCompareEachClassToOtherClasses:
-    """Test compare_each_class_to_other_classes method."""
+class TestClassesToClasses:
+    """Test classes_to_classes method."""
 
-    def test_compare_classes_with_dict_strings(self, class_texts):
-        """Test comparing entire classes with string documents."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
+    def test_classes_to_classes_basic(self, calculator, nlp):
+        """Test comparing classes to classes."""
+        texts = [
+            "Shakespeare wrote plays.",
+            "Shakespeare wrote sonnets.",
+            "Marlowe wrote plays.",
+            "Marlowe wrote poetry.",
+        ]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["Shakespeare", "Shakespeare", "Marlowe", "Marlowe"]
+        compare = Compare(calculator=calculator)
 
-        result = comparison.compare_each_class_to_other_classes(
-            class_documents=class_texts
-        )
+        result = compare.classes_to_classes(docs, class_labels=class_labels)
 
         assert isinstance(result, dict)
-        assert "Shakespeare" in result
-        assert "Marlowe" in result
-        assert "Jonson" in result
-
-    def test_compare_classes_with_dict_docs(self, class_docs):
-        """Test comparing entire classes with Doc objects."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        result = comparison.compare_each_class_to_other_classes(
-            class_documents=class_docs
-        )
-
-        assert isinstance(result, dict)
-
-    def test_compare_classes_with_docs_and_class_names(
-        self, docs_with_author_extension
-    ):
-        """Test comparing classes using docs and class_names."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
-
-        result = comparison.compare_each_class_to_other_classes(
-            docs=docs_with_author_extension, class_names=["author"]
-        )
-
-        assert isinstance(result, dict)
+        assert len(result) == 2  # One result per class
         assert "Shakespeare" in result
         assert "Marlowe" in result
 
-    def test_compare_classes_conflicting_parameters(self, class_docs, nlp):
-        """Test that conflicting parameters raise error."""
-        docs = [nlp("Text")]
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        comparison = Comparison(comparison_instance=ztest_instance)
+    def test_classes_to_classes_dataframe_output(self, calculator, nlp):
+        """Test classes_to_classes with dataframe output."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
 
-        with pytest.raises(
-            LexosException, match="Cannot provide both 'class_documents' and 'docs'"
-        ):
-            result = comparison.compare_each_class_to_other_classes(
-                class_documents=class_docs, docs=docs, class_names=["author"]
-            )
+        result = compare.classes_to_classes(
+            docs, class_labels=class_labels, output_format="dataframe"
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        assert "class_label" in result.columns
+        assert "comparison_class" in result.columns
+        assert "term" in result.columns
+        assert "score" in result.columns
+
+    def test_classes_to_classes_list_of_dicts_output(self, calculator, nlp):
+        """Test classes_to_classes with list_of_dicts output."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
+
+        result = compare.classes_to_classes(
+            docs, class_labels=class_labels, output_format="list_of_dicts"
+        )
+
+        assert isinstance(result, list)
+        assert all(isinstance(item, dict) for item in result)
+        if result:
+            assert "class_label" in result[0]
+            assert "comparison_class" in result[0]
+            assert "term" in result[0]
+            assert "score" in result[0]
+
+    def test_classes_to_classes_requires_min_two_docs(self, calculator, nlp):
+        """Test that classes_to_classes requires at least 2 documents."""
+        docs = [nlp("Only one.")]
+        class_labels = ["ClassA"]
+        compare = Compare(calculator=calculator)
+
+        with pytest.raises(LexosException, match="At least two documents"):
+            compare.classes_to_classes(docs, class_labels=class_labels)
+
+    def test_classes_to_classes_requires_min_two_classes(self, calculator, nlp):
+        """Test that classes_to_classes requires at least 2 different classes."""
+        texts = ["A.", "B.", "C."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["ClassA", "ClassA", "ClassA"]
+        compare = Compare(calculator=calculator)
+
+        with pytest.raises(LexosException, match="At least two different classes"):
+            compare.classes_to_classes(docs, class_labels=class_labels)
+
+    def test_classes_to_classes_result_structure(self, calculator, nlp):
+        """Test the structure of classes_to_classes results."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
+
+        result = compare.classes_to_classes(docs, class_labels=class_labels)
+
+        # Check that results have comparison_class and topwords
+        for class_result in result.values():
+            assert "comparison_class" in class_result
+            assert "topwords" in class_result
+            assert isinstance(class_result["topwords"], list)
 
 
-# ---------------- Helper Methods Tests ----------------
+# ---------------- convert_output Tests ----------------
+
+
+class TestConvertOutput:
+    """Test convert_output method."""
+
+    def test_convert_output_after_document_to_corpus(self, calculator, nlp):
+        """Test converting output format after document_to_corpus."""
+        texts = ["Cat.", "Dog.", "Bird."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
+
+        # Run comparison first
+        compare.document_to_corpus(docs)
+
+        # Convert to dataframe
+        df_result = compare.convert_output("dataframe")
+        assert isinstance(df_result, pd.DataFrame)
+
+        # Convert to list_of_dicts
+        list_result = compare.convert_output("list_of_dicts")
+        assert isinstance(list_result, list)
+
+    def test_convert_output_after_documents_to_classes(self, calculator, nlp):
+        """Test converting output format after documents_to_classes."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
+
+        # Run comparison first
+        compare.documents_to_classes(docs, class_labels=class_labels)
+
+        # Convert to dataframe
+        df_result = compare.convert_output("dataframe")
+        assert isinstance(df_result, pd.DataFrame)
+        assert "doc_label" in df_result.columns
+
+    def test_convert_output_after_classes_to_classes(self, calculator, nlp):
+        """Test converting output format after classes_to_classes."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
+
+        # Run comparison first
+        compare.classes_to_classes(docs, class_labels=class_labels)
+
+        # Convert to dataframe
+        df_result = compare.convert_output("dataframe")
+        assert isinstance(df_result, pd.DataFrame)
+        assert "class_label" in df_result.columns
+
+    def test_convert_output_requires_cached_results(self, calculator):
+        """Test that convert_output requires cached results."""
+        compare = Compare(calculator=calculator)
+
+        with pytest.raises(LexosException, match="No results cached"):
+            compare.convert_output("dataframe")
+
+    def test_convert_output_invalid_format(self, calculator, nlp):
+        """Test that convert_output validates output format."""
+        texts = ["A.", "B."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
+
+        compare.document_to_corpus(docs)
+
+        with pytest.raises(LexosException, match="Unsupported output_format"):
+            compare.convert_output("invalid_format")
+
+
+# ---------------- Helper Method Tests ----------------
 
 
 class TestHelperMethods:
-    """Test private helper methods.
+    """Test helper methods."""
 
-    These tests create a Comparison instance to access the helper methods.
-    """
+    def test_get_class(self, calculator, nlp):
+        """Test get_class method."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        doc_labels = ["Doc1", "Doc2", "Doc3", "Doc4"]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
 
-    @pytest.fixture
-    def comparison_instance(self):
-        """Create a Comparison instance for testing helper methods."""
-        ztest_instance = ZTest(target_docs=[], comparison_docs=[], topn=3)
-        return Comparison(comparison_instance=ztest_instance)
-
-    def test_extract_text_from_strings(self, comparison_instance, sample_texts):
-        """Test extracting text from string documents."""
-        result = comparison_instance._extract_text_from_documents(sample_texts)
-
-        assert result == sample_texts
-        assert all(isinstance(text, str) for text in result)
-
-    def test_extract_text_from_docs(self, comparison_instance, sample_docs):
-        """Test extracting text from Doc objects."""
-        result = comparison_instance._extract_text_from_documents(sample_docs)
-
-        assert len(result) == len(sample_docs)
-        assert all(isinstance(text, str) for text in result)
-
-    def test_extract_text_from_mixed_raises_error(self, comparison_instance, nlp):
-        """Test that unsupported document types raise error."""
-        invalid_docs = ["string", nlp("doc"), 123]  # Invalid: includes integer
-
-        with pytest.raises(LexosException, match="Unsupported document type"):
-            result = comparison_instance._extract_text_from_documents(invalid_docs)
-
-    def test_extract_text_from_class_documents(self, comparison_instance, class_texts):
-        """Test extracting text from class documents dict."""
-        result = comparison_instance._extract_text_from_class_documents(class_texts)
-
-        assert set(result.keys()) == set(class_texts.keys())
-        for class_name in class_texts:
-            assert len(result[class_name]) == len(class_texts[class_name])
-
-    def test_build_comparison_corpus(self, comparison_instance, sample_texts):
-        """Test building comparison corpus excluding one document."""
-        result = comparison_instance._build_comparison_corpus(sample_texts, 2)
-
-        assert len(result) == len(sample_texts) - 1
-        assert sample_texts[2] not in result
-        assert sample_texts[0] in result
-        assert sample_texts[1] in result
-
-    def test_build_other_classes_comparison(self, comparison_instance, class_texts):
-        """Test building comparison from other classes."""
-        text_class_docs = comparison_instance._extract_text_from_class_documents(
-            class_texts
-        )
-        result = comparison_instance._build_other_classes_comparison(
-            text_class_docs, "Shakespeare"
+        compare.documents_to_classes(
+            docs, doc_labels=doc_labels, class_labels=class_labels
         )
 
-        # Should include Marlowe and Jonson, but not Shakespeare
-        assert len(result) == len(class_texts["Marlowe"]) + len(class_texts["Jonson"])
-        for text in class_texts["Shakespeare"]:
-            assert text not in result
+        assert compare.get_class("Doc1") == "X"
+        assert compare.get_class("Doc2") == "X"
+        assert compare.get_class("Doc3") == "Y"
+        assert compare.get_class("Doc4") == "Y"
 
-    def test_get_document_label_with_labels(self, comparison_instance):
-        """Test getting document label when labels provided."""
-        labels = ["Article 1", "Article 2", "Article 3"]
-        comparison_instance.document_labels = labels
+    def test_get_class_not_found(self, calculator, nlp):
+        """Test get_class with non-existent label."""
+        texts = ["A.", "B."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "Y"]
+        compare = Compare(calculator=calculator)
 
-        assert comparison_instance._get_document_label(0) == "Article 1"
-        assert comparison_instance._get_document_label(1) == "Article 2"
+        compare.documents_to_classes(docs, class_labels=class_labels)
 
-    def test_get_document_label_without_labels(self, comparison_instance):
-        """Test getting document label when no labels provided."""
-        comparison_instance.document_labels = None
+        with pytest.raises(LexosException, match="not found"):
+            compare.get_class("NonExistent")
 
-        assert comparison_instance._get_document_label(0) == "Doc 1"
-        assert comparison_instance._get_document_label(5) == "Doc 6"
+    def test_get_docs_by_class(self, calculator, nlp):
+        """Test get_docs_by_class method."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        doc_labels = ["Doc1", "Doc2", "Doc3", "Doc4"]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
 
-    def test_get_class_document_label_with_map(self, comparison_instance):
-        """Test getting class document label with mapping."""
-        doc_map = {"some text": "Custom Label"}
-        comparison_instance.document_to_label_map = doc_map
-
-        result = comparison_instance._get_class_document_label(
-            "some text", "ClassName", 0
-        )
-        assert result == "Custom Label"
-
-    def test_get_class_document_label_without_map(self, comparison_instance):
-        """Test getting class document label without mapping."""
-        comparison_instance.document_to_label_map = {}
-
-        result = comparison_instance._get_class_document_label("text", "Shakespeare", 2)
-        assert result == "Shakespeare Doc 3"
-
-    def test_validate_document_labels_success(self, comparison_instance):
-        """Test validation succeeds with matching counts."""
-        labels = ["A", "B", "C"]
-        comparison_instance.document_labels = labels
-
-        # Should not raise
-        comparison_instance._validate_document_labels(3)
-
-    def test_validate_document_labels_failure(self, comparison_instance):
-        """Test validation fails with mismatched counts."""
-        labels = ["A", "B"]
-        comparison_instance.document_labels = labels
-
-        with pytest.raises(LexosException, match="Document labels count"):
-            comparison_instance._validate_document_labels(3)
-
-    def test_build_class_dict_from_extensions(
-        self, comparison_instance, docs_with_author_extension
-    ):
-        """Test building class dict from Doc extensions."""
-        result = comparison_instance._build_class_dict_from_extensions(
-            docs_with_author_extension, ["author"]
+        compare.documents_to_classes(
+            docs, doc_labels=doc_labels, class_labels=class_labels
         )
 
-        assert "Shakespeare" in result
-        assert "Marlowe" in result
-        assert len(result["Shakespeare"]) == 2
-        assert len(result["Marlowe"]) == 2
+        result = compare.get_docs_by_class()
 
-    def test_build_class_dict_with_underscore_prefix(self, comparison_instance, nlp):
-        """Test building class dict with _.extension format."""
-        if not Doc.has_extension("category"):
-            Doc.set_extension("category", default=None, force=True)
+        assert "X" in result
+        assert "Y" in result
+        assert len(result["X"]) == 2
+        assert len(result["Y"]) == 2
+        assert "Doc1" in result["X"]
+        assert "Doc2" in result["X"]
+        assert "Doc3" in result["Y"]
+        assert "Doc4" in result["Y"]
 
-        doc1 = nlp("Text one")
-        doc1._.category = "A"
-        doc2 = nlp("Text two")
-        doc2._.category = "B"
+    def test_get_docs_by_class_specific_class(self, calculator, nlp):
+        """Test get_docs_by_class for a specific class."""
+        texts = ["A.", "B.", "C.", "D."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "X", "Y", "Y"]
+        compare = Compare(calculator=calculator)
 
-        result = comparison_instance._build_class_dict_from_extensions(
-            [doc1, doc2], ["_.category"]
-        )
+        compare.documents_to_classes(docs, class_labels=class_labels)
 
-        assert "A" in result
-        assert "B" in result
+        result = compare.get_docs_by_class("X")
 
-    def test_build_class_dict_with_explicit_underscore_dot_format(
-        self, comparison_instance, nlp
-    ):
-        """Test building class dict explicitly using _.extension to cover the underscore iteration."""
-        if not Doc.has_extension("genre"):
-            Doc.set_extension("genre", default=None, force=True)
-
-        doc1 = nlp("First document")
-        doc1._.genre = "Fiction"
-        doc2 = nlp("Second document")
-        doc2._.genre = "Non-Fiction"
-        doc3 = nlp("Third document")
-        doc3._.genre = "Fiction"
-
-        # Use explicit _.genre format
-        result = comparison_instance._build_class_dict_from_extensions(
-            [doc1, doc2, doc3], ["_.genre"]
-        )
-
-        assert "Fiction" in result
-        assert "Non-Fiction" in result
-        assert len(result["Fiction"]) == 2
-        assert len(result["Non-Fiction"]) == 1
-        assert doc1 in result["Fiction"]
-        assert doc3 in result["Fiction"]
-        assert doc2 in result["Non-Fiction"]
-
-    def test_build_class_dict_missing_extension_error(self):
-        """Test that LexosException is raised when documents don't have specified extensions."""
-        # Create docs without the extension we'll try to access
-        nlp = spacy.blank("en")
-
-        # Register a different extension (not the one we'll look for)
-        if not Doc.has_extension("other_field"):
-            Doc.set_extension("other_field", default=None)
-
-        doc1 = nlp("Text 1")
-        doc1._.other_field = "value1"
-
-        doc2 = nlp("Text 2")
-        doc2._.other_field = "value2"
-
-        docs = [doc1, doc2]
-
-        # Create a Comparison instance
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        # Try to build class dict with an extension that doesn't exist
-        with pytest.raises(LexosException) as exc_info:
-            comparison._build_class_dict_from_extensions(docs, ["missing_extension"])
-
-        # Verify the error message mentions the missing extension
-        assert "missing_extension" in str(exc_info.value)
-        assert "does not have any of the specified custom extensions" in str(
-            exc_info.value
-        )
-        assert "Available extensions:" in str(exc_info.value)
-        assert "other_field" in str(exc_info.value)
+        assert "X" in result
+        assert "Y" not in result
+        assert len(result["X"]) == 2
 
 
-# ---------------- Output Format Tests ----------------
+# ---------------- Edge Cases and Error Handling ----------------
 
 
-class TestOutputFormatting:
-    """Test output formatting methods.
+class TestEdgeCases:
+    """Test edge cases and error handling."""
 
-    These tests create properly initialized Comparison instances for each test.
-    """
+    def test_single_doc_input_converted_to_list(self, calculator, nlp):
+        """Test that single document is converted to list."""
+        doc = nlp("Single document.")
+        compare = Compare(calculator=calculator)
 
-    def test_format_output_dict(self):
-        """Test formatting output as dict."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest, output_format="dict")
-        data = {"key": "value"}
+        # Should raise error because we need at least 2 docs
+        with pytest.raises(LexosException):
+            compare.document_to_corpus(doc)
 
-        result = comparison._format_output(data)
-        assert result == data
+    def test_empty_results_handling(self, calculator, nlp):
+        """Test handling of empty/minimal results."""
+        texts = ["A.", "B."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
 
-    def test_format_output_with_override(self):
-        """Test formatting output with format override."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest, output_format="dict")
-        data = [
-            {
-                "label": "Doc 1",
-                "topwords": [{"term": "word", "z_score": 0.5}],
-            }
+        result = compare.document_to_corpus(docs)
+
+        # Should still return a dict structure even if topwords are empty
+        assert isinstance(result, dict)
+
+    def test_invalid_output_format(self, calculator, nlp):
+        """Test invalid output format raises error."""
+        texts = ["A.", "B."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
+
+        with pytest.raises(LexosException, match="Unsupported output_format"):
+            compare.document_to_corpus(docs, output_format="invalid")
+
+    def test_docs_dict_with_missing_required_keys(self, calculator, nlp):
+        """Test that _validate_docs_dict raises error for missing required keys."""
+        # Create docs dict missing 'class_label'
+        docs = [
+            {"doc": nlp("Text one.")},
+            {"doc": nlp("Text two.")},
         ]
+        compare = Compare(calculator=calculator)
 
-        result = comparison._format_output(data, output_format="dataframe")
-        assert isinstance(result, pd.DataFrame)
+        with pytest.raises(LexosException, match="must contain the keys"):
+            compare.documents_to_classes(docs)
 
-    def test_to_dataframe_from_list(self):
-        """Test converting list results to DataFrame."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        data = [
-            {
-                "label": "Doc 1",
-                "topwords": [
-                    {"term": "word1", "score": 0.9},
-                    {"term": "word2", "score": 0.8},
-                ],
-            },
-            {
-                "label": "Doc 2",
-                "topwords": [{"term": "word3", "score": 0.7}],
-            },
+    def test_docs_dict_auto_generates_doc_label(self, calculator, nlp):
+        """Test that _validate_docs_dict auto-generates doc_label when missing."""
+        docs = [
+            {"doc": nlp("Text one."), "class_label": "A"},
+            {"doc": nlp("Text two."), "class_label": "B"},
         ]
+        compare = Compare(calculator=calculator)
 
-        result = comparison._to_dataframe(data)
-        assert isinstance(result, pd.DataFrame)
-        assert len(result) == 3  # Total of 3 terms across all docs
-        assert "label" in result.columns
-        assert "term" in result.columns
+        result = compare.documents_to_classes(docs)
 
-    def test_to_dataframe_from_dict_class_results(self):
-        """Test converting dict class results to DataFrame."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
+        # Check that auto-generated labels were used
+        assert "Doc 1" in result
+        assert "Doc 2" in result
 
-        data = {
-            "Class1": {"topwords": [{"term": "word1", "score": 0.9}]},
-            "Class2": {"topwords": [{"term": "word2", "score": 0.8}]},
-        }
+    def test_docs_dict_preserves_existing_doc_label(self, calculator, nlp):
+        """Test that _validate_docs_dict preserves existing doc_label."""
+        docs = [
+            {"doc": nlp("Text one."), "class_label": "A", "doc_label": "Custom1"},
+            {"doc": nlp("Text two."), "class_label": "B", "doc_label": "Custom2"},
+        ]
+        compare = Compare(calculator=calculator)
 
-        result = comparison._to_dataframe(data)
-        assert isinstance(result, pd.DataFrame)
-        assert "group" in result.columns
-        assert "label" in result.columns
+        result = compare.documents_to_classes(docs)
 
-    def test_to_dataframe_from_dict_grouped_results(self):
-        """Test converting dict grouped results to DataFrame."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
+        # Check that custom labels were preserved
+        assert "Custom1" in result
+        assert "Custom2" in result
 
-        data = {
-            "Group1": [
-                {
-                    "label": "Doc 1",
-                    "result": {"topwords": [{"term": "word1", "score": 0.9}]},
-                }
-            ],
-            "Group2": [
-                {
-                    "label": "Doc 2",
-                    "result": {"topwords": [{"term": "word2", "score": 0.8}]},
-                }
-            ],
-        }
+    def test_mismatched_doc_classes_length(self, calculator, nlp):
+        """Test error when doc_classes length doesn't match docs length."""
+        texts = ["A.", "B.", "C."]
+        docs = [nlp(text) for text in texts]
+        class_labels = ["X", "Y"]  # Only 2 labels for 3 docs
+        compare = Compare(calculator=calculator)
 
-        result = comparison._to_dataframe(data)
-        assert isinstance(result, pd.DataFrame)
-        assert "group" in result.columns
+        with pytest.raises(LexosException, match="must be the same length"):
+            compare.documents_to_classes(docs, class_labels=class_labels)
 
-    def test_to_dataframe_invalid_type_raises_error(self):
-        """Test that invalid results type raises error."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        with pytest.raises(LexosException, match="Unsupported results type"):
-            result = comparison._to_dataframe("invalid string data")
-
-    def test_to_list_of_dicts_from_list(self):
-        """Test converting list to list of dicts."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        data = [{"key": "value1"}, {"key": "value2"}]
-
-        result = comparison._to_list_of_dicts(data)
-        assert result == data
-
-    def test_to_list_of_dicts_from_dict(self):
-        """Test converting dict to list of dicts."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        data = {
-            "Group1": [{"label": "Doc 1", "result": {}}],
-            "Group2": [{"label": "Doc 2", "result": {}}],
-        }
-
-        result = comparison._to_list_of_dicts(data)
-        assert isinstance(result, list)
-        assert all(isinstance(item, dict) for item in result)
-        assert all("group" in item for item in result)
-
-    def test_to_list_of_dicts_invalid_type_raises_error(self):
-        """Test that invalid type raises error."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        with pytest.raises(LexosException, match="Unsupported results type"):
-            result = comparison._to_list_of_dicts(123)
-
-    def test_extract_topwords(self):
-        """Test extracting topwords from result dict."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        data = {"topwords": [{"term": "word", "score": 0.9}]}
-
-        result = comparison._extract_topwords(data)
-        assert result == [{"term": "word", "score": 0.9}]
-
-    def test_extract_topwords_empty(self):
-        """Test extracting topwords from empty result."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        result = comparison._extract_topwords({})
-        assert result == []
-
-    def test_extract_label(self):
-        """Test extracting label from result dict."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        data = {"label": "Custom Label"}
-
-        result = comparison._extract_label(data, "Default")
-        assert result == "Custom Label"
-
-    def test_extract_label_with_default(self):
-        """Test extracting label uses default when not present."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        result = comparison._extract_label({}, "Default Label")
-        assert result == "Default Label"
-
-
-# ---------------- Integration-like Tests ----------------
-
-
-class TestComparisonIntegration:
-    """Test integration scenarios.
-
-    These test the _prepare_class_documents helper method with properly
-    initialized Comparison instances.
-    """
-
-    def test_prepare_class_documents_with_dict(self, class_texts):
-        """Test _prepare_class_documents with dict input."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        result = comparison._prepare_class_documents(class_documents=class_texts)
-
-        assert result == class_texts
-
-    def test_prepare_class_documents_with_docs(self, docs_with_author_extension):
-        """Test _prepare_class_documents with docs input."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
-
-        result = comparison._prepare_class_documents(
-            docs=docs_with_author_extension, class_names=["author"]
-        )
-
-        assert "Shakespeare" in result
-        assert "Marlowe" in result
-
-    def test_prepare_class_documents_conflicting_params(
-        self, class_texts, docs_with_author_extension
+    def test_convert_output_label_key_auto_detection_document_to_corpus(
+        self, calculator, nlp
     ):
-        """Test that providing both class_documents and docs raises error."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
+        """Test that convert_output auto-detects doc_label for document_to_corpus."""
+        texts = ["A.", "B.", "C."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
 
-        with pytest.raises(LexosException, match="Cannot provide both"):
-            result = comparison._prepare_class_documents(
-                class_documents=class_texts,
-                docs=docs_with_author_extension,
-                class_names=["author"],
-            )
+        # Run document_to_corpus (no class_label in data)
+        compare.document_to_corpus(docs)
 
-    def test_prepare_class_documents_no_params(self):
-        """Test that providing no params raises error."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
+        # Convert without specifying label_key - should auto-detect doc_label
+        result = compare.convert_output("dataframe", label_key=None)
 
-        with pytest.raises(LexosException, match="You must provide either"):
-            result = comparison._prepare_class_documents()
+        assert isinstance(result, pd.DataFrame)
+        # Should use doc_label as index or column
+        assert "doc_label" in result.index.name or "doc_label" in result.columns
 
-    def test_prepare_class_documents_docs_without_class_names(
-        self, docs_with_author_extension
-    ):
-        """Test that docs without class_names raises error."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
+    def test_docs_with_spacy_extension_for_class_labels(self, calculator, nlp):
+        """Test using spaCy Doc extension attributes for class labels."""
+        # Set up custom extension
+        if not Doc.has_extension("author"):
+            Doc.set_extension("author", default=None, force=True)
 
-        with pytest.raises(LexosException, match="you must also provide 'class_names'"):
-            result = comparison._prepare_class_documents(
-                docs=docs_with_author_extension
-            )
+        # Create docs with extension attributes
+        doc1 = nlp("Shakespeare wrote plays.")
+        doc1._.author = "Shakespeare"
+        doc2 = nlp("Marlowe wrote plays.")
+        doc2._.author = "Marlowe"
+        doc3 = nlp("Shakespeare wrote sonnets.")
+        doc3._.author = "Shakespeare"
+        doc4 = nlp("Marlowe wrote poetry.")
+        doc4._.author = "Marlowe"
 
-    def test_prepare_class_documents_empty_docs(self):
-        """Test that empty docs raises error."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
+        docs = [doc1, doc2, doc3, doc4]
+        # Use extension name as class_labels parameter
+        class_labels = ["author", "author", "author", "author"]
+        compare = Compare(calculator=calculator)
 
-        with pytest.raises(LexosException, match="Empty list of documents"):
-            result = comparison._prepare_class_documents(
-                docs=[], class_names=["author"]
-            )
+        result = compare.documents_to_classes(docs, class_labels=class_labels)
 
-    def test_prepare_class_documents_non_doc_objects(self):
-        """Test that non-Doc objects in docs list raises error."""
-        ztest = ZTest(target_docs=[], comparison_docs=[])
-        comparison = Comparison(comparison_instance=ztest)
+        # Should successfully create results using extension values
+        assert isinstance(result, dict)
+        assert len(result) == 4
 
-        with pytest.raises(LexosException, match="must be spaCy Doc objects"):
-            result = comparison._prepare_class_documents(
-                docs=["not a doc"], class_names=["author"]
-            )
+    def test_create_data_dict_with_invalid_type(self, calculator, nlp):
+        """Test _create_data_dict with non-list, non-dict type to cover line 234."""
+        compare = Compare(calculator=calculator)
+
+        # Create a non-list, non-indexable object (like a generator or custom object)
+        # We need to bypass ensure_list to test this edge case
+        class NotAList:
+            """A class that is neither a list nor has dict-like first element."""
+
+            def __getitem__(self, index):
+                # Return something that's not a dict to trigger the isinstance check
+                return "not a dict"
+
+        invalid_docs = NotAList()
+
+        with pytest.raises(
+            LexosException, match="must be a list of dicts, strings, or Doc objects"
+        ):
+            compare._create_data_dict(invalid_docs)
+
+    def test_convert_output_with_simple_results_format(self, calculator, nlp):
+        """Test convert_output with results that don't have 'topwords' key to cover line 200."""
+        texts = ["A.", "B.", "C."]
+        docs = [nlp(text) for text in texts]
+        compare = Compare(calculator=calculator)
+
+        # Run document_to_corpus which produces simple list results (not dict with 'topwords')
+        compare.document_to_corpus(docs)
+
+        # Now the results should be simple lists, not dicts with 'topwords'
+        # Manually modify results to ensure we test the code path
+        # The auto-detection should handle this case
+        result = compare.convert_output("dataframe", label_key=None)
+
+        assert isinstance(result, pd.DataFrame)
