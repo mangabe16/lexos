@@ -3,9 +3,9 @@
 Test suite for the Corpus class in lexos.corpus.corpus.
 Works around discovered bugs in the implementation.
 
-Coverage: 99%. Missing: 694.
+Coverage: 99%. Missing: 386, 716.
 
-Last Update: 2025-11-15.
+Last Update: 2025-11-16.
 """
 
 import shutil
@@ -1207,6 +1207,126 @@ class TestCorpusClass:
         assert isinstance(df, pd.DataFrame)
         assert id1 in set(df["id"])
         assert "none_id" not in set(df["id"])
+
+    def test_filter_records_by_metadata(self, temp_corpus_dir, nlp):
+        """Test filtering records by metadata properties."""
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="FilterTest")
+
+        # Add records with different metadata
+        doc1 = nlp("Document about science")
+        record1 = Record(
+            id=str(uuid.uuid4()),
+            name="sci_doc1",
+            content=doc1,
+            model="en_core_web_sm",
+            is_active=True,
+        )
+        record1.meta = {"author": "Alice", "year": 2025, "topic": "science"}
+        corpus._add_to_corpus(record1)
+
+        doc2 = nlp("Another science document")
+        record2 = Record(
+            id=str(uuid.uuid4()),
+            name="sci_doc2",
+            content=doc2,
+            model="en_core_web_sm",
+            is_active=True,
+        )
+        record2.meta = {"author": "Bob", "year": 2025, "topic": "science"}
+        corpus._add_to_corpus(record2)
+
+        doc3 = nlp("History document")
+        record3 = Record(
+            id=str(uuid.uuid4()),
+            name="hist_doc",
+            content=doc3,
+            model="en_core_web_sm",
+            is_active=True,
+        )
+        record3.meta = {"author": "Alice", "year": 2024, "topic": "history"}
+        corpus._add_to_corpus(record3)
+
+        # Test filtering by single metadata field
+        science_docs = corpus.filter_records(topic="science")
+        assert len(science_docs) == 2
+        assert all(r.meta["topic"] == "science" for r in science_docs)
+
+        # Test filtering by multiple metadata fields
+        alice_2025 = corpus.filter_records(author="Alice", year=2025)
+        assert len(alice_2025) == 1
+        assert alice_2025[0].meta["author"] == "Alice"
+        assert alice_2025[0].meta["year"] == 2025
+
+        # Test filtering with no matches
+        no_match = corpus.filter_records(author="Charlie")
+        assert len(no_match) == 0
+
+        # Test filtering with all records matching
+        all_2025 = corpus.filter_records(year=2025)
+        assert len(all_2025) == 2
+
+    def test_filter_records_missing_metadata(self, temp_corpus_dir, nlp):
+        """Test filtering when records have missing metadata fields."""
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="FilterMissingMeta")
+
+        # Add record with full metadata
+        doc1 = nlp("Full metadata")
+        record1 = Record(
+            id=str(uuid.uuid4()),
+            name="full_meta",
+            content=doc1,
+            model="en_core_web_sm",
+        )
+        record1.meta = {"author": "Alice", "year": 2025}
+        corpus._add_to_corpus(record1)
+
+        # Add record with partial metadata
+        doc2 = nlp("Partial metadata")
+        record2 = Record(
+            id=str(uuid.uuid4()),
+            name="partial_meta",
+            content=doc2,
+            model="en_core_web_sm",
+        )
+        record2.meta = {"author": "Bob"}  # Missing 'year'
+        corpus._add_to_corpus(record2)
+
+        # Filter by field that exists in only one record
+        filtered = corpus.filter_records(year=2025)
+        assert len(filtered) == 1
+        assert filtered[0].name == "full_meta"
+
+        # Filter by field that exists in both records
+        alice_docs = corpus.filter_records(author="Alice")
+        assert len(alice_docs) == 1
+
+    def test_filter_records_no_metadata(self, temp_corpus_dir, nlp):
+        """Test filtering when records have no metadata attribute."""
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="FilterNoMeta")
+
+        # Add a record without meta attribute (edge case)
+        doc = nlp("No metadata")
+        record = Record(
+            id=str(uuid.uuid4()),
+            name="no_meta",
+            content=doc,
+            model="en_core_web_sm",
+        )
+        # Don't set record.meta - it should have default empty dict
+        corpus._add_to_corpus(record)
+
+        # Filter should return empty list
+        filtered = corpus.filter_records(author="Anyone")
+        assert len(filtered) == 0
+
+    def test_filter_records_empty_corpus(self, temp_corpus_dir):
+        """Test filtering on an empty corpus."""
+        corpus = Corpus(corpus_dir=temp_corpus_dir, name="EmptyFilter")
+
+        # Filter on empty corpus should return empty list
+        filtered = corpus.filter_records(author="Alice")
+        assert len(filtered) == 0
+        assert isinstance(filtered, list)
 
     def test_to_df_metadata_key_collision(self, tmp_path, nlp):
         # Setup: create a corpus and add a record with a metadata key that collides with a top-level field

@@ -342,7 +342,7 @@ class SQLiteBackend:
                 for db_record in results
             ]
 
-    def get_corpus_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get aggregate corpus statistics from the database."""
         with self.SessionLocal() as session:
             # Basic counts

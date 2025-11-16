@@ -1,7 +1,7 @@
 """corpus.py.
 
-Last updated: June 5, 2025
-Last tested: November 15, 2025
+Last updated: November 16, 2025
+Last tested: November 16, 2025
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
 
@@ -369,6 +369,29 @@ class Corpus(BaseModel):
 
             # Add the record to the Corpus
             self._add_to_corpus(record, cache=cache)
+
+    @validate_call(config=model_config)
+    def filter_records(self, **metadata_filters) -> list[Record]:
+        """Return records matching metadata key-value pairs.
+
+        Args:
+            **metadata_filters: Arbitrary metadata fields and their required values.
+
+        Returns:
+            List of Record objects matching all metadata criteria.
+        """
+        results = []
+        for record in self.records.values():
+            if not hasattr(record, "meta") or not isinstance(record.meta, dict):
+                continue
+            match = True
+            for key, value in metadata_filters.items():
+                if key not in record.meta or record.meta[key] != value:
+                    match = False
+                    break
+            if match:
+                results.append(record)
+        return results
 
     @validate_call(config=model_config)
     def get(

@@ -435,11 +435,11 @@ class TestSQLiteBackendStatistics:
         yield backend, records
         backend.close()
 
-    def test_get_corpus_stats_counts(self, backend_with_stats_records):
+    def test_get_stats_counts(self, backend_with_stats_records):
         """Test getting corpus statistics."""
         backend, records = backend_with_stats_records
 
-        stats = backend.get_corpus_stats()
+        stats = backend.get_stats()
 
         assert stats["total_records"] == 3
         assert stats["active_records"] == 2
@@ -447,11 +447,11 @@ class TestSQLiteBackendStatistics:
         assert "total_terms" in stats
         assert "average_vocab_density" in stats
 
-    def test_get_corpus_stats_empty_database(self):
+    def test_get_stats_empty_database(self):
         """Test statistics on empty database."""
         backend = SQLiteBackend(database_path=":memory:")
 
-        stats = backend.get_corpus_stats()
+        stats = backend.get_stats()
 
         assert stats["total_records"] == 0
         assert stats["active_records"] == 0

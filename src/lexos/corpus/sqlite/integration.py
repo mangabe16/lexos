@@ -457,7 +457,7 @@ class SQLiteCorpus(Corpus):
                 "Database is not enabled. Initialize corpus with use_sqlite=True."
             )
 
-        return self.db.get_corpus_stats()
+        return self.db.get_stats()
 
     @validate_call
     def search(
