@@ -1,7 +1,7 @@
 """corpus.py.
 
 Last updated: June 5, 2025
-Last tested: It works in a noteboook, but no unit tests written yet.
+Last tested: November 15, 2025
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
 
@@ -9,7 +9,6 @@ To reproduce the web app's Statistics module, call `stats = Corpus.get_token_sta
 
 
 # TODO:
-- Test.
 - Consider adding method to normalize extensions across entire corpus (PM suggestion: detect all extensions in corpus docs and set values to None if not present in a given Doc)
 - Complete communication architecture implementation once peer modules (kmeans, topwords, kwic, text classification) are available
 - Implement result validation and versioning for external module results
@@ -26,7 +25,6 @@ from typing import Any, Optional
 
 import pandas as pd
 import srsly
-from wasabi import msg
 from pydantic import (
     UUID4,
     BaseModel,
@@ -35,6 +33,7 @@ from pydantic import (
     validate_call,
 )
 from spacy.tokens import Doc
+from wasabi import msg
 
 from lexos.corpus import Record
 from lexos.corpus.corpus_stats import CorpusStats
@@ -83,9 +82,19 @@ class Corpus(BaseModel):
         super().__init__(**data)
         corpus_dir = Path(self.corpus_dir)
         Path(corpus_dir / "data").mkdir(parents=True, exist_ok=True)
+
+        # Load existing metadata if it exists, otherwise create new
+        metadata_file = corpus_dir / self.corpus_metadata_file
+        if metadata_file.exists():
+            # Load existing metadata to preserve record info
+            existing_metadata = srsly.read_json(metadata_file)
+            # Preserve the 'meta' dict which contains record metadata
+            if "meta" in existing_metadata and existing_metadata["meta"]:
+                self.meta = existing_metadata["meta"]
+
         data = self.model_dump()
         data["terms"] = list(data["terms"])
-        srsly.write_json(corpus_dir / self.corpus_metadata_file, data)
+        srsly.write_json(metadata_file, data)
         msg.good("Corpus created.")
 
     def __repr__(self):
@@ -138,15 +147,18 @@ class Corpus(BaseModel):
             record (Record): A Record doc.
         """
         # Update corpus records table
-        meta = record.model_dump(exclude=["content", "terms", "text", "tokens"])
-        # Ensure ID is always string for JSON serialization
+        meta = record.model_dump(
+            exclude=["content", "terms", "text", "tokens"], mode="json"
+        )
+        # Ensure ID is always string for JSON serialization (redundant with mode="json" but kept for clarity)
         if "id" in meta:
             meta["id"] = str(meta["id"])
         num_tokens = record.num_tokens() if record.is_parsed else 0
         num_terms = record.num_terms() if record.is_parsed else 0
         meta["num_tokens"] = num_tokens
         meta["num_terms"] = num_terms
-        self.meta[record.id] = meta
+        # Use string ID as key to avoid UUID serialization issues
+        self.meta[str(record.id)] = meta
 
         # Save the record to disk -- currently, this is always done
         corpus_dir = Path(self.corpus_dir)
@@ -229,19 +241,64 @@ class Corpus(BaseModel):
             terms, tokens, and unique terms in the entire Corpus.
         """
         self.num_docs = len(self.records)
-        self.num_active_docs = sum(1 for r in self.records.values() if r and r.is_active)
-        self.num_terms = sum(r.num_terms() for r in self.records.values() if r and r.is_parsed)
-        self.num_tokens = sum(r.num_tokens() for r in self.records.values() if r and r.is_parsed)
-        corpus_data = self.model_dump(exclude=["content", "terms", "text", "tokens", "records"])
+        self.num_active_docs = sum(
+            1 for r in self.records.values() if r and r.is_active
+        )
+        self.num_terms = sum(
+            r.num_terms() for r in self.records.values() if r and r.is_parsed
+        )
+        self.num_tokens = sum(
+            r.num_tokens() for r in self.records.values() if r and r.is_parsed
+        )
+        corpus_data = self.model_dump(
+            exclude=["content", "terms", "text", "tokens", "records"]
+        )
         # Convert any remaining UUIDs to strings
         for key, value in corpus_data.items():
-            if hasattr(value, 'hex'):  # UUID objects have .hex attribute
+            if hasattr(value, "hex"):  # UUID objects have .hex attribute
                 corpus_data[key] = str(value)
 
         srsly.write_json(
             Path(self.corpus_dir) / self.corpus_metadata_file,
             corpus_data,
         )
+
+    def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Convert non-JSON-serializable types to strings in metadata.
+
+        Args:
+            metadata: Original metadata dictionary
+
+        Returns:
+            Sanitized metadata dictionary with JSON-serializable values
+        """
+        from datetime import date, datetime
+        from pathlib import Path
+        from uuid import UUID
+
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, UUID):
+                sanitized[key] = str(value)
+            elif isinstance(value, (datetime, date)):
+                sanitized[key] = value.isoformat()
+            elif isinstance(value, Path):
+                sanitized[key] = str(value)
+            elif isinstance(value, dict):
+                sanitized[key] = self._sanitize_metadata(value)  # Recursive
+            elif isinstance(value, list):
+                sanitized[key] = [
+                    self._sanitize_metadata({"item": item})["item"]
+                    if isinstance(item, dict)
+                    else str(item)
+                    if isinstance(item, (UUID, datetime, date, Path))
+                    else item
+                    for item in value
+                ]
+            else:
+                sanitized[key] = value
+
+        return sanitized
 
     @validate_call(config=model_config)
     def add(
@@ -251,7 +308,7 @@ class Corpus(BaseModel):
         is_active: Optional[bool] = True,
         model: Optional[str] = None,
         extensions: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None, 
+        metadata: Optional[dict[str, Any]] = None,
         id_type: Optional[str] = "uuid4",
         cache: Optional[bool] = False,
     ):
@@ -267,6 +324,10 @@ class Corpus(BaseModel):
             id_type (str): The type of ID to generate. Can be "integer" or "uuid4". Defaults to "uuid4".
             cache (bool): Whether or not to cache the record.
         """
+        # Sanitize metadata to ensure JSON-serializable types
+        if metadata is not None:
+            metadata = self._sanitize_metadata(metadata)
+
         # If content is not a list, treat it as a single item
         if isinstance(content, (Doc, Record, str)):
             items = [content]
@@ -278,7 +339,7 @@ class Corpus(BaseModel):
             new_id = self._generate_unique_id(type=id_type)
 
             # Keep generating new UUIDs until one is not in the records dic
-            #while new_id in self.records:
+            # while new_id in self.records:
             #    new_id = str(uuid.uuid4())
 
             if isinstance(item, Record):
@@ -404,7 +465,9 @@ class Corpus(BaseModel):
         if not token_list:
             # Filter the records to only include active ones
             if active_only:
-                records = [record for record in self.records.values() if record.is_active]
+                records = [
+                    record for record in self.records.values() if record.is_active
+                ]
             # Otherwise, include all records
             else:
                 records = list(self.records.values())
@@ -604,10 +667,10 @@ class Corpus(BaseModel):
         for record in self.records.values():  # <- Fix the duplicate
             if record is None:  # Skip None records
                 continue
-        
+
             # Get model categories
             row = record.model_dump(exclude=exclude)
-            
+
             # Add metadata categories
             metadata = row.pop("meta", {})
             for key, value in metadata.items():
@@ -621,7 +684,17 @@ class Corpus(BaseModel):
         # Create a DataFrame from the rows
         if rows:  # Only create DataFrame if we have data
             df = pd.DataFrame(rows)
-            df.fillna("", inplace=True)
+            # Fill NaN with appropriate values based on column dtype
+            fill_values = {}
+            for col in df.columns:
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    fill_values[col] = 0
+                elif pd.api.types.is_bool_dtype(df[col]):
+                    fill_values[col] = False
+                else:
+                    fill_values[col] = ""
+
+            df = df.fillna(fill_values)  # Use assignment instead of inplace
             return df
         else:
             # Return empty DataFrame with basic columns if no records
@@ -632,16 +705,21 @@ class Corpus(BaseModel):
     # =============================================================================
 
     @validate_call(config=model_config)
-    def import_analysis_results(self, module_name: str, results_data: dict[str, Any], 
-                              version: str = "1.0.0", overwrite: bool = False) -> None:
+    def import_analysis_results(
+        self,
+        module_name: str,
+        results_data: dict[str, Any],
+        version: str = "1.0.0",
+        overwrite: bool = False,
+    ) -> None:
         """Import analysis results from external modules into corpus metadata.
-        
+
         Args:
             module_name: Name of the external module (e.g., 'kmeans', 'topwords', 'kwic', 'text_classification')
             results_data: Dictionary containing the analysis results
             version: Version string for result versioning and compatibility
             overwrite: Whether to overwrite existing results for this module
-            
+
         Note:
             This is a framework implementation. Full functionality requires
             peer modules to be implemented and their result schemas defined.
@@ -649,13 +727,13 @@ class Corpus(BaseModel):
         # TODO: Add result schema validation once peer modules are available
         # TODO: Add proper versioning system for backward compatibility
         # TODO: Implement result correlation capabilities across modules
-        
+
         if module_name in self.analysis_results and not overwrite:
             raise ValueError(
                 f"Results for module '{module_name}' already exist. "
                 f"Use overwrite=True to replace them."
             )
-        
+
         # Basic result structure with metadata
         self.analysis_results[module_name] = {
             "version": version,
@@ -663,20 +741,20 @@ class Corpus(BaseModel):
             "corpus_state": {
                 "num_docs": self.num_docs,
                 "num_active_docs": self.num_active_docs,
-                "corpus_fingerprint": self._generate_corpus_fingerprint()
+                "corpus_fingerprint": self._generate_corpus_fingerprint(),
             },
-            "results": results_data
+            "results": results_data,
         }
-        
+
         msg.good(f"Imported {module_name} analysis results (version {version})")
 
-    @validate_call(config=model_config)  
+    @validate_call(config=model_config)
     def get_analysis_results(self, module_name: str = None) -> dict[str, Any]:
         """Retrieve analysis results from external modules.
-        
+
         Args:
             module_name: Specific module name to retrieve, or None for all results
-            
+
         Returns:
             Dictionary containing analysis results
         """
@@ -684,25 +762,25 @@ class Corpus(BaseModel):
             if module_name not in self.analysis_results:
                 raise ValueError(f"No results found for module '{module_name}'")
             return self.analysis_results[module_name]
-        
+
         return self.analysis_results
 
     @validate_call(config=model_config)
     def export_statistical_fingerprint(self) -> dict[str, Any]:
         """Export standardized statistical summary for external modules.
-        
+
         Returns:
             Dictionary containing corpus statistical fingerprint for external module consumption
-            
+
         Note:
             This provides the standardized API for external modules to consume corpus statistics.
         """
         # TODO: Expand fingerprint based on external module requirements
         # TODO: Add feature extraction optimized for different analysis types
-        
+
         try:
             stats = self.get_stats(active_only=True)
-            
+
             # Core statistical fingerprint
             fingerprint = {
                 "corpus_metadata": {
@@ -711,7 +789,7 @@ class Corpus(BaseModel):
                     "num_active_docs": self.num_active_docs,
                     "num_tokens": self.num_tokens,
                     "num_terms": self.num_terms,
-                    "corpus_fingerprint": self._generate_corpus_fingerprint()
+                    "corpus_fingerprint": self._generate_corpus_fingerprint(),
                 },
                 "distribution_stats": stats.distribution_stats,
                 "percentiles": stats.percentiles,
@@ -720,14 +798,16 @@ class Corpus(BaseModel):
                     "mean": stats.mean,
                     "std": stats.standard_deviation,
                     "iqr_values": stats.iqr_values,
-                    "iqr_bounds": stats.iqr_bounds
+                    "iqr_bounds": stats.iqr_bounds,
                 },
-                "document_features": stats.doc_stats_df.to_dict('records'),
-                "term_frequencies": self.term_counts(n=100, most_common=True)  # Top 100 terms
+                "document_features": stats.doc_stats_df.to_dict("records"),
+                "term_frequencies": self.term_counts(
+                    n=100, most_common=True
+                ),  # Top 100 terms
             }
-            
+
             return fingerprint
-            
+
         except Exception as e:
             # Fallback fingerprint if CorpusStats fails
             return {
@@ -737,88 +817,95 @@ class Corpus(BaseModel):
                     "num_active_docs": self.num_active_docs,
                     "num_tokens": self.num_tokens,
                     "num_terms": self.num_terms,
-                    "corpus_fingerprint": self._generate_corpus_fingerprint()
+                    "corpus_fingerprint": self._generate_corpus_fingerprint(),
                 },
                 "error": f"Statistical analysis failed: {str(e)}",
                 "basic_features": {
                     "document_ids": list(self.records.keys()),
-                    "document_names": list(self.names.keys())
-                }
+                    "document_names": list(self.names.keys()),
+                },
             }
 
     def _generate_corpus_fingerprint(self) -> str:
         """Generate a unique fingerprint for corpus state validation.
-        
+
         Returns:
             SHA256 hash representing current corpus state
         """
         import hashlib
-        
+
         # Create fingerprint from corpus state
         state_data = {
             "num_docs": self.num_docs,
             "num_active_docs": self.num_active_docs,
             "record_ids": sorted(self.records.keys()),
-            "active_record_ids": sorted([k for k, v in self.records.items() if v and v.is_active])
+            "active_record_ids": sorted(
+                [k for k, v in self.records.items() if v and v.is_active]
+            ),
         }
-        
+
         state_string = str(sorted(state_data.items()))
         return hashlib.sha256(state_string.encode()).hexdigest()[:16]  # First 16 chars
 
     @validate_call(config=model_config)
     def validate_analysis_compatibility(self, module_name: str) -> dict[str, Any]:
         """Validate if stored analysis results are compatible with current corpus state.
-        
+
         Args:
             module_name: Name of the module to validate
-            
+
         Returns:
             Dictionary containing validation results and recommendations
         """
         if module_name not in self.analysis_results:
             return {
                 "compatible": False,
-                "reason": f"No analysis results found for module '{module_name}'"
+                "reason": f"No analysis results found for module '{module_name}'",
             }
-        
+
         stored_results = self.analysis_results[module_name]
         stored_state = stored_results.get("corpus_state", {})
         current_fingerprint = self._generate_corpus_fingerprint()
         stored_fingerprint = stored_state.get("corpus_fingerprint", "")
-        
+
         compatibility = {
             "compatible": stored_fingerprint == current_fingerprint,
             "current_fingerprint": current_fingerprint,
             "stored_fingerprint": stored_fingerprint,
             "stored_timestamp": stored_results.get("timestamp", "unknown"),
-            "stored_version": stored_results.get("version", "unknown")
+            "stored_version": stored_results.get("version", "unknown"),
         }
-        
+
         if not compatibility["compatible"]:
-            compatibility["reason"] = "Corpus state has changed since analysis was performed"
-            compatibility["recommendation"] = f"Re-run {module_name} analysis with current corpus state"
-            
+            compatibility["reason"] = (
+                "Corpus state has changed since analysis was performed"
+            )
+            compatibility["recommendation"] = (
+                f"Re-run {module_name} analysis with current corpus state"
+            )
+
             # Detailed state comparison
             compatibility["state_changes"] = {
                 "num_docs": {
                     "stored": stored_state.get("num_docs", 0),
                     "current": self.num_docs,
-                    "changed": stored_state.get("num_docs", 0) != self.num_docs
+                    "changed": stored_state.get("num_docs", 0) != self.num_docs,
                 },
                 "num_active_docs": {
                     "stored": stored_state.get("num_active_docs", 0),
                     "current": self.num_active_docs,
-                    "changed": stored_state.get("num_active_docs", 0) != self.num_active_docs
-                }
+                    "changed": stored_state.get("num_active_docs", 0)
+                    != self.num_active_docs,
+                },
             }
-        
+
         return compatibility
 
     # TODO: Add when peer modules are available
     # def correlate_analysis_results(self, module1: str, module2: str) -> dict:
     #     """Correlate results between different analysis modules."""
     #     pass
-    
+
     # TODO: Add when peer module schemas are defined
     # def validate_result_schema(self, module_name: str, results_data: dict) -> bool:
     #     """Validate that results conform to expected schema for the module."""

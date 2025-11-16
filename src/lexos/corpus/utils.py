@@ -3,7 +3,7 @@
 Utility functions and classes for the Lexos corpus module.
 
 Last updated: June 1, 2025
-Last tested: TBD.
+Last tested: November 15, 2025
 """
 
 from collections.abc import Mapping

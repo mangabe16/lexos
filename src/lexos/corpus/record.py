@@ -1,7 +1,8 @@
 """record.py.
 
-Last updated: June 23, 2025
-Last tested: It works in a noteboook, but no unit tests written yet.
+Last updated: November 15, 2025
+Last tested: November 15, 2025
+
 
 Wrapping texts and spaCy Docs in a Pydantic model provides a lot of extra functionality, particularly through the model_dump() and model_dump_json() methods. See the Pydantic documentation for more information.
 
@@ -10,17 +11,16 @@ Other than that, the Record class provides methods for serializing and deseriali
 The Record class handles the difficult task of keeping track of whether the content is a spaCy Doc or a string, as well as the tricky job of preserving custom Token attributes when spaCy Docs are serialised and deserialised.
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
-
-# TODO:
-- Test.
 """
 
-import uuid
 import hashlib
+import uuid
 from collections import Counter
+from datetime import date, datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional
+from uuid import UUID
 
 import msgpack
 import spacy
@@ -71,7 +71,9 @@ class Record(BaseModel):
         if isinstance(content, Doc):
             content.user_data["extensions"] = {}
             for ext in self.extensions:
-                content.user_data["extensions"][ext] = [token._.get(ext) for token in content]
+                content.user_data["extensions"][ext] = [
+                    token._.get(ext) for token in content
+                ]
             return content.to_bytes()
         return content
 
@@ -79,6 +81,44 @@ class Record(BaseModel):
     def serialize_id(self, id, _info):
         """Always serialize ID as string for JSON compatibility."""
         return str(id)
+
+    @field_serializer("meta")
+    def serialize_meta(self, meta: dict[str, Any]) -> dict[str, Any]:
+        """Ensure metadata is JSON-serializable by converting special types to strings."""
+        return self._sanitize_metadata(meta)
+
+    def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Convert non-JSON-serializable types to strings.
+
+        Args:
+            metadata: Original metadata dictionary
+
+        Returns:
+            Sanitized metadata dictionary with JSON-serializable values
+        """
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, UUID):
+                sanitized[key] = str(value)
+            elif isinstance(value, (datetime, date)):
+                sanitized[key] = value.isoformat()
+            elif isinstance(value, Path):
+                sanitized[key] = str(value)
+            elif isinstance(value, dict):
+                sanitized[key] = self._sanitize_metadata(value)  # Recursive
+            elif isinstance(value, list):
+                sanitized[key] = [
+                    self._sanitize_metadata({"item": item})["item"]
+                    if isinstance(item, dict)
+                    else str(item)
+                    if isinstance(item, (UUID, datetime, date, Path))
+                    else item
+                    for item in value
+                ]
+            else:
+                sanitized[key] = value
+
+        return sanitized
 
     def __repr__(self):
         """Return a string representation of the record."""
@@ -242,7 +282,7 @@ class Record(BaseModel):
             core_data = {k: v for k, v in data.items() if k != "data_integrity_hash"}
             core_bytes = msgpack.dumps(core_data)
             computed_hash = hashlib.sha256(core_bytes).hexdigest()
-            
+
             if stored_hash != computed_hash:
                 raise LexosException(
                     f"Data integrity check failed: Hash mismatch detected. "
@@ -373,7 +413,9 @@ class Record(BaseModel):
             setattr(self, k, v)
 
     @validate_call(config=model_config)
-    def to_bytes(self, extensions: Optional[list[str]] = [], include_hash: bool = True) -> bytes:
+    def to_bytes(
+        self, extensions: Optional[list[str]] = [], include_hash: bool = True
+    ) -> bytes:
         """Serialize the record to a dictionary.
 
         Args:
@@ -423,7 +465,7 @@ class Record(BaseModel):
 
         # Serialize and save the record
         data = self.to_bytes(extensions)
-        
+
         try:
             with open(path, "wb") as f:
                 f.write(data)
