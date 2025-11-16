@@ -5,7 +5,7 @@ Simple database integration using pure SQLAlchemy with SQLModel compatibility.
 This is a compatibility layer for SQLModel 0.0.24 that works around primary key issues.
 
 Last Updated: November 15, 2025
-Last Tested: July 10, 2025
+Last Tested: November 15, 2025
 """
 
 import hashlib
@@ -13,7 +13,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from spacy.tokens import Doc
 
@@ -167,7 +167,7 @@ class SQLiteBackend:
         """Deserialize spaCy Doc from bytes."""
         try:
             # Use Record's deserialization method
-            temp_record = Record(id="temp", content="")
+            temp_record = Record(id=str(uuid4()), content="")
             return temp_record._doc_from_bytes(doc_bytes, model, model_cache)
         except Exception as e:
             raise LexosException(f"Failed to deserialize spaCy Doc: {str(e)}")
@@ -341,63 +341,6 @@ class SQLiteBackend:
                 self._db_record_to_record(db_record, include_doc=False)
                 for db_record in results
             ]
-
-    def filter_records(
-        self,
-        is_active: Optional[bool] = None,
-        is_parsed: Optional[bool] = None,
-        model: Optional[str] = None,
-        min_tokens: Optional[int] = None,
-        max_tokens: Optional[int] = None,
-        limit: Optional[int] = None,
-    ) -> list[Record]:
-        """Filter records by various criteria using database queries."""
-        with self.SessionLocal() as session:
-            # Build WHERE clause conditions
-            conditions = []
-            params = {}
-
-            if is_active is not None:
-                conditions.append("is_active = :is_active")
-                params["is_active"] = is_active
-
-            if is_parsed is not None:
-                conditions.append("is_parsed = :is_parsed")
-                params["is_parsed"] = is_parsed
-
-            if model is not None:
-                conditions.append("model = :model")
-                params["model"] = model
-
-            if min_tokens is not None:
-                conditions.append("num_tokens >= :min_tokens")
-                params["min_tokens"] = min_tokens
-
-            if max_tokens is not None:
-                conditions.append("num_tokens <= :max_tokens")
-                params["max_tokens"] = max_tokens
-
-            # Build the query
-            where_clause = " AND ".join(conditions) if conditions else "1=1"
-            query = f"SELECT * FROM records WHERE {where_clause}"
-
-            if limit is not None:
-                query += " LIMIT :limit"
-                params["limit"] = limit
-
-            result = session.execute(text(query), params)
-
-            records = []
-            for row in result:
-                # Convert row to SQLiteRecord manually
-                db_record = SQLiteRecord()
-                for i, col in enumerate(SQLiteRecord.__table__.columns):
-                    setattr(db_record, col.name, row[i])
-
-                record = self._db_record_to_record(db_record, include_doc=False)
-                records.append(record)
-
-            return records
 
     def get_corpus_stats(self) -> dict[str, Any]:
         """Get aggregate corpus statistics from the database."""
