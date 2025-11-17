@@ -1,6 +1,6 @@
 """record.py.
 
-Last updated: November 15, 2025
+Last updated: November 17, 2025
 Last tested: November 15, 2025
 
 
@@ -10,7 +10,7 @@ Other than that, the Record class provides methods for serializing and deseriali
 
 The Record class handles the difficult task of keeping track of whether the content is a spaCy Doc or a string, as well as the tricky job of preserving custom Token attributes when spaCy Docs are serialised and deserialised.
 
-This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
+This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternatively, the ID can be set to an incrementing integer with `id_type="integer"`.
 """
 
 import hashlib
