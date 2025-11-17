@@ -26,6 +26,8 @@ Under the hood, a Record can store plain text, a parsed spaCy Doc (for NLP analy
 
 SpaCy `Doc` objects are pretokenized texts which contain extra linguistic information such as part of speech labels. When you create a `Record` with a spaCy `Doc`, this information is stored as part of the record and is accessible to you. The record's `is_parsed` is set, so filtering for `is_parsed=True` will find all records containing `Doc` objects in your corpus.
 
+For more information, see [Working with Records](working_with_records.md).
+
 ---
 
 ### Creating a Corpus
