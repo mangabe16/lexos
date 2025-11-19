@@ -1,24 +1,79 @@
 """corpus_stats.py.
 
-Last updated: June 5, 2025
-Last tested: November 15, 2025
+Last updated: November 18, 2025
+Last tested: November 18, 2025
 """
 
+import math
 from functools import cached_property
-from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 import seaborn as sns
-from plotly import express as px
 from plotly.subplots import make_subplots
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy import stats
-from spacy.tokens import Doc
 
 from lexos.dtm import DTM
+
+
+def make_labels_unique(labels: list[str]) -> list[str]:
+    """Make labels unique by adding suffixes recursively.
+
+    For duplicate labels, append "-001", "-002", etc. This function handles
+    the case where a label already has a suffix that would conflict with
+    the generated suffixes by recursively renaming.
+
+    Args:
+        labels: A list of labels that may contain duplicates.
+
+    Returns:
+        A new list with unique labels. Duplicates get suffixes "-001", "-002", etc.
+
+    Example:
+        >>> make_labels_unique(["doc", "doc", "report"])
+        ["doc-001", "doc-002", "report"]
+
+        >>> make_labels_unique(["doc", "doc-001", "doc"])
+        ["doc-001-001", "doc-001-002", "doc-002"]
+    """
+    if not labels:
+        return labels
+
+    label_counts = {}
+    result = []
+
+    for label in labels:
+        label_counts[label] = label_counts.get(label, 0) + 1
+
+    # Find all labels that appear more than once
+    duplicates = {label for label, count in label_counts.items() if count > 1}
+
+    if not duplicates:
+        return labels
+
+    # Track which labels need suffixes
+    label_indices = {label: 0 for label in duplicates}
+
+    for label in labels:
+        if label in duplicates:
+            label_indices[label] += 1
+            new_label = f"{label}-{label_indices[label]:03d}"
+
+            # Recursively handle conflicts: if the new label is also a duplicate,
+            # rename all instances including the newly generated one
+            if new_label in label_counts or new_label in duplicates:
+                # Re-run make_labels_unique with the conflicting label treated as duplicate
+                temp_labels = result + [new_label] + labels[len(result) + 1 :]
+                return make_labels_unique(temp_labels)
+
+            result.append(new_label)
+        else:
+            result.append(label)
+
+    return result
 
 
 class CorpusStats(BaseModel):
@@ -70,8 +125,11 @@ class CorpusStats(BaseModel):
         # Create and initialize the Document-Term Matrix (DTM) using the provided token lists
         object.__setattr__(self, "dtm", DTM())
         # Pass vectorizer kwargs during the call rather than initialization
+        # NB. DTM.to_df() will not work unless columns are unique labels
         self.dtm(
-            docs=[doc[2] for doc in self.docs], labels=self.labels, **vectorizer_kwargs
+            docs=[doc[2] for doc in self.docs],
+            labels=make_labels_unique(self.labels),
+            **vectorizer_kwargs,
         )
 
     @property
@@ -263,8 +321,14 @@ class CorpusStats(BaseModel):
                 "The DataFrame is empty. Please provide a valid DataFrame."
             )
 
-        # Convert the DataFrame to dense format and transpose to docs are rows.
-        df = self.dtm.to_df().sparse.to_dense().T
+        # Convert the DataFrame to dense format
+        df = self.dtm.to_df().sparse.to_dense()
+
+        # Replace the unique columns with the original columns (labels)
+        df.columns = self.labels
+
+        # Transpose the DataFrame so that documents are rows
+        df = df.T
 
         # Create file_stats DataFrame
         file_stats = pd.DataFrame(self.labels, columns=["Documents"])
@@ -562,8 +626,16 @@ class CorpusStats(BaseModel):
         # Calculate for each document
         doc_diversity = []
         for _, row in doc_stats.iterrows():
-            tokens = int(row["total_tokens"])
-            types = int(row["total_terms"])
+            tokens = row["total_tokens"]
+            types = row["total_terms"]
+            if isinstance(tokens, float) and math.isnan(tokens):
+                tokens = 0
+            else:
+                tokens = int(tokens)
+            if isinstance(types, float) and math.isnan(types):
+                types = 0
+            else:
+                types = int(types)
 
             diversity = {
                 "ttr": types / tokens if tokens > 0 else 0,

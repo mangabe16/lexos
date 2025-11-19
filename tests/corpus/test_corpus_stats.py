@@ -3,11 +3,11 @@
 Test suite for the CorpusStats class in lexos.corpus.corpus_stats.
 Works around the DTM integration bug.
 
-Coverage: 92%. Missing: 262, 538-546, 609-610, 644-645, 647-648, 672-673, 728, 730, 743, 745
+Coverage: 93%. Missing: 320, 602-610, 632, 636, 681-682, 716-717, 719-720, 744-745, 800, 802, 815, 817
 
 Some tests would require very precisely tuned test data to hit specific classification thresholds.
 
-Last Update: 2025-11-15.
+Last Update: 2025-11-18.
 """
 
 import time
@@ -25,6 +25,7 @@ try:
         CorpusStats,
         get_plotly_boxplot,
         get_seaborn_boxplot,
+        make_labels_unique,
     )
 
     CORPUS_STATS_IMPORT_OK = True
@@ -45,6 +46,104 @@ except ImportError as e:
 pytestmark = pytest.mark.skipif(
     not CORPUS_STATS_IMPORT_OK, reason="CorpusStats module not available"
 )
+
+
+class TestMakeLabelsUnique:
+    """Test the make_labels_unique function."""
+
+    def test_empty_list(self):
+        """Test with empty list."""
+        result = make_labels_unique([])
+        assert result == []
+
+    def test_all_unique_labels(self):
+        """Test with all unique labels."""
+        labels = ["doc1", "doc2", "doc3"]
+        result = make_labels_unique(labels)
+        assert result == labels
+
+    def test_simple_duplicates(self):
+        """Test with simple duplicates."""
+        labels = ["doc", "doc", "report"]
+        result = make_labels_unique(labels)
+        assert result == ["doc-001", "doc-002", "report"]
+        assert len(set(result)) == len(result)  # All unique
+
+    def test_multiple_duplicate_groups(self):
+        """Test with multiple groups of duplicates."""
+        labels = ["doc", "doc", "report", "report", "file"]
+        result = make_labels_unique(labels)
+        # doc appears twice, report appears twice
+        assert result.count("doc-001") == 1
+        assert result.count("doc-002") == 1
+        assert result.count("report-001") == 1
+        assert result.count("report-002") == 1
+        assert "file" in result
+        assert len(set(result)) == len(result)
+
+    def test_triple_duplicates(self):
+        """Test with three identical labels."""
+        labels = ["doc", "doc", "doc"]
+        result = make_labels_unique(labels)
+        assert result == ["doc-001", "doc-002", "doc-003"]
+        assert len(set(result)) == len(result)
+
+    def test_recursive_conflict_suffix_already_exists(self):
+        """Test recursive handling when suffix already exists in labels.
+
+        If we have ["doc", "doc", "doc-001"], the function should:
+        1. Try to rename duplicates "doc" to "doc-001" and "doc-002"
+        2. Detect conflict with existing "doc-001"
+        3. Recursively apply the function to resolve the conflict
+        """
+        labels = ["doc", "doc", "doc-001"]
+        result = make_labels_unique(labels)
+        # All labels should be unique
+        assert len(set(result)) == len(result)
+        # No duplicates remained
+        assert len(result) == 3
+
+    def test_complex_recursive_scenario(self):
+        """Test complex scenario with multiple conflicts requiring recursion."""
+        labels = ["a", "a", "a-001", "a-001"]
+        result = make_labels_unique(labels)
+        # All should be unique
+        assert len(set(result)) == len(result)
+        assert len(result) == 4
+
+    def test_single_label(self):
+        """Test with single label."""
+        labels = ["doc"]
+        result = make_labels_unique(labels)
+        assert result == ["doc"]
+
+    def test_preserves_order(self):
+        """Test that order is preserved for duplicates."""
+        labels = ["x", "y", "x", "z", "x"]
+        result = make_labels_unique(labels)
+        # First "x" should be "x-001", second "x" should be "x-002", third "x" should be "x-003"
+        assert result[0] == "x-001"
+        assert result[2] == "x-002"
+        assert result[4] == "x-003"
+        assert result[1] == "y"
+        assert result[3] == "z"
+
+    def test_label_with_special_characters(self):
+        """Test labels with special characters."""
+        labels = ["doc@123", "doc@123", "file_name.txt", "file_name.txt"]
+        result = make_labels_unique(labels)
+        assert len(set(result)) == len(result)
+        assert "doc@123-001" in result
+        assert "doc@123-002" in result
+        assert "file_name.txt-001" in result
+        assert "file_name.txt-002" in result
+
+    def test_numeric_labels(self):
+        """Test with numeric string labels."""
+        labels = ["123", "123", "456"]
+        result = make_labels_unique(labels)
+        assert result == ["123-001", "123-002", "456"]
+        assert len(set(result)) == len(result)
 
 
 @pytest.fixture
