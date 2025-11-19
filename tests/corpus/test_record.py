@@ -4,7 +4,7 @@ Test suite for the Record class in lexos.corpus.record.
 
 Coverage: 100%
 
-Last Update: 2025-11-14.
+Last Update: 2025-11-18.
 """
 
 import tempfile
@@ -745,3 +745,29 @@ class TestRecordDeserializationErrors:
             LexosException, match="Failed to deserialize spaCy document"
         ):
             record.from_bytes(serialized, model="en_core_web_sm")
+
+    def test_record_str(self, nlp):
+        """Test __str__ method with all three content states (lines 138-148)."""
+        # Test with None content (line 141)
+        record_none = Record(name="test_none", content=None)
+        str_none = str(record_none)
+        assert "test_none" in str_none
+        assert "unparsed" in str_none
+        assert "None" in str_none
+
+        # Test with parsed content (line 143)
+        doc = nlp("This is a sample text for testing the string representation")
+        record_parsed = Record(name="test_parsed", content=doc)
+        str_parsed = str(record_parsed)
+        assert "test_parsed" in str_parsed
+        assert "parsed" in str_parsed
+        assert "This is a sample text for testing the" in str_parsed
+
+        # Test with unparsed string content (line 145)
+        record_unparsed = Record(
+            name="test_unparsed", content="This is unparsed text content"
+        )
+        str_unparsed = str(record_unparsed)
+        assert "test_unparsed" in str_unparsed
+        assert "unparsed" in str_unparsed
+        assert "This is unparsed text content" in str_unparsed

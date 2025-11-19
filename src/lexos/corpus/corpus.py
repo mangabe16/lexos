@@ -1,7 +1,7 @@
 """corpus.py.
 
-Last updated: November 16, 2025
-Last tested: November 16, 2025
+Last updated: November 18, 2025
+Last tested: November 18, 2025
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
 
@@ -53,7 +53,7 @@ class Corpus(BaseModel):
     )
     name: str = Field(None, description="The name of the corpus.")
     records: RecordsDict = Field({}, description="Dictionary of records in the corpus.")
-    names: dict[str, str] = Field(default_factory=dict)
+    names: dict[str, list[str]] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(
         {},
         description="Metadata dictionary for arbitrary metadata relating to the corpus.",
@@ -96,6 +96,10 @@ class Corpus(BaseModel):
         data["terms"] = list(data["terms"])
         srsly.write_json(metadata_file, data)
         msg.good("Corpus created.")
+
+    def __iter__(self):
+        """Make the corpus iterable."""
+        return iter(self.records.values())
 
     def __repr__(self):
         """Return a string representation of the Corpus."""
@@ -173,7 +177,9 @@ class Corpus(BaseModel):
         self.records[record_id_str] = record
 
         # Update the Corpus names
-        self.names[record.name] = str(record.id)  # Explicitly convert to string
+        if record.name not in self.names:
+            self.names[record.name] = []
+        self.names[record.name].append(str(record.id))  # Explicitly convert to string
 
         # Update the Corpus statistics
         self._update_corpus_state()
@@ -218,14 +224,14 @@ class Corpus(BaseModel):
                 f"Invalid ID type '{type}'. Must be 'integer' or 'uuid4'."
             )
 
-    def _get_by_name(self, name: str) -> str:
-        """Get a record ID from the Corpus by name.
+    def _get_by_name(self, name: str) -> list[str]:
+        """Get all record IDs from the Corpus by name.
 
         Args:
-            name (str): The name of the record to get.
+            name (str): The name of the record(s) to get.
 
         Returns:
-            str: The record ID.
+            list[str]: A list of record IDs with the given name.
         """
         if name not in self.names:
             raise LexosException(
@@ -351,7 +357,7 @@ class Corpus(BaseModel):
             else:
                 record_kwargs = dict(
                     id=new_id,
-                    name=self._ensure_unique_name(name),
+                    name=name,  # self._ensure_unique_name(name),
                     is_active=is_active,
                     content=item,
                     model=model,
@@ -421,12 +427,16 @@ class Corpus(BaseModel):
             ids = [id]
         elif isinstance(id, list):
             ids = id
+        else:
+            ids = []
 
-        # If name is provided, get the ID from the name
+        # If name is provided, get the IDs from the name(s)
         if name and not id:
             if isinstance(name, str):
                 name = [name]
-            ids = [self._get_by_name(n) for n in name]
+            ids = []
+            for n in name:
+                ids.extend(self._get_by_name(n))
 
         result = []
         for id in ids:
@@ -592,12 +602,18 @@ class Corpus(BaseModel):
         # Ensure id is a list
         if isinstance(id, str):
             ids = [id]
+        elif isinstance(id, list):
+            ids = id
+        else:
+            ids = []
 
-        # If name is provided, get the ID from the name
+        # If name is provided, get the IDs from the name(s)
         if name and not id:
             if isinstance(name, str):
                 name = [name]
-            ids = [self._get_by_name(n) for n in name]
+            ids = []
+            for n in name:
+                ids.extend(self._get_by_name(n))
 
         for id in ids:
             # Remove the entry from the records dictionary and names list
@@ -608,7 +624,10 @@ class Corpus(BaseModel):
                     f"Record with ID {id} does not exist in the Corpus."
                 )
             try:
-                self.names.pop(entry.name)
+                if entry.name in self.names:
+                    self.names[entry.name].remove(str(entry.id))
+                    if not self.names[entry.name]:  # Remove empty lists
+                        self.names.pop(entry.name)
             except KeyError:
                 raise LexosException(
                     f"Record with name {entry.name} does not exist in the Corpus."

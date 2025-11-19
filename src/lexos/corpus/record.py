@@ -1,7 +1,7 @@
 """record.py.
 
-Last updated: November 17, 2025
-Last tested: November 15, 2025
+Last updated: November 18, 2025
+Last tested: November 18, 2025
 
 
 Wrapping texts and spaCy Docs in a Pydantic model provides a lot of extra functionality, particularly through the model_dump() and model_dump_json() methods. See the Pydantic documentation for more information.
@@ -132,6 +132,20 @@ class Record(BaseModel):
             fields["content"] = "None"
         field_list = [f"{k}={v}" if v else f"{k}=None" for k, v in fields.items()]
         return f"Record({', '.join(field_list)})"
+
+    def __str__(self) -> str:
+        """Return a user-friendly string representation of the record for printing."""
+        status = "parsed" if self.is_parsed else "unparsed"
+
+        # Get a preview of content
+        if self.content is None:
+            content_preview = "None"
+        elif self.is_parsed:
+            content_preview = f"'{self.content.text[:40]}...'"
+        else:
+            content_preview = f"'{self.content[:40]}...'"
+
+        return f"Record(name={self.name!r}, status={status}, content={content_preview})"
 
     @computed_field
     @cached_property
