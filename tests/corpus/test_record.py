@@ -4,7 +4,7 @@ Test suite for the Record class in lexos.corpus.record.
 
 Coverage: 100%
 
-Last Update: 2025-11-18.
+Last Update: 2025-11-20.
 """
 
 import tempfile
@@ -752,15 +752,21 @@ class TestRecordDeserializationErrors:
         record_none = Record(name="test_none", content=None)
         str_none = str(record_none)
         assert "test_none" in str_none
-        assert "unparsed" in str_none
-        assert "None" in str_none
+        # __str__ now reports parsed as boolean 'parsed=False' instead of the word 'unparsed'
+        assert "parsed=False" in str_none
+        assert "content=None" in str_none
+        assert "id=" in str_none
+        assert "active=" in str_none
 
         # Test with parsed content (line 143)
         doc = nlp("This is a sample text for testing the string representation")
         record_parsed = Record(name="test_parsed", content=doc)
         str_parsed = str(record_parsed)
         assert "test_parsed" in str_parsed
-        assert "parsed" in str_parsed
+        assert "parsed=True" in str_parsed
+        assert "active=True" in str_parsed
+        assert "id=" in str_parsed
+        # content preview should include a reasonable substring of the text
         assert "This is a sample text for testing the" in str_parsed
 
         # Test with unparsed string content (line 145)
@@ -769,5 +775,6 @@ class TestRecordDeserializationErrors:
         )
         str_unparsed = str(record_unparsed)
         assert "test_unparsed" in str_unparsed
-        assert "unparsed" in str_unparsed
+        assert "parsed=False" in str_unparsed
+        assert "active=True" in str_unparsed
         assert "This is unparsed text content" in str_unparsed
