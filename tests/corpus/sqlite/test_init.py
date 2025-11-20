@@ -13,9 +13,8 @@ Tests Cover:
 - Required methods existence
 
 Coverage Target: 100%
-Test Status: All 18 tests passing
 
-Last Update: 2025-11-15.
+Last Update: 2025-11-20.
 """
 
 import pytest
@@ -162,7 +161,7 @@ class TestSQLiteInitImports:
         """Test that SQLiteBackend has expected methods."""
         from lexos.corpus.sqlite import SQLiteBackend
 
-        expected_methods = ["close", "add_record", "get_corpus_stats"]
+        expected_methods = ["close", "add_record", "get_stats"]
 
         for method in expected_methods:
             assert hasattr(SQLiteBackend, method), (

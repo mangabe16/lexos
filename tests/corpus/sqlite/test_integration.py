@@ -4,6 +4,9 @@ Tests the SQLiteCorpus class which integrates SQLite database backend
 with the Corpus class for dual storage and enhanced querying capabilities.
 
 Coverage: 99%. Missing:  420, 424, 533
+
+Last Updated: November 20, 2025
+Last Tested: November 20, 2025
 """
 
 import json

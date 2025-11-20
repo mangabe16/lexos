@@ -4,8 +4,8 @@ Simple database integration using pure SQLAlchemy with SQLModel compatibility.
 
 This is a compatibility layer for SQLModel 0.0.24 that works around primary key issues.
 
-Last Updated: November 15, 2025
-Last Tested: November 15, 2025
+Last Updated: November 20, 2025
+Last Tested: November 20, 2025
 """
 
 import hashlib
@@ -388,6 +388,12 @@ class SQLiteBackend:
                 "total_terms": total_terms,
                 "average_vocab_density": avg_vocab_density,
             }
+
+    # Note: `get_stats()` is the canonical method name. Older code that used
+    # `get_corpus_stats()` should call `get_stats()` instead. This wrapper was
+    # removed to keep the sqlite submodule's API consistent with the
+    # `Corpus` public API. If you need backward compatibility across the
+    # deprecated database modules, see `src/lexos/database/database_simple.py`.
 
     def get_record(
         self,
