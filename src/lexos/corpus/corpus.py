@@ -1,7 +1,7 @@
 """corpus.py.
 
-Last updated: November 18, 2025
-Last tested: November 18, 2025
+Last updated: November 20, 2025
+Last tested: November 20, 2025
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
 
@@ -92,6 +92,13 @@ class Corpus(BaseModel):
             if "meta" in existing_metadata and existing_metadata["meta"]:
                 self.meta = existing_metadata["meta"]
 
+        # NOTE: We use model_dump() on the Corpus model here. The Corpus
+        # computed fields (e.g., `terms` is a set) are safe to serialize
+        # and do not raise the `LexosException`. We explicitly convert
+        # `terms` to a list to make it JSON-serializable. If future
+        # computed fields are added to Corpus that rely on external state
+        # or can raise, this call should be revised to exclude those fields
+        # (e.g., model_dump(exclude=[...])).
         data = self.model_dump()
         data["terms"] = list(data["terms"])
         srsly.write_json(metadata_file, data)
@@ -151,6 +158,13 @@ class Corpus(BaseModel):
             record (Record): A Record doc.
         """
         # Update corpus records table
+        # We intentionally exclude computed fields here when dumping a
+        # Record for meta storage because those computed properties (e.g.,
+        # `terms`, `text`, `tokens`) may attempt to evaluate state-dependent
+        # computed values that can raise for unparsed records. By explicitly
+        # excluding them and then annotating `num_tokens`/`num_terms` using
+        # guarded access below, we avoid calling computed fields on records
+        # that are not parsed.
         meta = record.model_dump(
             exclude=["content", "terms", "text", "tokens"], mode="json"
         )
@@ -256,6 +270,12 @@ class Corpus(BaseModel):
         self.num_tokens = sum(
             r.num_tokens() for r in self.records.values() if r and r.is_parsed
         )
+        # We call model_dump() on Corpus to create a JSON of the corpus
+        # metadata. This excludes Record-specific computed fields and the
+        # `records` mapping so we only write top-level corpus metadata.
+        # In particular, Record-computed fields are excluded so we don't
+        # force evaluation across records which could trigger exceptions
+        # for unparsed records.
         corpus_data = self.model_dump(
             exclude=["content", "terms", "text", "tokens", "records"]
         )
@@ -710,13 +730,115 @@ class Corpus(BaseModel):
             if record is None:  # Skip None records
                 continue
 
-            # Get model categories
-            row = record.model_dump(exclude=exclude)
+            # Get model categories.
+            # NOTE: We avoid calling `model_dump()` on `Record` objects that are
+            # unparsed because Pydantic may attempt to evaluate computed fields
+            # while creating the serialized dict. Several computed properties on
+            # `Record` (e.g., `terms`, `tokens`, `num_terms`, and
+            # `num_tokens`) raise `LexosException("Record is not parsed.")`
+            # when the record is not parsed. If `model_dump()` evaluates those
+            # properties for an unparsed record, it will raise and cause
+            # `to_df()` to fail. Therefore:
+            #  - For parsed records, we call `record.model_dump()` and use the
+            #    model-dump output (it includes computed fields safely).
+            #  - For unparsed records, we *do not* call `model_dump()`; we
+            #    instead build a minimal, safe `row` from stored fields and
+            #    set any computed-like values to safe defaults (empty list,
+            #    0, or empty string). This produces robust DataFrame output
+            #    for corpora that contain a mix of parsed and unparsed
+            #    records without triggering computed-field side-effects.
+            fields_that_may_raise = {
+                "terms",
+                "tokens",
+                "num_terms",
+                "num_tokens",
+                "text",
+            }
+            # Build a dump_exclude set to prevent model_dump from computing
+            # sensitive fields on unparsed records
+            dump_exclude = set(exclude)
+            if hasattr(record, "is_parsed") and record.is_parsed:
+                # Parsed records: safely model_dump, excluding any user-requested fields
+                row = record.model_dump(exclude=list(dump_exclude))
+            else:
+                # Unparsed records: avoid model_dump to prevent computed property evaluation
+                base_fields = [
+                    "id",
+                    "name",
+                    "is_active",
+                    "content",
+                    "model",
+                    "extensions",
+                    "data_source",
+                    "meta",
+                ]
+                row = {}
+                for f in base_fields:
+                    if f in exclude:
+                        continue
+                    try:
+                        value = getattr(record, f, None)
+                    except Exception:
+                        # Defensive: if getattr triggers an error, skip and set None
+                        value = None
+                    # Serialize Doc-like content into text rather than bytes to keep DataFrame friendly
+                    if f == "content" and value is not None:
+                        try:
+                            from spacy.tokens import Doc
 
-            # Add metadata categories
+                            if isinstance(value, Doc):
+                                value = value.text
+                        except Exception:
+                            pass
+                    # Ensure id is serialized to string to match model_dump output for parsed records
+                    if f == "id" and value is not None:
+                        try:
+                            value = str(value)
+                        except Exception:
+                            pass
+                    # Sanitize meta similar to model_dump
+                    if f == "meta" and value is not None:
+                        try:
+                            value = record._sanitize_metadata(value)
+                        except Exception:
+                            pass
+                    row[f] = value
+
+            # Patch for unparsed records: fill terms/tokens/num_terms/num_tokens/text
+            # Only if those fields are not excluded
+            if "terms" not in exclude:
+                if hasattr(record, "is_parsed") and record.is_parsed:
+                    row["terms"] = list(record.terms)
+                else:
+                    row["terms"] = []
+            if "tokens" not in exclude:
+                if hasattr(record, "is_parsed") and record.is_parsed:
+                    row["tokens"] = record.tokens
+                else:
+                    row["tokens"] = []
+            if "num_terms" not in exclude:
+                if hasattr(record, "is_parsed") and record.is_parsed:
+                    row["num_terms"] = record.num_terms()
+                else:
+                    row["num_terms"] = 0
+            if "num_tokens" not in exclude:
+                if hasattr(record, "is_parsed") and record.is_parsed:
+                    row["num_tokens"] = record.num_tokens()
+                else:
+                    row["num_tokens"] = 0
+            if "text" not in exclude:
+                if hasattr(record, "is_parsed") and record.is_parsed:
+                    row["text"] = record.text
+                else:
+                    row["text"] = ""
+
+            # Add metadata categories, respecting exclude list
             metadata = row.pop("meta", {})
             for key, value in metadata.items():
-                if key in row and f"metadata_{key}" not in exclude:
+                # Exclude metadata fields if requested
+                if key in exclude or f"metadata_{key}" in exclude:
+                    continue
+                if key in row:
                     key = f"metadata_{key}"
                 row[key] = value
 

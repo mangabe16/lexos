@@ -3,14 +3,12 @@
 Test suite for the Corpus class in lexos.corpus.corpus.
 Works around discovered bugs in the implementation.
 
-Coverage: 99%. Missing: 606, 631-632, 735.
+Coverage: 99%. Missing: 791-792, 857
 
-Last Update: 2025-11-18.
+Last Update: 2025-11-20.
 """
 
 import shutil
-import subprocess
-import sys
 import tempfile
 import uuid
 import zipfile
@@ -1229,6 +1227,189 @@ class TestCorpusClass:
         assert isinstance(df, pd.DataFrame)
         assert id1 in set(df["id"])
         assert "none_id" not in set(df["id"])
+
+    def test_remove_with_list_and_names_keyerror(self, tmp_path, nlp):
+        """Test removing by list of IDs and simulate KeyError during name removal."""
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="RemoveTest")
+
+        id1 = str(uuid.uuid4())
+        doc = nlp("foo bar")
+        record1 = Record(id=id1, name="doc1", content=doc, model="en_core_web_sm")
+        record1.is_parsed = True
+        corpus._add_to_corpus(record1)
+
+        id2 = str(uuid.uuid4())
+        doc2 = nlp("baz qux")
+        record2 = Record(id=id2, name="doc2", content=doc2, model="en_core_web_sm")
+        record2.is_parsed = True
+        corpus._add_to_corpus(record2)
+
+        # Remove by list id: should not raise
+        corpus.remove(id=[id1, id2])
+        assert id1 not in corpus.records and id2 not in corpus.records
+
+        # Re-add a record and replace corpus.names with a dict that raises on __contains__ to simulate KeyError
+        corpus._add_to_corpus(record1)
+
+        class BrokenNames(dict):
+            def __contains__(self, key):
+                raise KeyError("boom")
+
+        corpus.names = BrokenNames()
+        # Attempt to remove should raise LexosException due to KeyError
+        with pytest.raises(LexosException):
+            corpus.remove(id=id1)
+
+    def test_to_df_unparsed_getattr_and_meta_exceptions(self, tmp_path, nlp):
+        """Test to_df handles getattr exceptions, converts Doc content to text and handles meta sanitization exceptions."""
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="DFExceptions")
+
+        # 1) Create a dummy unparsed record where getattr raises for 'name'
+        class BadGetattr:
+            is_parsed = False
+            id = "bad-id"
+
+            # no name attribute to trigger __getattr__
+            def __getattr__(self, item):
+                if item in ["name"]:
+                    raise Exception("boom")
+                # For 'meta' we return an empty dict so later code can iterate
+                if item == "meta":
+                    return {}
+                raise AttributeError
+
+        bad_record = BadGetattr()
+        corpus.records[bad_record.id] = bad_record
+
+        # 2) Create an unparsed record with Doc content to exercise content-to-text path
+        id_doc = str(uuid.uuid4())
+        doc = nlp("hello world")
+
+        # Build a minimal object mimicking Record but unparsed
+        class UnparsedDoc:
+            def __init__(self, id, name, content, meta=None):
+                self.id = id
+                self.name = name
+                self.content = content
+                self.is_parsed = False
+                self.model = None
+                self.extensions = []
+                self.data_source = None
+                self.meta = meta or {}
+
+        doc_record = UnparsedDoc(id_doc, "docname", doc, meta={"custom": "m"})
+        corpus.records[doc_record.id] = doc_record
+
+        # 3) Create a record with id whose __str__ raises and meta sanitizer that raises
+        class BadId:
+            def __str__(self):
+                raise Exception("boom str")
+
+        class BadMetaRecord(UnparsedDoc):
+            def __init__(self, id, name, content, meta=None):
+                super().__init__(id, name, content, meta)
+
+            def _sanitize_metadata(self, meta):
+                raise Exception("sanitize error")
+
+        badid_record = BadMetaRecord(BadId(), "badmeta", None, meta={"a": "b"})
+        # Use a safe string key for records dict to avoid calling str() on bad id
+        corpus.records["badid"] = badid_record
+
+        # Run to_df with content included and terms/tokens excluded
+        df = corpus.to_df(exclude=["terms", "tokens"])  # include content
+
+        # The BadGetattr id should appear in the DataFrame (stringified) or recorded rows
+        def safe_str(x):
+            try:
+                return str(x)
+            except Exception:
+                return None
+
+        assert any(
+            [safe_str(x) == bad_record.id or x == bad_record.id for x in df["id"]]
+        )
+        # Find doc_record row and assert content is set to doc.text
+        row_doc = df[df["id"] == id_doc].iloc[0]
+        assert row_doc["content"] == doc.text
+        # BadMetadata record id may not serialize, but the function should not crash
+        assert isinstance(df, pd.DataFrame)
+
+    def test_to_df_bool_fill(self, tmp_path, nlp):
+        """Ensure boolean dtype column gets the False fill value branch covered."""
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="DFBool")
+
+        id1 = str(uuid.uuid4())
+        doc1 = nlp("one two")
+        record1 = Record(
+            id=id1, name="doc1", content=doc1, model="en_core_web_sm", is_active=True
+        )
+        record1.is_parsed = True
+        corpus._add_to_corpus(record1)
+
+        id2 = str(uuid.uuid4())
+        doc2 = nlp("three")
+        record2 = Record(
+            id=id2, name="doc2", content=doc2, model="en_core_web_sm", is_active=False
+        )
+        record2.is_parsed = True
+        corpus._add_to_corpus(record2)
+
+        df = corpus.to_df()
+        # Ensure is_active column exists and dtype is bool
+        assert "is_active" in df.columns
+        assert pd.api.types.is_bool_dtype(df["is_active"]) is True
+
+    def test_to_df_unparsed_record(self, tmp_path, nlp):
+        """to_df should not raise for unparsed records and should populate.
+
+        terms/tokens/num_terms/num_tokens/text with default values.
+        """
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        corpus = Corpus(corpus_dir=str(corpus_dir), name="UnparsedDF")
+
+        # Parsed record
+        id1 = str(uuid.uuid4())
+        doc = nlp("foo bar foo")
+        record1 = Record(id=id1, name="doc1", content=doc, model="en_core_web_sm")
+        record1.is_parsed = True
+        record1.tokens = ["foo", "bar", "foo"]
+        record1.terms = {"foo": 2, "bar": 1}
+        corpus._add_to_corpus(record1)
+
+        # Unparsed record (content is plain text)
+        id2 = str(uuid.uuid4())
+        record2 = Record(id=id2, name="doc2", content="This is plain text")
+        # ensure record2 is not parsed
+        record2.is_parsed = False
+        corpus._add_to_corpus(record2)
+
+        # Call to_df without excluding terms so that terms/tokens are included
+        df = corpus.to_df(exclude=["content"])  # include terms/tokens
+        assert isinstance(df, pd.DataFrame)
+        # Find rows
+        row1 = df[df["id"] == id1].iloc[0]
+        row2 = df[df["id"] == id2].iloc[0]
+
+        # Parsed record has non-empty terms/tokens
+        assert row1["terms"] != []
+        assert row1["tokens"] != []
+        assert row1["num_terms"] > 0
+        assert row1["num_tokens"] > 0
+
+        # Unparsed record has defaults
+        assert row2["terms"] == []
+        assert row2["tokens"] == []
+        assert int(row2["num_terms"]) == 0
+        assert int(row2["num_tokens"]) == 0
+        assert row2["text"] == ""
 
     def test_to_df_metadata_key_collision(self, tmp_path, nlp):
         """Test DataFrame export with metadata key collision."""
