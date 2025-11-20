@@ -641,6 +641,17 @@ wheels = [
 ]
 
 [[package]]
+name = "html-to-markdown"
+version = "2.8.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/e8/d71fa61f3750bef4094a3c47f85b1f9c3f7336f8790dd562bf34f89c5d14/html_to_markdown-2.8.3.tar.gz", hash = "sha256:bf1f3f908b22f48a464fb282b9527247bee82c8c81169e2163c132f688473cbe", size = 119161, upload-time = "2025-11-16T12:43:23.324Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/5f/3264594b68de5083d4277773c367e809302872ac1da07e475a5ccbafd788/html_to_markdown-2.8.3-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:05ce2782fa4a5b16563e15e5619f8e15a5de34c3907990e624208d4b064a4c0c", size = 3760188, upload-time = "2025-11-16T12:43:17.238Z" },
+    { url = "https://files.pythonhosted.org/packages/91/60/ce233cc089c599a8467a3aed609586ec66916e26ced07b51aff8e03b7ec6/html_to_markdown-2.8.3-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:dee0af4eaa6111f26ddc58af0a1622bbba73f73cb575f2375b61a60ebfa93932", size = 4191873, upload-time = "2025-11-16T12:43:19.489Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/f1/bd71959ded89e6ea44d3566a8e84506edac40fb6ec8691a6523eeb12bb3b/html_to_markdown-2.8.3-cp310-abi3-win_amd64.whl", hash = "sha256:d73bdc25128e7342bbf8cdbc1b25732d3238f353b7dbfd944afeadbfa480ed54", size = 4111054, upload-time = "2025-11-16T12:43:21.454Z" },
+]
+
+[[package]]
 name = "idna"
 version = "3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -955,6 +966,7 @@ dependencies = [
     { name = "dotenv" },
     { name = "en-core-web-sm" },
     { name = "fastcluster" },
+    { name = "html-to-markdown" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "javaobj-py3" },
@@ -1006,6 +1018,7 @@ requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "fastcluster", specifier = ">=1.3.0" },
+    { name = "html-to-markdown", specifier = ">=2.8.3" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipywidgets", specifier = ">=8.1.6" },
     { name = "javaobj-py3", specifier = ">=0.4.4" },
