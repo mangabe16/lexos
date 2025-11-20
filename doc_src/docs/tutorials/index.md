@@ -15,7 +15,8 @@ Here is a list of the currently available tutorials, organised by module:
 
 ## Corpus
 
-- Making and Using a Corpus
+- Corpus Tutorial: [📓 Notebook](../../tutorials/corpus/corpus_tutorial.ipynb)
+- SQLite Tutorial: [📓 Notebook](../../tutorials/corpus/sqlite_tutorial.ipynb)
 
 ## Cutter
 
