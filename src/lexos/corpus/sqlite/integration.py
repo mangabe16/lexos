@@ -101,6 +101,10 @@ class SQLiteCorpus(Corpus):
         """Add records in database-only mode without file storage."""
         from spacy.tokens import Doc
 
+        # Sanitize metadata to ensure JSON-serializable types (defensive)
+        if metadata is not None:
+            metadata = self._sanitize_metadata(metadata)
+
         # Handle single or multiple content items
         if isinstance(content, (Doc, Record, str)):
             items = [content]
@@ -134,7 +138,30 @@ class SQLiteCorpus(Corpus):
             # Add to in-memory records
             record_id_str = str(record.id)
             self.records[record_id_str] = record
-            self.names[record.name] = record_id_str
+            if record.name not in self.names:
+                self.names[record.name] = []
+            self.names[record.name].append(record_id_str)
+            # Add a meta entry similar to file-based add to keep Corpus metadata consistent
+            try:
+                meta_entry = record.model_dump(
+                    exclude=["content", "terms", "text", "tokens"], mode="json"
+                )
+                # Ensure id is a string and annotate token/term counts
+                meta_entry["id"] = str(meta_entry.get("id", record_id_str))
+                meta_entry["num_tokens"] = (
+                    record.num_tokens() if record.is_parsed else 0
+                )
+                meta_entry["num_terms"] = record.num_terms() if record.is_parsed else 0
+                self.meta[record_id_str] = meta_entry
+            except Exception:
+                # Fallback minimal meta if model_dump fails
+                self.meta[record_id_str] = {
+                    "id": record_id_str,
+                    "name": record.name,
+                    "is_active": record.is_active,
+                    "num_tokens": record.num_tokens() if record.is_parsed else 0,
+                    "num_terms": record.num_terms() if record.is_parsed else 0,
+                }
 
             # Store in database
             if self.db:
@@ -196,7 +223,9 @@ class SQLiteCorpus(Corpus):
 
                         # Add to in-memory structures
                         self.records[record_id] = record
-                        self.names[record.name] = record_id
+                        if record.name not in self.names:
+                            self.names[record.name] = []
+                        self.names[record.name].append(record_id)
 
         except Exception as e:
             # If loading fails, just continue with empty records
@@ -577,7 +606,29 @@ class SQLiteCorpus(Corpus):
             # Add to in-memory structures
             record_id_str = str(record.id)
             self.records[record_id_str] = record
-            self.names[record.name] = record_id_str
+            if record.name not in self.names:
+                self.names[record.name] = []
+            self.names[record.name].append(record_id_str)
+            # Populate meta for loaded record so Corpus metadata is consistent
+            try:
+                meta_entry = record.model_dump(
+                    exclude=["content", "terms", "text", "tokens"], mode="json"
+                )
+                if "id" in meta_entry:
+                    meta_entry["id"] = str(meta_entry["id"])
+                meta_entry["num_tokens"] = (
+                    record.num_tokens() if record.is_parsed else 0
+                )
+                meta_entry["num_terms"] = record.num_terms() if record.is_parsed else 0
+                self.meta[record_id_str] = meta_entry
+            except Exception:
+                self.meta[record_id_str] = {
+                    "id": record_id_str,
+                    "name": record.name,
+                    "is_active": record.is_active,
+                    "num_tokens": record.num_tokens() if record.is_parsed else 0,
+                    "num_terms": record.num_terms() if record.is_parsed else 0,
+                }
             loaded_count += 1
 
         # Update corpus state

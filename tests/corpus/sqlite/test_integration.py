@@ -3,7 +3,7 @@
 Tests the SQLiteCorpus class which integrates SQLite database backend
 with the Corpus class for dual storage and enhanced querying capabilities.
 
-Coverage: 99%. Missing:  420, 424, 533
+Coverage: 100%
 
 Last Updated: November 20, 2025
 Last Tested: November 20, 2025
@@ -11,7 +11,9 @@ Last Tested: November 20, 2025
 
 import json
 import tempfile
+import warnings
 from pathlib import Path
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -224,6 +226,27 @@ class TestSQLiteCorpusAdd:
         # UUID should be converted to string
         assert isinstance(record.meta["doc_id"], str)
 
+    def test_sqlite_only_add_sanitizes_metadata(self, sqlite_only_corpus):
+        """Test adding record with UUID in metadata in DB-only mode (should be sanitized)."""
+        test_uuid = uuid4()
+        metadata = {"doc_id": test_uuid}
+        sqlite_only_corpus.add("Test content", metadata=metadata)
+
+        record = list(sqlite_only_corpus.records.values())[0]
+        # UUID should be converted to string
+        assert isinstance(record.meta["doc_id"], str)
+
+    def test_sqlite_only_add_no_pydantic_serializer_warning(self, sqlite_only_corpus):
+        """Ensure DB-only add() does not trigger Pydantic serializer warnings."""
+        from uuid import uuid4
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            sqlite_only_corpus.add("Test content", metadata={"doc_id": uuid4()})
+
+            # Assert that no pydantic serializer warnings were emitted
+            assert not any("Pydantic serializer warnings" in str(x.message) for x in w)
+
     def test_add_record_object(self, memory_corpus):
         """Test adding a Record object directly."""
         record = Record(
@@ -253,6 +276,39 @@ class TestSQLiteCorpusAdd:
         records = sqlite_only_corpus.db.filter_records()
         assert len(records) == 1
 
+    def test_names_mapping_is_list_in_sqlite_only_mode(self, sqlite_only_corpus):
+        """Ensure that names map to lists (not strings) in DB-only corpus."""
+        sqlite_only_corpus.add("First", name="dup")
+        sqlite_only_corpus.add("Second", name="dup")
+        # The corpus ensures unique names by default (_ensure_unique_name).
+        # Therefore, the second 'dup' may be stored under a suffixed name (e.g., 'dup_<uuid>').
+        # Ensure we still map names to lists and both entries starting with 'dup' are present.
+        assert isinstance(sqlite_only_corpus.names.get("dup"), list)
+        total_dup = sum(
+            len(ids)
+            for name, ids in sqlite_only_corpus.names.items()
+            if name.startswith("dup")
+        )
+        assert total_dup == 2
+
+    def test_add_spacy_doc_meta_in_sqlite_only_mode(self, sqlite_only_corpus):
+        """Ensure DB-only add populates meta num_tokens/num_terms via model_dump path."""
+        import spacy
+
+        nlp = spacy.blank("en")
+        doc = nlp("This is a test document with multiple tokens")
+
+        sqlite_only_corpus.add(doc, name="parsed_doc")
+
+        # Get the last record's metadata
+        record = list(sqlite_only_corpus.records.values())[-1]
+        meta_entry = sqlite_only_corpus.meta.get(str(record.id))
+        assert meta_entry is not None
+        assert "num_tokens" in meta_entry
+        assert meta_entry["num_tokens"] >= 1
+        assert "num_terms" in meta_entry
+        assert meta_entry["num_terms"] >= 1
+
     def test_add_with_store_in_db_override(self, temp_corpus_dir):
         """Test overriding database storage for specific record."""
         corpus = SQLiteCorpus(
@@ -281,6 +337,19 @@ class TestSQLiteCorpusAdd:
         record = list(memory_corpus.records.values())[0]
         assert "extension1" in record.extensions
         assert "extension2" in record.extensions
+
+    def test_add_to_backend_model_dump_fallback(self, sqlite_only_corpus):
+        """Force model_dump to raise in DB-only add to exercise fallback path for meta."""
+        with patch.object(Record, "model_dump", side_effect=Exception("boom")):
+            sqlite_only_corpus.add("Test content", name="broken_meta")
+
+        record = list(sqlite_only_corpus.records.values())[-1]
+        meta_entry = sqlite_only_corpus.meta.get(str(record.id))
+        assert meta_entry is not None
+        assert meta_entry["id"] == str(record.id)
+        assert meta_entry["name"] == record.name
+        assert "num_tokens" in meta_entry
+        assert "num_terms" in meta_entry
 
 
 # ============================================================================
@@ -322,6 +391,45 @@ class TestSQLiteCorpusFilter:
         filtered = memory_corpus.filter_records(model="en_core_web_sm")
         assert len(filtered) == 1
         assert filtered[0].model == "en_core_web_sm"
+
+    def test_filter_in_memory_model_mismatch(self, temp_corpus_dir):
+        """Test in-memory filter when model mismatch should exclude records."""
+        corpus = SQLiteCorpus(
+            corpus_dir=temp_corpus_dir,
+            name="test_model_filter",
+            use_sqlite=False,
+        )
+
+        # Add two records with different model attribute strings
+        corpus.add("Text 1", name="doc1", model="en_core_web_sm")
+        corpus.add("Text 2", name="doc2", model="en_core_web_md")
+
+        filtered = corpus.filter_records(model="en_core_web_sm", use_database=False)
+        assert len(filtered) == 1
+        assert filtered[0].model == "en_core_web_sm"
+
+        corpus.close()
+
+    def test_filter_in_memory_is_active(self, temp_corpus_dir):
+        """Test in-memory filtering by is_active includes/excludes correctly."""
+        corpus = SQLiteCorpus(
+            corpus_dir=temp_corpus_dir,
+            name="test_active_filter",
+            use_sqlite=False,
+        )
+
+        corpus.add("Active 1", name="active1", is_active=True)
+        corpus.add("Inactive 1", name="inactive1", is_active=False)
+
+        active = corpus.filter_records(is_active=True, use_database=False)
+        assert len(active) == 1
+        assert active[0].name == "active1"
+
+        inactive = corpus.filter_records(is_active=False, use_database=False)
+        assert len(inactive) == 1
+        assert inactive[0].name == "inactive1"
+
+        corpus.close()
 
     def test_filter_no_results(self, memory_corpus):
         """Test filtering with no matching results."""
@@ -485,6 +593,33 @@ class TestSQLiteCorpusSync:
 
         corpus.close()
 
+    def test_sync_overwrite_adds_when_no_existing_record(self, temp_corpus_dir):
+        """Test sync with overwrite=True adds records when they don't exist in DB (cover add_record path)."""
+        # Create file-based corpus using the standard Corpus class
+        from lexos.corpus.corpus import Corpus
+
+        file_corpus = Corpus(
+            corpus_dir=temp_corpus_dir,
+            name="file_for_sync",
+        )
+        file_corpus.add("File content 1", name="file1")
+        file_corpus.add("File content 2", name="file2")
+
+        # Now create a fresh SQLiteCorpus with a new in-memory DB (so DB empty)
+        sqlite_c = SQLiteCorpus(
+            corpus_dir=temp_corpus_dir,
+            name="file_for_sync",
+            use_sqlite=True,
+            sqlite_path=":memory:",
+        )
+
+        count = sqlite_c.sync(overwrite=True)
+        assert count == 2
+        db_records = sqlite_c.db.filter_records()
+        assert len(db_records) == 2
+
+        sqlite_c.close()
+
     def test_sync_without_database_raises_exception(self, temp_corpus_dir):
         """Test that sync raises exception when database is not enabled."""
         corpus = SQLiteCorpus(
@@ -579,6 +714,24 @@ class TestSQLiteCorpusLoad:
         """Test loading from empty database."""
         count = memory_corpus.load()
         assert count == 0
+
+    def test_load_meta_model_dump_fallback(self, memory_corpus):
+        """Force model_dump to raise when loading from DB so fallback meta creation is used."""
+        # Add a record which will be added to DB
+        memory_corpus.add("Test content for load", name="load_broken")
+
+        # Clear in-memory records
+        memory_corpus.records.clear()
+        memory_corpus.names.clear()
+
+        # Patch Record.model_dump to raise during load processing
+        with patch.object(Record, "model_dump", side_effect=Exception("boom")):
+            count = memory_corpus.load()
+            assert count >= 1
+
+        # Verify meta for loaded records exists and uses fallback schema
+        for rid, meta in memory_corpus.meta.items():
+            assert "id" in meta and "name" in meta
 
 
 # ============================================================================
