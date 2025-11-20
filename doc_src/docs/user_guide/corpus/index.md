@@ -18,13 +18,13 @@ from lexos.corpus import Record
 record = Record(
     name="my_first_doc",
     content="This is the text of my document.",
-    metadata={"author": "Jane", "date": "2025-01-15"}
+    meta={"author": "Jane", "date": "2025-01-15"}
 )
 ```
 
 Under the hood, a Record can store plain text, a parsed spaCy Doc (for NLP analysis), or both. It also handles serialization — saving and loading from disk or database.
 
-SpaCy `Doc` objects are pretokenized texts which contain extra linguistic information such as part of speech labels. When you create a `Record` with a spaCy `Doc`, this information is stored as part of the record and is accessible to you. The record's `is_parsed` is set, so filtering for `is_parsed=True` will find all records containing `Doc` objects in your corpus.
+record = corpus.get(name=["saying_1", "fable_1"])
 
 For more information, see [Working with Records](working_with_records.md).
 
@@ -59,21 +59,17 @@ Your documents are now stored as `Record` objects in the `my_collection` directo
 
 #### Accessing Your Documents
 
-You can access corpus records with the `get_record()` method by passing the record's id or name.
+You can access corpus records with the `get()` method by passing the record's `id` or `name`.
 
 ```python
 # Get a specific record by id
 record = corpus.get(id="1")
 
-# Get multiple records
-records = corpus.get(name="fable_1")
-
-
-# Get multiple records
-record = corpus.get(name=["saying_1", "fable_1"])
+# Get multiple records by name
+records = corpus.get(name=["fable_1", "saying_1"])  # returns a list
 
 # Get all records
-all_records = corpus.records.values():
+all_records = list(corpus.records.values())
 ```
 
 ---
@@ -137,7 +133,7 @@ The SQLite backend supports powerful full-text search:
 results = corpus.search("digital OR technology")
 
 for record in results:
-    print(f"{record.name}: {record.content[:50]}...")
+    print(f"{record.name}: {record.preview}")
 ```
 
 #### Advanced Filtering
@@ -191,7 +187,7 @@ This gives you insights like:
     'doc_length': {
         'min': 10,
         'max': 2341,
-        'mean': 152,
+    all_records = list(corpus.records.values())
         'std': 205
     }
 }

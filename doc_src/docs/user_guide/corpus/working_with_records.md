@@ -14,26 +14,26 @@ from lexos.corpus import Record
 record = Record(
     name="example_doc",
     content="The quick brown fox jumps over the lazy dog.",
-    metadata={"author": "Jane", "year": 2025}
+    meta={"author": "Jane", "year": 2025}
 )
 ```
 
-You can pass a `data_source` pointing to the original location (filepath or url) where the data came from. The `metadata` parameter is for passing a dictionary of more arbitrary metadata items.
+You can pass a `data_source` pointing to the original location (filepath or url) where the data came from. The `meta` parameter is for passing a dictionary of more arbitrary metadata items.
 
-If you already have a spaCy `Doc` object, just pass it to the record using the `content` parameter and set `parsed` to `True` in the metadata. Using the `model` parameter to identify the spaCy language model used is also needed for serialization and de-serialization.
+If you already have a spaCy `Doc` object, just pass it to the record using the `content` parameter — the record's `is_parsed` property will be set automatically. Using the `model` parameter to identify the spaCy language model used is useful for serialization and deserialization.
 
 ```python
 record = Record(
     name="parsed_doc",
     content=doc,
-    metadata={"author": "Jane", "parsed": True},
+    meta={"author": "Jane"},
     model="en_core_web_sm"
 )
 ```
 
 If your `Doc` object has spaCy custom extensions, provide a list of those extensions with the `extensions` parameter.
 
-When you create a `Record` object, it is automatically assigned an `id`, and its `is_active` attribute is set to `True`. The `id` is a UUID value formatted as a string, and you can override it without own value by using the `id` parameter. When `is_active=True`, the record is assumed to be available for analysis. Some applications may want to keep records in a corpus, enabling them and disabling them as needed for specific purposes. The `is_active` attribute does not affect the record on its own.
+When you create a `Record` object, it is automatically assigned an `id`, and its `is_active` attribute is set to `True`. The `id` is a UUID value (by default) and you can override it by passing your own `id` value. When `is_active=True`, the record is assumed to be available for analysis. Some applications may want to keep records in a corpus, enabling or disabling them as needed for specific purposes. The `is_active` attribute does not affect the record on its own.
 
 The following properties can be inspected from a `Record` object:
 
