@@ -122,6 +122,12 @@ class Record(BaseModel):
 
     def __repr__(self):
         """Return a string representation of the record."""
+        # We exclude `terms`, `text`, and `tokens` here because these are
+        # computed / cached fields that can rely on the record being parsed.
+        # For unparsed records, evaluating these computed properties will
+        # raise a LexosException. `__repr__` should be lightweight and safe
+        # to call in debugging contexts, so we exclude these computed fields
+        # intentionally.
         fields = self.model_dump(exclude=["terms", "text", "tokens"])
         fields["is_parsed"] = str(self.is_parsed)
         if self.content and self.is_parsed:
@@ -444,6 +450,11 @@ class Record(BaseModel):
             self.extensions = list(set(self.extensions + extensions))
 
         # Convert record to a dictionary
+        # model_dump is used to create a serializable dict representation.
+        # We exclude the computed fields (`terms`, `text`, `tokens`) because
+        # they might trigger evaluation and raise `LexosException` for
+        # unparsed `Record` objects. The saved content is handled below,
+        # and `id` is stringified to ensure JSON compatibility.
         data = self.model_dump(exclude=["terms", "text", "tokens"])
 
         # Make UUID serialisable
