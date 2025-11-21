@@ -19,7 +19,14 @@ class LexosModelCache:
         self._cache = {}
 
     def get_model(self, model_name: str):
-        """Get a model from the cache or load it if not cached."""
+        """Get a model from the cache or load it if not cached.
+
+        Args:
+            model_name (str): The spaCy model name to load (e.g., 'en_core_web_sm').
+
+        Returns:
+            Language: The loaded spaCy language model.
+        """
         if model_name not in self._cache:
             self._cache[model_name] = spacy.load(model_name)
         return self._cache[model_name]

@@ -31,6 +31,9 @@ def create_corpus_analysis_report(
         output_dir (str): The directory path where the report files will be saved.
         console_output (bool): Whether to print progress messages to the console.
         html (bool): Whether to generate an HTML report (not implemented yet).
+
+    Returns:
+        str: The generated report as a string in either HTML or Markdown format.
     """
     # Get stats object once to avoid multiple calls
     stats = corpus.get_stats(active_only=True)

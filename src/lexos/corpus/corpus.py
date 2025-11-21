@@ -105,7 +105,11 @@ class Corpus(BaseModel):
         msg.good("Corpus created.")
 
     def __iter__(self):
-        """Make the corpus iterable."""
+        """Make the corpus iterable.
+
+        Returns:
+            Iterator[Record]: An iterator over the Record objects in the corpus.
+        """
         return iter(self.records.values())
 
     def __repr__(self):
@@ -117,7 +121,11 @@ class Corpus(BaseModel):
 
     @property
     def active_terms(self) -> set:
-        """Return the set of active terms in the Corpus."""
+        """Return the set of active terms in the Corpus.
+
+        Returns:
+            set: A set of active term strings found in active parsed records.
+        """
         active_terms = set()
         for record in self.records.values():
             if record.is_parsed and record.is_active:
@@ -135,7 +143,11 @@ class Corpus(BaseModel):
 
     @property
     def num_active_tokens(self) -> int:
-        """Return the number of active tokens in the Corpus."""
+        """Return the number of active tokens in the Corpus.
+
+        Returns:
+            int: The total number of tokens in active parsed records.
+        """
         if len(self.active_terms) == 0:
             return 0
         return sum(
@@ -156,6 +168,10 @@ class Corpus(BaseModel):
 
         Args:
             record (Record): A Record doc.
+            cache (Optional[bool]): Whether to cache the record. Defaults to False.
+
+        Returns:
+            None
         """
         # Update corpus records table
         # We intentionally exclude computed fields here when dumping a
@@ -259,6 +275,9 @@ class Corpus(BaseModel):
         Note:
             This method recalculates the number of records, active records,
             terms, tokens, and unique terms in the entire Corpus.
+
+        Returns:
+            None
         """
         self.num_docs = len(self.records)
         self.num_active_docs = sum(
@@ -349,6 +368,9 @@ class Corpus(BaseModel):
             metadata (dict[str, Any]): A dict containing any metadata.
             id_type (str): The type of ID to generate. Can be "integer" or "uuid4". Defaults to "uuid4".
             cache (bool): Whether or not to cache the record.
+
+        Returns:
+            None
         """
         # Sanitize metadata to ensure JSON-serializable types
         if metadata is not None:
@@ -556,6 +578,9 @@ class Corpus(BaseModel):
             path (Path | str): The path of the zip archive or directory to load.
             corpus_dir (Optional[Path | str]): The directory where the Corpus is to be unzipped.
             cache (Optional[bool]): Whether to cache the records in the Corpus. Defaults to False.
+
+        Returns:
+            None
         """
         # Ensure that a corpus_dir exists, or create one if it doesn't
         if not corpus_dir:
@@ -598,6 +623,9 @@ class Corpus(BaseModel):
 
         Args:
             path (Path | str): The path to save the Corpus to.
+
+        Returns:
+            None
         """
         shutil.make_archive(path / f"{self.name}", "zip", self.corpus_dir)
 
@@ -612,6 +640,9 @@ class Corpus(BaseModel):
         Args:
             id (str | list[str]): The ID of the record to remove.
             name (str | list[str]): The name of the record to remove.
+
+        Returns:
+            None
         """
         # Ensure either id or name is provided
         if not id and not name:
@@ -663,6 +694,9 @@ class Corpus(BaseModel):
         Args:
             id (str): A record id.
             **props (dict): The dict containing any other properties to set.
+
+        Returns:
+            None
         """
         # Get the record by ID
         record = self.records[id]
@@ -887,6 +921,9 @@ class Corpus(BaseModel):
         Note:
             This is a framework implementation. Full functionality requires
             peer modules to be implemented and their result schemas defined.
+
+        Returns:
+            None
         """
         # TODO: Add result schema validation once peer modules are available
         # TODO: Add proper versioning system for backward compatibility

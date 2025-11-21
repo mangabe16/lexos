@@ -79,7 +79,15 @@ class Record(BaseModel):
 
     @field_serializer("id")
     def serialize_id(self, id, _info):
-        """Always serialize ID as string for JSON compatibility."""
+        """Always serialize ID as string for JSON compatibility.
+
+        Args:
+            id (UUID|int|str): The ID value being serialized.
+            _info (Any): Encoder info (pydantic serializer internals).
+
+        Returns:
+            str: The serialized ID as a string.
+        """
         return str(id)
 
     @field_serializer("meta")
@@ -157,7 +165,11 @@ class Record(BaseModel):
     @computed_field
     @cached_property
     def is_parsed(self) -> bool:
-        """Return whether the record is parsed."""
+        """Return whether the record is parsed.
+
+        Returns:
+            bool: True if the record content is a spaCy Doc, False otherwise.
+        """
         if isinstance(self.content, Doc):
             return True
         return False
@@ -165,7 +177,11 @@ class Record(BaseModel):
     @computed_field
     @cached_property
     def preview(self) -> str:
-        """Return a preview of the record text."""
+        """Return a preview of the record text.
+
+        Returns:
+            str | None: A shortened preview of the record content, or None if content is None.
+        """
         if self.content is None:
             return None
 
@@ -176,7 +192,11 @@ class Record(BaseModel):
     @computed_field
     @cached_property
     def terms(self) -> Counter:
-        """Return the terms in the record."""
+        """Return the terms in the record.
+
+        Returns:
+            Counter: Collection mapping term -> count for the record.
+        """
         if self.is_parsed:
             return Counter([t.text for t in self.content])
         else:
@@ -184,14 +204,22 @@ class Record(BaseModel):
 
     @property
     def text(self) -> str:
-        """Return the text of the record."""
+        """Return the text of the record.
+
+        Returns:
+            str | None: The record text as string or None if no content is present.
+        """
         if self.is_parsed:
             return self.content.text
         return self.content
 
     @cached_property
     def tokens(self) -> list[str]:
-        """Return the tokens in the record."""
+        """Return the tokens in the record.
+
+        Returns:
+            list[str]: A list of token strings extracted from the parsed content.
+        """
         if self.is_parsed:
             return [t.text for t in self.content]
         else:
@@ -377,14 +405,14 @@ class Record(BaseModel):
         # Get the record content from the bytestring
         self.from_bytes(data, model=model, model_cache=model_cache)
 
-    def least_common_terms(self, n: Optional[int] = None) -> int:
+    def least_common_terms(self, n: Optional[int] = None) -> list[tuple[str, int]]:
         """Return the least common terms.
 
         Args:
             n (Optional[int]): The number of least common terms to return. If None, return all terms.
 
         Returns:
-            int: The least common terms in the record.
+            list[tuple[str, int]]: A list of (term, count) pairs sorted by least frequent.
         """
         if self.is_parsed:
             return (
@@ -395,14 +423,14 @@ class Record(BaseModel):
         else:
             raise LexosException("Record is not parsed.")
 
-    def most_common_terms(self, n: Optional[int] = None) -> int:
+    def most_common_terms(self, n: Optional[int] = None) -> list[tuple[str, int]]:
         """Return the most common terms.
 
         Args:
             n (Optional[int]): The number of most common terms to return. If None, return all terms.
 
         Returns:
-            int: The most common terms in the record.
+            list[tuple[str, int]]: A list of (term, count) pairs sorted by most frequent.
         """
         if self.is_parsed:
             return self.terms.most_common(n)
@@ -410,14 +438,22 @@ class Record(BaseModel):
             raise LexosException("Record is not parsed.")
 
     def num_terms(self) -> int:
-        """Return the number of terms."""
+        """Return the number of terms.
+
+        Returns:
+            int: The count of unique terms in this record.
+        """
         if self.is_parsed:
             return len(self.terms)
         else:
             raise LexosException("Record is not parsed.")
 
     def num_tokens(self) -> int:
-        """Return the number of tokens."""
+        """Return the number of tokens.
+
+        Returns:
+            int: The count of token elements in this record.
+        """
         if self.is_parsed:
             return len(self.tokens)
         else:
@@ -429,6 +465,9 @@ class Record(BaseModel):
 
         Args:
             **props: A dict containing the properties to set on the record.
+
+        Returns:
+            None
         """
         for k, v in props.items():
             setattr(self, k, v)
