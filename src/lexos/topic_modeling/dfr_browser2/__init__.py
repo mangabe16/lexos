@@ -6,11 +6,10 @@ import shutil
 import socketserver
 import tempfile
 import threading
-import uuid
 import webbrowser
 from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 
@@ -55,6 +54,40 @@ class Browser(BaseModel):
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    # Version of the browser distribution this class is creating/serving
+    BROWSER_VERSION: ClassVar[str] = "0.2.3"
+
+    @property
+    def version(self):
+        """Return the version of the DFR Browser."""
+        # If the user or template supplies a version, prefer that value
+        try:
+            if self.config and isinstance(self.config, dict):
+                app_cfg = self.config.get("application") or {}
+                if isinstance(app_cfg, dict) and app_cfg.get("version"):
+                    return app_cfg.get("version")
+        except Exception:
+            # defensive fallback
+            pass
+        return self.BROWSER_VERSION
+
+    def __setattr__(self, name: str, value) -> None:
+        """Intercept assignments to `config` and write merged config to disk.
+
+        This ensures that once `self.config` is set, the persisted `config.json`
+        file will be updated to match the merged configuration. We only write
+        after the instance is fully initialized to avoid partial writes during
+        construction.
+        """
+        # Use BaseModel's setattr to set attribute (ensures pydantic behavior)
+        super().__setattr__(name, value)
+        # Only write to disk after init and when config is updated
+        if name == "config" and getattr(self, "_initialized", False):
+            try:
+                self._write_config()
+            except Exception:
+                # Defensive: don't raise during attribute setting
+                pass
 
     @validate_call
     def __init__(self, **data) -> None:
@@ -301,9 +334,15 @@ class Browser(BaseModel):
         # First, read and merge the template config with any user-provided `self.config`.
         # Make sure file paths inside the config point to the files we copied into `data/`.
         self._write_config()
+        # Mark initialization complete so __setattr__ will write config on modification
+        object.__setattr__(self, "_initialized", True)
 
     def config_browser(self, config: dict) -> None:
-        """Set the browser configuration after initialization."""
+        """Set the browser configuration after initialization.
+
+        Args:
+            config (dict): Configuration dictionary for the DFR Browser 2.
+        """
         # Update the config attribute
         self.config = config
         # Write the new config to config.json in browser_path
@@ -381,6 +420,15 @@ class Browser(BaseModel):
                 continue
             # Otherwise, set the key to the path of the copied file (overriding template)
             merged_cfg[key] = rel_path
+
+        # Ensure the application version is present in the config. Preserve user-provided values.
+        if "application" not in merged_cfg:
+            merged_cfg["application"] = {}
+        if "version" not in merged_cfg["application"]:
+            merged_cfg["application"]["version"] = self.BROWSER_VERSION
+
+        # Save merged config back to the instance so callers/other methods can access the full merged config
+        self.config = merged_cfg
 
         # Save merged config
         with open(cfg_path, "w", encoding="utf-8") as f:
