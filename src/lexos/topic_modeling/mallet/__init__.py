@@ -209,13 +209,8 @@ class Mallet(BaseModel):
     # Legacy synonyms are not used; code reads canonical keys only.
 
     path_to_mallet: str = MALLET_BINARY_PATH
-    model_dir: Optional[str] = (
-        Field(
-            None,
-            description="The directory where the model is stored.",
-        ),
-    )
-    model_dir: Optional[str] = Field(
+    # Accept either a string or a Path for `model_dir` to allow intuitive usage
+    model_dir: Optional[Path | str] = Field(
         None,
         description="The directory where the model is stored.",
     )

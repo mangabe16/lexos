@@ -1,16 +1,18 @@
 """test_mallet.py.
 
-Coverage: 90%. Missing: 197, 275, 280, 333-334, 374, 390-393, 398-405, 411, 434-437, 527, 562-584, 599-650, 672, 674, 733, 752-753, 758-761, 779, 781, 790, 795, 809, 832, 888-889, 991, 1009, 1396, 1402
+Coverage: 100%
 
 Last Updated: November 22, 2025
 """
 
 import os
+import subprocess
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pytest
 from pydantic_core._pydantic_core import ValidationError as PydanticValidationError
@@ -27,6 +29,7 @@ from lexos.topic_modeling.mallet import (
 
 @pytest.fixture
 def tmp_model_dir(tmp_path):
+    """Create and return a temporary model directory for tests."""
     d = tmp_path / "mallet_model"
     d.mkdir()
     return d
@@ -34,7 +37,7 @@ def tmp_model_dir(tmp_path):
 
 @pytest.fixture(autouse=True)
 def no_system_calls(monkeypatch):
-    """Prevent real system calls to `mallet` during tests."""
+    """Fixture to prevent real system calls to `mallet` during tests."""
 
     def fake_system(cmd):
         # Dummy no-op to simulate success
@@ -45,16 +48,19 @@ def no_system_calls(monkeypatch):
 
 
 def test_read_file_rejects_bool():
+    """Test that read_file rejects boolean input."""
     with pytest.raises(PydanticValidationError):
         read_file(True)  # type: ignore[arg-type]
 
 
 def test_read_dirs_rejects_boolean():
+    """Test that read_dirs rejects boolean input."""
     with pytest.raises(PydanticValidationError):
         read_dirs(True)  # type: ignore[arg-type]
 
 
 def test_import_files_reads_file(tmp_path):
+    """Test that import_files reads file contents correctly."""
     f = tmp_path / "test.txt"
     f.write_text("hello world", encoding="utf-8")
     contents = import_files(f)
@@ -63,12 +69,25 @@ def test_import_files_reads_file(tmp_path):
 
 
 def test_import_docs_returns_strings():
+    """Test that import_docs returns the input list of strings unchanged."""
     docs = ["a", "b", "c"]
     res = import_docs(docs)
     assert res == docs
 
 
+def test_import_docs_accepts_spacy_doc(tmp_model_dir):
+    """Passing a spaCy `Doc` to `import_docs` should return the doc.text entry (covers `Doc` branch)."""
+    from spacy.tokens import Doc
+    from spacy.vocab import Vocab
+
+    vocab = Vocab()
+    d = Doc(vocab, words=["hello", "world"])
+    res = import_docs([d])
+    assert res == [d.text]
+
+
 def test_mallet_import_data_and_metadata(tmp_model_dir):
+    """Test that import_data sets expected metadata keys."""
     m = Mallet(model_dir=str(tmp_model_dir))
     training_text = ["this is a test", "another doc"]
     # Import the data; os.system is patched, so no external calls
@@ -83,6 +102,7 @@ def test_mallet_import_data_and_metadata(tmp_model_dir):
 
 
 def test_train_sets_canonical_metadata(tmp_model_dir, monkeypatch):
+    """Test that train sets canonical metadata keys and paths."""
     m = Mallet(model_dir=str(tmp_model_dir))
 
     # Create a fake formatted training data file so train() will not error on missing input
@@ -116,6 +136,7 @@ def test_train_sets_canonical_metadata(tmp_model_dir, monkeypatch):
 
 
 def test_infer_parses_infer_output(tmp_model_dir, monkeypatch):
+    """Test that infer parses output file and returns correct distributions."""
     m = Mallet(model_dir=str(tmp_model_dir))
 
     # Prepare a fake inferencer -- create a dummy file and set metadata
@@ -228,6 +249,7 @@ def test_infer_accepts_file_input_and_flags(tmp_model_dir, monkeypatch):
 
 
 def test_infer_output_missing_raises(tmp_model_dir, monkeypatch):
+    """Test that infer raises LexosException when output file is missing."""
     m = Mallet(model_dir=str(tmp_model_dir))
     fake_inferencer_path = tmp_model_dir / "inferencer.mallet"
     fake_inferencer_path.write_text("dummy")
@@ -282,6 +304,7 @@ def test_infer_unable_to_parse_distribution_raises(tmp_model_dir, monkeypatch):
 
 
 def test_infer_show_true_returns_none(tmp_model_dir, monkeypatch):
+    """Test that infer returns None when show=True is passed."""
     m = Mallet(model_dir=str(tmp_model_dir))
     fake_inferencer_path = tmp_model_dir / "inferencer.mallet"
     fake_inferencer_path.write_text("dummy")
@@ -415,6 +438,7 @@ def test_read_file_formats(tmp_path):
 
 
 def test_read_dirs_reads_files(tmp_path):
+    """Test that read_dirs reads all files in a directory and returns their contents."""
     d = tmp_path / "dirtest"
     d.mkdir()
     f1 = d / "a.txt"
@@ -428,6 +452,7 @@ def test_read_dirs_reads_files(tmp_path):
 
 
 def test_read_file_nonexistent_raises(tmp_path):
+    """Test that read_file raises LexosException for a nonexistent file."""
     # Non-existent file should raise LexosException
     p = tmp_path / "no_such_file.txt"
     with pytest.raises(LexosException):
@@ -435,6 +460,7 @@ def test_read_file_nonexistent_raises(tmp_path):
 
 
 def test_read_file_ioerror_raises(tmp_path, monkeypatch):
+    """Test that read_file raises LexosException when pandas.read_csv raises IOError."""
     # Create a real file, but patch pandas.read_csv to raise IOError to exercise the read exception branch
     p = tmp_path / "io_error.txt"
     p.write_text("doc1\ndoc2\n")
@@ -448,6 +474,7 @@ def test_read_file_ioerror_raises(tmp_path, monkeypatch):
 
 
 def test_read_dirs_invalid_type_and_missing_dir(tmp_path):
+    """Test that read_dirs raises for invalid type and missing directory."""
     # Integer passed as dir should raise PydanticValidationError
     with pytest.raises(PydanticValidationError):
         read_dirs(1)  # type: ignore[arg-type]
@@ -457,12 +484,14 @@ def test_read_dirs_invalid_type_and_missing_dir(tmp_path):
 
 
 def test_read_file_bypassing_validation_bool_raises():
+    """Test that read_file.__wrapped__ raises LexosException for boolean input."""
     # Call internal function without Pydantic validation to hit the bool guard
     with pytest.raises(LexosException):
         read_file.__wrapped__(True)  # type: ignore[arg-type]
 
 
 def test_read_file_empty_dataframe_raises(monkeypatch, tmp_path):
+    """Test that read_file raises ValueError when pandas.read_csv returns empty DataFrame."""
     # Patch pandas.read_csv to return an empty DataFrame to reach the len(df.columns)==0 branch
     monkeypatch.setattr("pandas.read_csv", lambda *args, **kwargs: pd.DataFrame())
     p = tmp_path / "empty.txt"
@@ -472,6 +501,7 @@ def test_read_file_empty_dataframe_raises(monkeypatch, tmp_path):
 
 
 def test_import_files_missing_and_ioerror(tmp_path, monkeypatch):
+    """Test that import_files raises LexosException for missing file and IOError."""
     # Missing file
     missing = tmp_path / "nofile.txt"
     with pytest.raises(LexosException):
@@ -490,12 +520,14 @@ def test_import_files_missing_and_ioerror(tmp_path, monkeypatch):
 
 
 def test_read_dirs_bypass_validation_detects_bool_raises():
+    """Test that read_dirs.__wrapped__ raises LexosException for boolean input."""
     # Bypass Pydantic validation to exercise the explicit boolean rejection in read_dirs
     with pytest.raises(LexosException):
         read_dirs.__wrapped__(True)  # type: ignore[arg-type]
 
 
 def test_mallet_init_bool_and_file_model_dir(tmp_path):
+    """Test Mallet init rejects boolean and file path for model_dir."""
     # boolean model_dir should raise ValidationError (Pydantic will block booleans)
     with pytest.raises(PydanticValidationError):
         Mallet(model_dir=True)  # type: ignore[arg-type]
@@ -508,6 +540,7 @@ def test_mallet_init_bool_and_file_model_dir(tmp_path):
 
 
 def test_mallet_init_metadata_sets_model_dir(tmp_path):
+    """Test Mallet init sets model_dir from metadata if not provided."""
     # If metadata contains model_directory and model_dir is None, __init__ should set model_dir
     meta_dir = tmp_path / "meta_model"
     meta_dir.mkdir()
@@ -515,7 +548,53 @@ def test_mallet_init_metadata_sets_model_dir(tmp_path):
     assert str(m.model_dir) == str(meta_dir)
 
 
+def test_mallet_init_sets_metadata_model_directory_when_constructed(tmp_path):
+    """When `model_dir` is provided to the constructor, `metadata['model_directory']` should be set."""
+    d = tmp_path / "instantiated_model"
+    # Ensure instance initialised with a model_dir string sets the metadata key
+    m = Mallet(model_dir=str(d))
+    assert "model_directory" in m.metadata
+    assert str(m.metadata["model_directory"]) == str(d)
+
+
+def test_mallet_init_metadata_bool_raises(tmp_path):
+    """If metadata contains a boolean `model_directory`, __init__ should raise LexosException."""
+    meta_dir = True
+    with pytest.raises(LexosException):
+        Mallet(metadata={"model_directory": meta_dir})
+
+
+def test_mallet_init_accepts_path_object_and_sets_metadata(tmp_path):
+    """Passing a Path object as `model_dir` should set metadata['model_directory'] as a string and create the directory."""
+    d = tmp_path / "path_model"
+    # Pass a Path object. The class should accept a Path and set metadata accordingly.
+    m = Mallet(model_dir=d)
+    assert "model_directory" in m.metadata
+    assert str(m.metadata["model_directory"]).startswith(str(d))
+
+
+def test_plot_topics_over_time_self_distributions_empty_raises(tmp_model_dir):
+    """If self.distributions is empty and topic_distributions is None the method should raise LexosException."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # Create a blank doc-topic file so self.distributions returns []
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    # Provide a topic_keys so it doesn't fall back to property (not necessary but explicit)
+    topic_keys = [["0", "0.5", "a b"]]
+    # times must be provided; calling with topic_distributions=None so that code uses self.distributions
+    with pytest.raises(LexosException):
+        m.plot_topics_over_time(
+            times=[1],
+            topic_index=0,
+            topic_distributions=None,
+            topic_keys=topic_keys,
+            show=False,
+        )
+
+
 def test_distributions_compressed_sparse(tmp_model_dir):
+    """Test that compressed sparse topic pairs are parsed correctly in distributions."""
     m = Mallet(model_dir=str(tmp_model_dir))
     file = tmp_model_dir / "doc-topic.txt"
     # compressed pairs with non-consecutive topic ids 0 and 2; expect length 3
@@ -534,6 +613,7 @@ def test_distributions_compressed_sparse(tmp_model_dir):
 
 
 def test_distributions_tab_single_token_whitespace_numbers_raises(tmp_model_dir):
+    """Test that tab single token with whitespace numbers raises LexosException in distributions."""
     m = Mallet(model_dir=str(tmp_model_dir))
     file = tmp_model_dir / "doc-topic.txt"
     content = textwrap.dedent(
@@ -548,6 +628,7 @@ def test_distributions_tab_single_token_whitespace_numbers_raises(tmp_model_dir)
 
 
 def test_distributions_no_tabs_colon_pairs_parsed(tmp_model_dir):
+    """Test that no tabs and colon pairs are parsed correctly in distributions."""
     m = Mallet(model_dir=str(tmp_model_dir))
     file = tmp_model_dir / "doc-topic.txt"
     # no tabs, only two tokens (id and colon pairs), should parse into distribution
@@ -562,6 +643,7 @@ def test_distributions_no_tabs_colon_pairs_parsed(tmp_model_dir):
 
 
 def test_distributions_tab_single_token_colon_pairs_parsed(tmp_model_dir):
+    """Test that tab single token colon pairs are parsed correctly in distributions."""
     m = Mallet(model_dir=str(tmp_model_dir))
     file = tmp_model_dir / "doc-topic.txt"
     content = textwrap.dedent(
@@ -580,6 +662,7 @@ def test_distributions_tab_single_token_colon_pairs_parsed(tmp_model_dir):
 
 
 def test_distributions_colon_pair_malformed_raises(tmp_model_dir):
+    """Test that malformed colon pair raises LexosException in distributions."""
     m = Mallet(model_dir=str(tmp_model_dir))
     file = tmp_model_dir / "doc-topic.txt"
     content = "d0 0:abc\n"
@@ -589,7 +672,67 @@ def test_distributions_colon_pair_malformed_raises(tmp_model_dir):
         _ = m.distributions
 
 
+def test_distributions_tab_colon_pair_non_int_raises(tmp_model_dir):
+    """Tab-delimited single-token colon-pair with non-integer topic id should raise LexosException."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    file = tmp_model_dir / "doc-topic.txt"
+    content = "0\td0\ta:0.5\n"
+    file.write_text(content)
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(file)
+    with pytest.raises(LexosException):
+        _ = m.distributions
+
+
+def test_distributions_tab_colon_pair_malformed_prob_raises(tmp_model_dir):
+    """Tab-delimited single-token colon-pair with non-numeric probability should raise LexosException."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    file = tmp_model_dir / "doc-topic.txt"
+    content = "0\td0\t0:abc\n"
+    file.write_text(content)
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(file)
+    with pytest.raises(LexosException):
+        _ = m.distributions
+
+
+def test_distributions_colon_pair_non_int_topic_raises(tmp_model_dir):
+    """A non-integer topic id within a colon-pair (e.g., 'a:0.5') should raise LexosException."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    file = tmp_model_dir / "doc-topic.txt"
+    content = "d0 a:0.5\n"
+    file.write_text(content)
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(file)
+    with pytest.raises(LexosException):
+        _ = m.distributions
+
+
+def test_distributions_tab_non_numeric_token_raises(tmp_model_dir):
+    """Tab-delimited distributions with a non-numeric token should raise LexosException when parsing."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    file = tmp_model_dir / "doc-topic.txt"
+    # tokens after the second column must be parseable as floats
+    content = "0\td0\ta\tb\n"
+    file.write_text(content)
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(file)
+    with pytest.raises(LexosException):
+        _ = m.distributions
+
+
+def test_distributions_whitespace_last_token_not_colon_pair_raises(tmp_model_dir):
+    """Whitespace-separated single-token malformed lines should raise a LexosException.
+
+    This targets the branch that checks for colon pairs on the last token and raises when they are absent.
+    """
+    m = Mallet(model_dir=str(tmp_model_dir))
+    file = tmp_model_dir / "doc-topic.txt"
+    content = "d0 some_token\n"
+    file.write_text(content)
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(file)
+    with pytest.raises(LexosException):
+        _ = m.distributions
+
+
 def test_load_topic_term_distributions_missing_and_invalid(tmp_model_dir):
+    """Test that missing topic term distributions and invalid values raise exceptions."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # Missing file - expect LexosException as code checks for none metadata
     with pytest.raises(LexosException):
@@ -604,6 +747,7 @@ def test_load_topic_term_distributions_missing_and_invalid(tmp_model_dir):
 
 
 def test_topic_clouds_default_background_color(tmp_model_dir, monkeypatch):
+    """Test that topic_clouds uses default background color when not specified."""
     captured = {}
 
     class FakeMultiCloud:
@@ -629,6 +773,7 @@ def test_topic_clouds_default_background_color(tmp_model_dir, monkeypatch):
 
 
 def test_plot_topics_over_time_negative_index_and_missing_data(tmp_model_dir):
+    """Test that negative topic index and missing data raise ValueError in plot_topics_over_time."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # provide distributions but negative topic index should raise ValueError
     doc_topics_path = tmp_model_dir / "doc-topic.txt"
@@ -642,6 +787,7 @@ def test_plot_topics_over_time_negative_index_and_missing_data(tmp_model_dir):
 
 
 def test_train_single_part_paths_prefix_and_inferencer_meta(tmp_model_dir, monkeypatch):
+    """Test that single-part topic keys path is prefixed and inferencer metadata is set."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # Prepare a fake formatted training data file so train() will not error on missing input
     formatted_data_path = tmp_model_dir / "training_data.mallet"
@@ -663,6 +809,7 @@ def test_train_single_part_paths_prefix_and_inferencer_meta(tmp_model_dir, monke
 
 
 def test_infer_raises_when_inferencer_missing(tmp_model_dir, monkeypatch):
+    """Test that infer raises LexosException when inferencer metadata is missing."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # ensure no inferencer metadata
     if m.CANONICAL_INFERENCER_KEY in m.metadata:
@@ -673,6 +820,7 @@ def test_infer_raises_when_inferencer_missing(tmp_model_dir, monkeypatch):
 
 
 def test_import_data_defaults_to_model_dir(tmp_model_dir):
+    """Test that import_data writes default training data path to metadata."""
     m = Mallet(model_dir=str(tmp_model_dir))
     training_data = ["a b c"]
     # Use import_data which should write default path into metadata
@@ -682,6 +830,7 @@ def test_import_data_defaults_to_model_dir(tmp_model_dir):
 
 
 def test_get_topic_term_probabilities(tmp_model_dir):
+    """Test that get_topic_term_probabilities returns both DataFrame and string formats."""
     """Ensure topic-term probabilities loader returns both df and str formats."""
     m = Mallet(model_dir=str(tmp_model_dir))
     f = tmp_model_dir / "topic-weights.txt"
@@ -765,6 +914,7 @@ def test_get_top_docs_inconsistent_distribution_lengths_raises(tmp_model_dir):
 
 
 def test_distributions_parsing_various_formats(tmp_model_dir):
+    """Test that distributions parses mixed formats correctly."""
     m = Mallet(model_dir=str(tmp_model_dir))
     file = tmp_model_dir / "doc-topic.txt"
     # mix of tab-delimited, whitespace-delimited, and compressed token
@@ -786,6 +936,7 @@ def test_distributions_parsing_various_formats(tmp_model_dir):
 
 
 def test_load_topic_term_distributions(tmp_model_dir):
+    """Test that load_topic_term_distributions loads topic weights as a dictionary."""
     m = Mallet(model_dir=str(tmp_model_dir))
     f = tmp_model_dir / "topic-weights.txt"
     f.write_text("0\tword1\t2\n0\tword2\t3\n1\tword3\t1\n")
@@ -798,6 +949,7 @@ def test_load_topic_term_distributions(tmp_model_dir):
 
 
 def test_plot_categories_by_topics_heatmap_default_title(tmp_model_dir):
+    """Test that plot_categories_by_topics_heatmap uses default title when none is provided."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # create topic_keys and doc-topic
     topic_keys_path = tmp_model_dir / "topic-keys.txt"
@@ -814,6 +966,7 @@ def test_plot_categories_by_topics_heatmap_default_title(tmp_model_dir):
 
 
 def test_topic_clouds_round_mask_and_title(tmp_model_dir, monkeypatch):
+    """Test that topic_clouds uses round mask and sets title correctly."""
     captured = {}
 
     class FakeMultiCloud:
@@ -842,6 +995,7 @@ def test_topic_clouds_round_mask_and_title(tmp_model_dir, monkeypatch):
 
 
 def test_topic_clouds_round_mask_int_and_opts(tmp_model_dir, monkeypatch):
+    """Test that topic_clouds accepts integer round_mask and options."""
     captured = {}
 
     class FakeMultiCloud:
@@ -869,6 +1023,7 @@ def test_topic_clouds_round_mask_int_and_opts(tmp_model_dir, monkeypatch):
 
 
 def test_topic_clouds_output_path_saves(tmp_model_dir, monkeypatch):
+    """Test that topic_clouds saves output to specified path."""
     captured = {}
 
     class FakeMultiCloud:
@@ -993,6 +1148,7 @@ def test_topic_clouds_invalid_round_mask_raises_and_show_returns_none(
 
 
 def test_boxplot_overlay_invalid_raises(tmp_model_dir):
+    """Test that plot_categories_by_topic_boxplots raises LexosException for invalid overlay."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # Create doc-topic and topic-keys
     topic_keys_path = tmp_model_dir / "topic-keys.txt"
@@ -1006,6 +1162,7 @@ def test_boxplot_overlay_invalid_raises(tmp_model_dir):
 
 
 def test_load_topic_term_distributions_malformed_line_raises(tmp_model_dir):
+    """Test that malformed lines in topic term distributions raise ValueError."""
     m = Mallet(model_dir=str(tmp_model_dir))
     f = tmp_model_dir / "topic-weights.txt"
     f.write_text("0\tword1\n")
@@ -1015,6 +1172,7 @@ def test_load_topic_term_distributions_malformed_line_raises(tmp_model_dir):
 
 
 def test_distributions_missing_raises(tmp_model_dir):
+    """Test that accessing distributions with missing metadata raises LexosException."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # No metadata set
     with pytest.raises(LexosException):
@@ -1022,12 +1180,14 @@ def test_distributions_missing_raises(tmp_model_dir):
 
 
 def test_topic_keys_missing_raises(tmp_model_dir):
+    """Test that accessing topic_keys with missing metadata raises LexosException."""
     m = Mallet(model_dir=str(tmp_model_dir))
     with pytest.raises(LexosException):
         _ = m.topic_keys
 
 
 def test_get_keys_and_get_top_docs(tmp_model_dir):
+    """Test that get_keys returns correct formats and get_top_docs returns DataFrame and string."""
     m = Mallet(model_dir=str(tmp_model_dir))
     # topic_keys
     topic_keys_path = tmp_model_dir / "topic-keys.txt"
@@ -1053,6 +1213,7 @@ def test_get_keys_and_get_top_docs(tmp_model_dir):
 
 
 def test_plot_categories_by_topic_boxplots_with_overlay(tmp_model_dir, monkeypatch):
+    """Test that plot_categories_by_topic_boxplots calls correct overlay functions."""
     m = Mallet(model_dir=str(tmp_model_dir))
 
     # Create doc-topic and topic-keys files expected by `topic_keys` and `distributions`
@@ -1378,6 +1539,22 @@ def test_plot_topics_over_time_negative_index_raises_with_distributions(tmp_mode
         )
 
 
+def test_plot_topics_over_time_times_len_mismatch_raises(tmp_model_dir):
+    """If `times` length does not match `topic_distributions`, a LexosException should be raised."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # equal length of distributions not matching length of times
+    topic_distributions = [[0.3, 0.7], [0.2, 0.8]]
+    # times length mismatched
+    with pytest.raises(LexosException):
+        m.plot_topics_over_time(
+            times=[1],
+            topic_index=0,
+            topic_distributions=topic_distributions,
+            topic_keys=[["0", "0.5", "a b c"], ["1", "0.5", "x y z"]],
+            show=False,
+        )
+
+
 # End of tests
 
 
@@ -1483,3 +1660,392 @@ def test_infer_whitespace_token_no_colon_raises(tmp_model_dir, monkeypatch):
             path_to_inferencer=str(fake_inferencer_path),
             output_path=str(out),
         )
+
+
+def test_track_progress_progress_updates(tmp_model_dir, monkeypatch):
+    """Simulate MALLET stdout that includes <n> progress fields to exercise _track_progress."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+
+    class FakeStdOut:
+        def __init__(self, lines):
+            self._lines = [l.encode("utf-8") + b"\n" for l in lines]
+            self.i = 0
+
+        def readline(self):
+            if self.i < len(self._lines):
+                line = self._lines[self.i]
+                self.i += 1
+                return line
+            return b""
+
+    class FakePopen:
+        def __init__(self, *args, **kwargs):
+            self.stdout = FakeStdOut(["text", "<1.0>", "<5.0>", "<10.0>"])
+
+        def poll(self):
+            return None if self.stdout.i < len(self.stdout._lines) else 0
+
+    monkeypatch.setattr(subprocess, "Popen", FakePopen)
+    # No exception should be raised while updating progress
+    m._track_progress("mallet fake", 10, verbose=True)
+
+
+def test_import_data_flags_included(tmp_model_dir, monkeypatch):
+    """Ensure import_data includes the import-file flags and the use_pipe_from option gets added to the import command."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    calls = []
+
+    def fake_system(cmd):
+        calls.append(cmd)
+        return 0
+
+    monkeypatch.setattr(os, "system", fake_system)
+    m.import_data(
+        ["doc a", "doc b"],
+        keep_sequence=True,
+        preserve_case=True,
+        remove_stopwords=True,
+        use_pipe_from="pipe.dat",
+    )
+    assert any("--keep-sequence" in c for c in calls)
+    assert any("--preserve-case" in c for c in calls)
+    assert any("--remove-stopwords" in c for c in calls)
+    assert any("--use-pipe-from pipe.dat" in c for c in calls)
+
+
+def test_get_keys_numtopics_and_topics_int(tmp_model_dir):
+    """Exercise num_topics slicing and `topics` list selection in get_keys."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("""0	0.4	word1 word2
+1	0.6	alpha beta
+2	0.3	gamma delta
+""")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    out = m.get_keys(num_topics=1)
+    assert "Topic 0" in out and "Topic 1" not in out
+    out2 = m.get_keys(topics=[1])
+    assert "Topic 1" in out2 and "Topic 0" not in out2
+    df_sty = m.get_keys(as_df=True)
+    assert isinstance(df_sty, pd.io.formats.style.Styler)
+
+
+def test_get_top_docs_invalid_topic_and_num_topics_mismatch(tmp_model_dir):
+    """Test that get_top_docs raises for invalid topic and mismatched num_topics."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # distributions and training data
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    train_path = tmp_model_dir / "training_data.txt"
+    train_path.write_text("0\t\tthis\n1\t\tthat\n")
+    m.metadata["path_to_training_data"] = str(train_path)
+
+    # Passing a non-integer topic should raise ValueError
+    with pytest.raises(ValueError):
+        m.get_top_docs(topic="a", n=1)
+
+    # Now set num_topics to mismatch the distributions length
+    m.metadata["num_topics"] = 1
+    with pytest.raises(LexosException):
+        m.get_top_docs(topic=0, n=1)
+
+
+def test_topic_clouds_round_mask_string_int(tmp_model_dir, monkeypatch):
+    """If round_mask is a string that can be converted to int, accept it."""
+    captured = {}
+
+    class FakeMultiCloud:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.fig = "fakefig"
+
+        def save(self, path):
+            captured["saved"] = path
+
+        def show(self):
+            captured["shown"] = True
+
+    monkeypatch.setattr("lexos.topic_modeling.mallet.MultiCloud", FakeMultiCloud)
+    monkeypatch.setattr(
+        Mallet, "load_topic_term_distributions", lambda self: {0: {"a": 1.0}}
+    )
+    m = Mallet(model_dir=str(tmp_model_dir))
+    m.topic_clouds(show=False, round_mask="60")
+    assert captured.get("round") == 60
+
+
+def test_model_directory_property_returns_value(tmp_model_dir):
+    """Test that model_directory property returns the correct value from metadata."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    assert m.model_directory == str(tmp_model_dir)
+
+
+def test_setup_wordcloud_mask_true_and_false(monkeypatch, tmp_model_dir):
+    """Ensure _setup_wordcloud sets mask properly for round_mask True/False."""
+    captured = {}
+
+    class FakeWordCloud:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr("lexos.topic_modeling.mallet.WordCloud", FakeWordCloud)
+    m = Mallet(model_dir=str(tmp_model_dir))
+    m._setup_wordcloud(False, 10)
+    assert captured.get("mask") is None
+    captured.clear()
+    m._setup_wordcloud(True, 10)
+    assert captured.get("mask") is not None
+
+
+def test_setup_wordcloud_kwargs_override(monkeypatch, tmp_model_dir):
+    """`kwargs` passed to _setup_wordcloud override defaults in WordCloud options."""
+    captured = {}
+
+    class FakeWordCloud:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr("lexos.topic_modeling.mallet.WordCloud", FakeWordCloud)
+    m = Mallet(model_dir=str(tmp_model_dir))
+    m._setup_wordcloud(True, 10, background_color="black")
+    assert captured.get("background_color") == "black"
+
+
+def test_mean_num_tokens_numpy_scalar(tmp_model_dir):
+    """Test that mean_num_tokens handles numpy scalar values correctly."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # ensure we use a numpy scalar so the .item() branch is exercised
+    m.metadata["mean_num_tokens"] = np.float64(2.0)
+    # Should either expose .item() or cast to int; just ensure a numeric value
+    val = m.mean_num_tokens
+    assert isinstance(val, (int, float))
+
+
+def test_mean_num_tokens_missing_returns_zero():
+    """Test that mean_num_tokens returns 0 when metadata key is missing."""
+    m = Mallet()
+    assert m.mean_num_tokens == 0
+
+
+def test_mean_num_tokens_int_value(tmp_model_dir):
+    """Test that mean_num_tokens returns the correct integer value from metadata."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    m.metadata["mean_num_tokens"] = 3
+    assert m.mean_num_tokens == 3
+
+
+def test_distributions_header_skipped(tmp_model_dir):
+    """Test that distributions property skips header line in doc-topic file."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    f = tmp_model_dir / "doc-topic.txt"
+    content = "#doc\t1\t0\t1\n0\td0\t0.1\t0.9\n"
+    f.write_text(content)
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(f)
+    d = m.distributions
+    assert len(d) == 1
+
+
+def test_get_top_docs_out_of_range_raises(tmp_model_dir):
+    """Test that get_top_docs raises ValueError for out-of-range topic index."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.1\t0.9\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    train_path = tmp_model_dir / "training_data.txt"
+    train_path.write_text("0\t\tthis\n")
+    m.metadata["path_to_training_data"] = str(train_path)
+    # With a single topic (length 2 implies two topics: 0 and 1), requesting topic 2 should raise
+    with pytest.raises(ValueError):
+        m.get_top_docs(topic=2, n=1)
+
+
+def test_num_docs_property(tmp_model_dir):
+    """Test that num_docs property returns correct value from metadata."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # default is zero
+    assert m.num_docs == 0
+    m.metadata["num_docs"] = 5
+    assert m.num_docs == 5
+
+
+def test_vocab_size_property(tmp_model_dir):
+    """Test that vocab_size property returns correct value from metadata."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    assert m.vocab_size == 0
+    m.metadata["vocab_size"] = 42
+    assert m.vocab_size == 42
+
+
+def test_import_data_bool_rejects(monkeypatch, tmp_model_dir):
+    """Test that import_data raises LexosException when given boolean as first arg."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    with pytest.raises(LexosException):
+        Mallet.import_data.__wrapped__(m, True)
+
+
+def test_get_top_docs_num_topics_invalid_fallback_to_topic_keys(tmp_model_dir):
+    """Test that get_top_docs falls back to topic_keys when num_topics is invalid."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # set invalid num_topics and provide topic_keys as fallback
+    m.metadata["num_topics"] = "not_int"
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n1\t0.5\ta b\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    train_path = tmp_model_dir / "training_data.txt"
+    train_path.write_text("0\t\tthis\n1\t\tthat\n")
+    m.metadata["path_to_training_data"] = str(train_path)
+    # Should use topic_keys fallback and not raise
+    top_docs = m.get_top_docs(topic=0, n=1)
+    assert not top_docs.empty
+
+
+def test_get_top_docs_no_topic_info_raises(tmp_model_dir):
+    """Test that get_top_docs raises LexosException when no topic info is available."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # ensure no num_topics, no topic_keys, and no distributions
+    if "num_topics" in m.metadata:
+        m.metadata.pop("num_topics")
+    if m.CANONICAL_TOPIC_KEYS_KEY in m.metadata:
+        m.metadata.pop(m.CANONICAL_TOPIC_KEYS_KEY)
+    with pytest.raises(LexosException):
+        m.get_top_docs(topic=0, n=1)
+
+
+def test_get_top_docs_empty_distributions_raises(tmp_model_dir):
+    """Test that get_top_docs raises LexosException when distributions are empty."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # create an empty doc-topic file (no distributions)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    # No topic_keys or num_topics present
+    if m.CANONICAL_TOPIC_KEYS_KEY in m.metadata:
+        del m.metadata[m.CANONICAL_TOPIC_KEYS_KEY]
+    if "num_topics" in m.metadata:
+        del m.metadata["num_topics"]
+    train_path = tmp_model_dir / "training_data.txt"
+    train_path.write_text("0\t\tthis\n")
+    m.metadata["path_to_training_data"] = str(train_path)
+    with pytest.raises(LexosException):
+        m.get_top_docs(topic=0, n=1)
+
+
+def test_get_top_docs_concat_metadata(tmp_model_dir):
+    """Test that get_top_docs concatenates provided metadata DataFrame."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.8\t0.2\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    train_path = tmp_model_dir / "training_data.txt"
+    train_path.write_text("0\t\tthis\n")
+    m.metadata["path_to_training_data"] = str(train_path)
+    # Build a metadata DataFrame to concat
+    md = pd.DataFrame([{"extra": "value"}])
+    res = m.get_top_docs(topic=0, n=1, metadata=md)
+    assert "extra" in res.columns
+
+
+def test_get_topic_term_probabilities_topics_int(tmp_model_dir):
+    """Test that get_topic_term_probabilities handles topics as int and returns DataFrame."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    f = tmp_model_dir / "topic-weights.txt"
+    f.write_text("0\tword1\t2\n0\tword2\t3\n1\tword3\t1\n")
+    m.metadata[m.CANONICAL_TERM_WEIGHTS_KEY] = str(f)
+    df = m.get_topic_term_probabilities(topics=0, as_df=True)
+    assert isinstance(df, pd.DataFrame) and 0 in df["Topic"].values
+
+
+def test_load_topic_term_distributions_skips_blank_lines(tmp_model_dir):
+    """Test that load_topic_term_distributions skips blank lines in topic-weights file."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    f = tmp_model_dir / "topic-weights.txt"
+    f.write_text("\n0\tword1\t2\n\n0\tword2\t3\n")
+    m.metadata[m.CANONICAL_TERM_WEIGHTS_KEY] = str(f)
+    d = m.load_topic_term_distributions()
+    assert isinstance(d, dict) and 0 in d
+
+
+def test_load_topic_term_distributions_file_not_found_raises(tmp_model_dir):
+    """Test that load_topic_term_distributions raises FileNotFoundError for missing file."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    missing = tmp_model_dir / "no_such_weights.txt"
+    m.metadata[m.CANONICAL_TERM_WEIGHTS_KEY] = str(missing)
+    with pytest.raises(FileNotFoundError):
+        m.load_topic_term_distributions()
+
+
+def test_plot_topics_over_time_empty_truthy_list_raises(tmp_model_dir):
+    """Test that plot_topics_over_time raises LexosException for empty but truthy topic_distributions."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # Provide a valid topic_keys so the method progresses to distributions check
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+
+    class TruthyEmptyList(list):
+        def __bool__(self):
+            return True
+
+    with pytest.raises(LexosException):
+        m.plot_topics_over_time(
+            times=[1],
+            topic_index=0,
+            topic_distributions=TruthyEmptyList([]),
+            topic_keys=[["0", "0.5", "a b"]],
+            show=False,
+        )
+
+
+def test_import_dir_reads_and_writes(tmp_model_dir, monkeypatch):
+    """Test that import_dir reads files and updates metadata with path."""
+    d = tmp_model_dir / "dirtest"
+    d.mkdir()
+    f1 = d / "a.txt"
+    f2 = d / "b.txt"
+    f1.write_text("hello")
+    f2.write_text("world")
+    m = Mallet(model_dir=str(tmp_model_dir))
+    monkeypatch.setattr(os, "system", lambda c: 0)
+    m.import_dir(str(d))
+    assert "path_to_training_data" in m.metadata
+
+
+def test_distributions_ignores_blank_lines(tmp_model_dir):
+    """Test that distributions property ignores blank lines in doc-topic file."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    f = tmp_model_dir / "doc-topic.txt"
+    content = "\n#doc\tid\t0\t1\n\n0\td0\t0.1\t0.9\n\n"
+    f.write_text(content)
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(f)
+    d = m.distributions
+    assert isinstance(d, list) and len(d) == 1
+
+
+def test_plot_categories_by_topics_heatmap_with_title_and_target_labels(
+    tmp_model_dir, monkeypatch
+):
+    """Pass a custom title and use target_labels to filter categories; save file should exist."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n1\t0.6\talpha beta\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    out = tmp_model_dir / "hm.png"
+    # Patch seaborn.heatmap to accept any object
+    monkeypatch.setattr("seaborn.heatmap", lambda *args, **kwargs: plt.gca())
+    monkeypatch.setattr("matplotlib.pyplot.show", lambda *args, **kwargs: None)
+    fig = m.plot_categories_by_topics_heatmap(
+        categories=["A", "B"],
+        target_labels=["A"],
+        output_path=str(out),
+        title="Custom Title",
+        show=False,
+    )
+    assert hasattr(fig, "_suptitle") and fig._suptitle.get_text() == "Custom Title"
+    assert out.exists()
