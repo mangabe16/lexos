@@ -17,7 +17,6 @@ Here is a rough summary of the changes:
 """
 
 import glob
-import math
 import os
 import re
 import subprocess
@@ -1472,8 +1471,6 @@ class Mallet(BaseModel):
             "input": path_to_formatted_training_data,
             "num-topics": num_topics,
             "num-iterations": num_iterations,
-            # TODO: implement inference
-            # "inferencer-filename": os.path.join(self.model_dir, "model"),
             "output-state": path_to_state
             or os.path.join(self.model_dir, "topic-state.gz"),
             "output-topic-keys": path_to_topic_keys
