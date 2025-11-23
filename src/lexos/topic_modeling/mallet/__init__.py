@@ -4,6 +4,7 @@ Last Updated: November 22, 2025
 Last Tested: November 22, 2025
 
 A fork of Maria Antoniak's Little Mallet Wrapper: https://github.com/maria-antoniak/little-mallet-wrapper.
+
 Here is a rough summary of the changes:
 
 - Some functions for importing training data from various sources.
@@ -13,10 +14,6 @@ Here is a rough summary of the changes:
 - Optional progress tracking during training.
 - Topic clouds visualisation.
 - More parameters for customising the plotting functions.
-
-# TODO:
-    - Add topics over time method (moved to `Mallet.plot_topics_over_time`)
-  - Because plot figures are not saved to the instance, there can be no helper method to show them in a notebook. Options are: (1) set `show=True` when calling the method; (2) assign the method out to a variable (e.g. `fig = Mallet.plot_method()` and use either `fig` or `display(fig)` in the notebook cell.
 """
 
 import glob
