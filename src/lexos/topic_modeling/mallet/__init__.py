@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Updated: November 25, 2025
-Last Tested: November 25, 2025
+Last Updated: November 26, 2025
+Last Tested: November 26, 2025
 
 A fork of Maria Antoniak's Little Mallet Wrapper: https://github.com/maria-antoniak/little-mallet-wrapper.
 
@@ -1239,6 +1239,25 @@ class Mallet(BaseModel):
             index="Category", columns="Topic", values="Probability"
         )
         df_norm_col = (df_wide - df_wide.mean()) / df_wide.std()
+
+        # Ensure the columns are ordered by numeric topic index where available (natural sort)
+        def _topic_key(col):
+            # Match 'Topic <num>' possibly followed by ': ...'
+            try:
+                m = re.match(r"Topic\s+(\d+)", str(col))
+                if m:
+                    return (0, int(m.group(1)))
+            except Exception:
+                pass
+            return (1, str(col))
+
+        try:
+            ordered_cols = sorted(list(df_norm_col.columns), key=_topic_key)
+            df_norm_col = df_norm_col[ordered_cols]
+        except Exception:
+            # If columns are not iterable or sorting fails (e.g., custom objects),
+            # we leave the DataFrame as-is rather than raising an exception.
+            pass
 
         # Show the final plot
         sns.set_theme(style="ticks", font_scale=font_scale)

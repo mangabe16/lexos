@@ -1,8 +1,8 @@
 """test_mallet.py.
 
-Coverage 99%. Missing 1169-1172, 1233-1235
+Coverage 99%. Missing 1225-1227, 1250-1252
 
-Last Updated: November 25, 2025
+Last Updated: November 26, 2025
 """
 
 import os
@@ -1653,6 +1653,69 @@ def test_plot_categories_by_topics_heatmap_handles_columns_len_exception(
     # Title should not include numeric count (since len raised), thus 'Topics by Category'
     assert hasattr(fig, "_suptitle")
     assert "Topics by Category" == fig._suptitle.get_text()
+
+
+def test_plot_categories_by_topics_heatmap_columns_natsorted(
+    tmp_model_dir, monkeypatch
+):
+    """Ensure that heatmap columns are ordered by numeric topic index (natural sort), not string sort."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    # Create topic keys for topics 0..11 so string sorting would put 'Topic 10' before 'Topic 2'
+    num_topics = 12
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_content = "\n".join(f"{i}\t0.5\ttopic_{i}" for i in range(num_topics))
+    topic_keys_path.write_text(topic_keys_content)
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+
+    # Create doc-topic distributions matching the number of topics
+    # Two documents with the same distributions; the pivot will still show all topics
+    distributions = []
+    for _ in range(2):
+        dist = [0.0] * num_topics
+        for i in range(num_topics):
+            dist[i] = float(i + 1) / (num_topics * (num_topics + 1) / 2)
+        distributions.append(dist)
+    # Write doc-topic file content (Mallet format doesn't matter since we specify distributions)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text(
+        "0\td0\t" + "\t".join(str(x) for x in distributions[0]) + "\n"
+    )
+    doc_topics_path.write_text(
+        doc_topics_path.read_text()
+        + "1\td1\t"
+        + "\t".join(str(x) for x in distributions[1])
+        + "\n"
+    )
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+
+    # Provide a custom topic_distributions to bypass self.distributions ambiguity
+    # Note: categories list must be same length as distributions
+    categories = ["A", "B"]
+
+    captured = {}
+
+    def fake_heatmap(df, *args, **kwargs):
+        # Capture column labels passed to heatmap
+        captured["cols"] = list(df.columns)
+        return plt.gca()
+
+    monkeypatch.setattr("seaborn.heatmap", fake_heatmap)
+    monkeypatch.setattr("matplotlib.pyplot.show", lambda *args, **kwargs: None)
+
+    m.plot_categories_by_topics_heatmap(categories=categories, show=False)
+
+    # Columns should be in numeric increasing order: Topic 0, Topic 1, ..., Topic 11
+    assert "cols" in captured
+
+    def _get_num(label: str):
+        import re
+
+        mnum = re.match(r"Topic\s+(\d+)", label)
+        assert mnum is not None
+        return int(mnum.group(1))
+
+    nums = [_get_num(c) for c in captured["cols"]]
+    assert nums == sorted(nums)
 
 
 def test_topic_clouds_filters_topics_using_iloc(tmp_model_dir, monkeypatch):
