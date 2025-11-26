@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Updated: November 22, 2025
-Last Tested: November 22, 2025
+Last Updated: November 25, 2025
+Last Tested: November 25, 2025
 
 A fork of Maria Antoniak's Little Mallet Wrapper: https://github.com/maria-antoniak/little-mallet-wrapper.
 
@@ -659,9 +659,20 @@ class Mallet(BaseModel):
         Returns:
             str | Styler: A string or DataFrame representation of the topic keys. The DataFrame is styled for presentation in a Jupyter notebook to prevent clipping of the keywords in a Jupyter notebook. If you need an actual `DataFrame` object, reference `df.data`.
         """
+        num_available_topics = len(self.topic_keys)
         if num_topics and not topics:
+            if num_topics > num_available_topics:
+                raise IndexError(
+                    f"Requested num_topics={num_topics}, but only {num_available_topics} topics are available."
+                )
             topic_keys = self.topic_keys[:num_topics]
         elif topics:
+            # Validate all indices
+            for i in topics:
+                if i < 0 or i >= num_available_topics:
+                    raise IndexError(
+                        f"Topic index {i} is out of range. Valid indices are 0 to {num_available_topics - 1}."
+                    )
             topic_keys = [self.topic_keys[i] for i in topics]
         else:
             topic_keys = self.topic_keys
@@ -815,6 +826,7 @@ class Mallet(BaseModel):
         Args:
             topics (int | list[int]): Topic number. If None, get the probabilities for all topics.
             n (int): The number of keywords to display.
+            as_df (bool): Whether to display the result as a string or a pandas DataFrame.
 
         Returns:
             str: A string representation of the term distribution for the given topic.
@@ -1023,6 +1035,7 @@ class Mallet(BaseModel):
         title: Optional[str] = None,
         overlay: Optional[str] = "strip",
         overlay_kws: Optional[dict[str, Any]] = None,
+        topic_distributions: Optional[list[list[float]]] = None,
     ) -> Figure | list[Figure]:
         """Plot boxplots showing the distribution of topic probabilities for each category.
 
@@ -1061,11 +1074,20 @@ class Mallet(BaseModel):
 
         # Combine the labels and distributions into a dataframe.
         figs = []
+        import os
+
+        # Use user-provided topic_distributions if given, else default to self.distributions
+        distributions = (
+            topic_distributions
+            if topic_distributions is not None
+            else self.distributions
+        )
+
         for topic in topics:
             keywords = " ".join(topic_keys[topic][2].split()[:num_keys])
 
             dicts_to_plot = []
-            for _label, _distribution in zip(categories, self.distributions):
+            for _label, _distribution in zip(categories, distributions):
                 if not target_labels or _label in target_labels:
                     dicts_to_plot.append(
                         {
@@ -1135,17 +1157,20 @@ class Mallet(BaseModel):
                 # Use a figure-level title to avoid per-subplot clobbering
                 fig.suptitle(title)
             plt.tight_layout()
+            # Save each plot to a unique file if output_path is set
             if output_path:
-                plt.savefig(output_path)
+                base, ext = os.path.splitext(output_path)
+                save_path = f"{base}_topic{topic}{ext}"
+                fig.savefig(save_path)
+            figs.append(fig)
             if show:
                 plt.show()
-                return None
-            else:
-                figs.append(fig)
-                plt.close()
-                # If this function only generated a single figure, return it.
-                if len(figs) == 1:
-                    return figs[0]
+            plt.close(fig)
+        if show:
+            return None
+        # If this function only generated a single figure, return it.
+        if len(figs) == 1:
+            return figs[0]
         return figs
 
     @validate_call(config=model_config)
@@ -1160,6 +1185,7 @@ class Mallet(BaseModel):
         cmap: Optional[ColorType] = sns.cm.rocket_r,
         show: Optional[bool] = True,
         title: Optional[str] = None,
+        topic_distributions: Optional[list[list[float]]] = None,
     ) -> Figure:
         """Plot heatmap showing topics by category.
 
@@ -1180,13 +1206,25 @@ class Mallet(BaseModel):
         # Load topic_keys
         topic_keys = self.topic_keys
 
-        # Combine the labels and distributions into a list of dictionaries.
+        # Use user-provided topic_distributions if given, else default to self.distributions
+        distributions = (
+            topic_distributions
+            if topic_distributions is not None
+            else self.distributions
+        )
+
         dicts_to_plot = []
-        for _category_label, _distribution in zip(categories, self.distributions):
+        for _category_label, _distribution in zip(categories, distributions):
             if not target_labels or _category_label in target_labels:
                 for _topic, _probability in enumerate(_distribution):
                     keywords = " ".join(topic_keys[_topic][2].split()[:num_keys])
-                    _topic_label = f"Topic {_topic:02}: {keywords}"
+                    if num_keys:
+                        if keywords:
+                            _topic_label = f"Topic {_topic}: {keywords}"
+                        else:
+                            _topic_label = f"Topic {_topic}"
+                    else:
+                        _topic_label = f"Topic {_topic}"
                     dicts_to_plot.append(
                         {
                             "Probability": float(_probability),
@@ -1380,22 +1418,26 @@ class Mallet(BaseModel):
             Figure | None: The matplotlib figure if `show=False`, otherwise None.
         """
         # Use provided distributions / keys or fall back to instance data
-        topic_distributions = topic_distributions or self.distributions
-        topic_keys = topic_keys or self.topic_keys
+        distributions = (
+            topic_distributions
+            if topic_distributions is not None
+            else self.distributions
+        )
+        topic_keys = topic_keys if topic_keys is not None else self.topic_keys
 
-        if topic_distributions is None or len(topic_distributions) == 0:
+        if distributions is None or len(distributions) == 0:
             raise LexosException("No topic distributions available to plot.")
 
         if topic_index < 0:
             raise ValueError("topic_index must be a non-negative integer")
 
-        if len(times) != len(topic_distributions):
+        if len(times) != len(distributions):
             raise LexosException(
                 "Length mismatch: 'times' must be the same length as topic_distributions"
             )
 
         data_dicts = []
-        for j, _distribution in enumerate(topic_distributions):
+        for j, _distribution in enumerate(distributions):
             if len(_distribution) <= topic_index:
                 # skip documents that don't cover the requested topic index
                 continue
@@ -1569,7 +1611,7 @@ class Mallet(BaseModel):
                 cmd_import += " --preserve-case"
             if use_pipe_from:
                 cmd_import += f" --use-pipe-from {use_pipe_from}"
-            msg.info(cmd_import)
+            # msg.info(cmd_import)
             os.system(cmd_import)
         else:
             # assume a list of document strings
@@ -1597,7 +1639,7 @@ class Mallet(BaseModel):
                 cmd_import += " --preserve-case"
             if use_pipe_from:
                 cmd_import += f" --use-pipe-from {use_pipe_from}"
-            msg.info(cmd_import)
+            # msg.info(cmd_import)
             os.system(cmd_import)
 
         # Determine the inferencer file to use
@@ -1613,7 +1655,7 @@ class Mallet(BaseModel):
             output_path = os.path.join(self.model_dir, "infer-doc-topics.txt")
 
         cmd = f"{self.path_to_mallet or 'mallet'} infer-topics --inferencer {path_to_inferencer} --input {path_to_formatted} --output-doc-topics {output_path}"
-        msg.info(cmd)
+        # msg.info(cmd)
         os.system(cmd)
 
         # Read the output file and return distributions

@@ -1,8 +1,8 @@
 """test_mallet.py.
 
-Coverage: 100%
+Coverage 99%. Missing 1169-1172, 1233-1235
 
-Last Updated: November 22, 2025
+Last Updated: November 25, 2025
 """
 
 import os
@@ -1212,6 +1212,26 @@ def test_get_keys_and_get_top_docs(tmp_model_dir):
     assert isinstance(as_str, str)
 
 
+def test_get_keys_num_topics_out_of_range_raises(tmp_model_dir):
+    """Requesting more topics than available should raise an IndexError (line 665)."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.5\tword1 word2\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    with pytest.raises(IndexError):
+        m.get_keys(num_topics=5)
+
+
+def test_get_keys_topics_list_index_out_of_range_raises(tmp_model_dir):
+    """Providing a topics list with an index out-of-range should raise IndexError (line 673)."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.5\tword1 word2\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    with pytest.raises(IndexError):
+        m.get_keys(topics=[1])
+
+
 def test_plot_categories_by_topic_boxplots_with_overlay(tmp_model_dir, monkeypatch):
     """Test that plot_categories_by_topic_boxplots calls correct overlay functions."""
     m = Mallet(model_dir=str(tmp_model_dir))
@@ -1332,8 +1352,11 @@ def test_boxplot_title_save_and_show_behaviour(tmp_model_dir, monkeypatch):
     assert any(
         hasattr(f, "_suptitle") and f._suptitle.get_text() == "MyPlot" for f in figs
     )
-    # File should have been saved
-    assert out.exists()
+    # Files should have been saved for each topic (suffixed earlier by the implementation)
+    topic0_file = tmp_model_dir / "boxplot_topic0.png"
+    topic1_file = tmp_model_dir / "boxplot_topic1.png"
+    assert topic0_file.exists()
+    assert topic1_file.exists()
     # Call with show True -> returns None
     res = m.plot_categories_by_topic_boxplots(
         categories=categories, topics=None, show=True, title="MyPlot2"
@@ -1353,6 +1376,206 @@ def test_boxplot_empty_topics_returns_empty_list(tmp_model_dir):
     res = m.plot_categories_by_topic_boxplots(categories=["A"], topics=[], show=False)
     assert isinstance(res, list)
     assert len(res) == 0
+
+
+def test_boxplot_single_topic_save_and_return(tmp_model_dir):
+    """For a single topic with output_path, the function should save a suffixed file and return a Figure (single fig) (lines 1169-1172)."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    categories = ["A"]
+    out = tmp_model_dir / "single_boxplot.png"
+    fig = m.plot_categories_by_topic_boxplots(
+        categories=categories, topics=0, show=False, output_path=str(out)
+    )
+    # Should return a single Figure object
+    assert not isinstance(fig, list)
+    # Should save suffixed file for topic 0
+    assert (tmp_model_dir / "single_boxplot_topic0.png").exists()
+
+
+def test_boxplot_show_true_calls_show_and_close(tmp_model_dir, monkeypatch):
+    """Ensure that when show=True, the plot function calls plt.show and plt.close (lines 1169-1172)."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n1\t0.6\talpha beta\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    categories = ["A", "B"]
+
+    called = {"show": 0, "close": 0}
+
+    def fake_show(*args, **kwargs):
+        called["show"] += 1
+
+    def fake_close(fig):
+        called["close"] += 1
+
+    monkeypatch.setattr("matplotlib.pyplot.show", fake_show)
+    monkeypatch.setattr("matplotlib.pyplot.close", fake_close)
+
+    res = m.plot_categories_by_topic_boxplots(
+        categories=categories, topics=None, show=True
+    )
+    assert res is None
+    assert called["show"] >= 1
+    assert called["close"] >= 1
+
+
+def test_boxplot_title_uses_figure_suptitle_and_saves_and_closes(
+    tmp_model_dir, monkeypatch
+):
+    """When title is provided, the function should use fig.suptitle (covering suptitle branch and close on show=False)."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n1\t0.6\talpha beta\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    categories = ["A", "B"]
+
+    called = {"close": 0}
+
+    def fake_close(fig):
+        called["close"] += 1
+
+    monkeypatch.setattr("matplotlib.pyplot.close", fake_close)
+    # Provide an explicit title to ensure fig.suptitle path is used
+    out = tmp_model_dir / "titled_boxplot.png"
+    fig = m.plot_categories_by_topic_boxplots(
+        categories=categories,
+        topics=0,
+        title="My Title",
+        show=False,
+        output_path=str(out),
+    )
+    assert hasattr(fig, "_suptitle")
+    assert fig._suptitle.get_text() == "My Title"
+    # Saving behavior should produce the suffixed filename
+    assert (tmp_model_dir / "titled_boxplot_topic0.png").exists()
+    # Ensure close was called (even when show=False)
+    assert called["close"] >= 1
+
+
+def test_plot_categories_by_topics_heatmap_save_creates_output(
+    tmp_model_dir, monkeypatch
+):
+    """When output_path is supplied, heatmap should save to the passed path (lines 1233-1235)."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n1\t0.6\talpha beta\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    # Patch seaborn.heatmap so it returns an axis without errors
+    monkeypatch.setattr("seaborn.heatmap", lambda *args, **kwargs: plt.gca())
+    # Patch plt.show to no-op for headless testing
+    monkeypatch.setattr("matplotlib.pyplot.show", lambda *args, **kwargs: None)
+    out = tmp_model_dir / "heatmap_out.png"
+    fig = m.plot_categories_by_topics_heatmap(
+        categories=["A", "B"], output_path=str(out), show=False
+    )
+    assert out.exists()
+    assert hasattr(fig, "_suptitle")
+
+
+def test_plot_categories_by_topics_heatmap_default_title_counts_topics(
+    tmp_model_dir, monkeypatch
+):
+    """When pivot_table produces a normal output, the default title should include the number of topics (lines 1233-1235)."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text(
+        "0\t0.4\tword1 word2\n1\t0.6\talpha beta\n2\t0.7\tgamma delta\n"
+    )
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n2\td2\t0.1\t0.9\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    # Patch seaborn.heatmap to accept any object and plt.show to no-op
+    monkeypatch.setattr("seaborn.heatmap", lambda *args, **kwargs: plt.gca())
+    monkeypatch.setattr("matplotlib.pyplot.show", lambda *args, **kwargs: None)
+    fig = m.plot_categories_by_topics_heatmap(categories=["A", "B", "C"], show=False)
+    assert hasattr(fig, "_suptitle")
+    assert "Topics by Category (" in fig._suptitle.get_text()
+
+
+def test_plot_categories_by_topics_heatmap_honors_custom_title_and_saves_and_closes(
+    tmp_model_dir, monkeypatch
+):
+    """When a custom title is provided, the fig.suptitle should be set and saving + closing should be exercised."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n1\t0.6\talpha beta\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+
+    # Patch seaborn.heatmap to accept any object and plt.show to no-op
+    monkeypatch.setattr("seaborn.heatmap", lambda *args, **kwargs: plt.gca())
+    monkeypatch.setattr("matplotlib.pyplot.show", lambda *args, **kwargs: None)
+    called = {"close": 0}
+
+    def fake_close(*args, **kwargs):
+        called["close"] += 1
+
+    monkeypatch.setattr("matplotlib.pyplot.close", fake_close)
+
+    out = tmp_model_dir / "heatmap_custom_title.png"
+    fig = m.plot_categories_by_topics_heatmap(
+        categories=["A", "B"], output_path=str(out), show=False, title="My Heatmap"
+    )
+    assert hasattr(fig, "_suptitle")
+    assert fig._suptitle.get_text() == "My Heatmap"
+    assert out.exists()
+    assert called["close"] >= 1
+
+
+def test_boxplot_overlay_backend_failure_is_ignored(tmp_model_dir, monkeypatch):
+    """If the overlay backend (stripplot/swarmplot) raises an exception, plot should continue without raising."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n1\t0.6\talpha beta\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n1\td1\t0.3\t0.7\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+    categories = ["A", "B"]
+
+    def fake_strip(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("seaborn.stripplot", fake_strip)
+    # Should not raise despite overlay backend failure
+    res = m.plot_categories_by_topic_boxplots(
+        categories=categories, topics=None, show=False, overlay="strip"
+    )
+    assert res is not None
+
+
+def test_boxplot_invalid_overlay_raises(tmp_model_dir):
+    """Invalid overlay argument should raise a LexosException."""
+    m = Mallet(model_dir=str(tmp_model_dir))
+    topic_keys_path = tmp_model_dir / "topic-keys.txt"
+    topic_keys_path.write_text("0\t0.4\tword1 word2\n")
+    m.metadata[m.CANONICAL_TOPIC_KEYS_KEY] = str(topic_keys_path)
+    doc_topics_path = tmp_model_dir / "doc-topic.txt"
+    doc_topics_path.write_text("0\td0\t0.2\t0.8\n")
+    m.metadata[m.CANONICAL_DOC_TOPIC_KEY] = str(doc_topics_path)
+
+    with pytest.raises(LexosException):
+        m.plot_categories_by_topic_boxplots(
+            categories=["A"], topics=0, overlay="banana"
+        )
 
 
 def test_plot_categories_by_topics_heatmap_with_figsize_and_save_show(
