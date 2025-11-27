@@ -51,10 +51,14 @@ Here is a list of the currently available tutorials, organised by module:
 
 - Using Tokenizer [📓 Notebook](../../tutorials/tokenizer/tutorial.ipynb)
 
+## Topic Modeling
+
+- Mallet Topic Modeling Tutorial [📓 Notebook](../../tutorials/topic_modeling/mallet_tutorial.ipynb) | [🗄️ Data](../../tutorials/topic_modeling/sample_data.zip)
+
 ## TopWords
 
-- Extracting Key Terms
-- Evaluating Key Terms with the Mann-Whitney U Test
+- TopicWords Tutorial [📓 Notebook](../../tutorials/topwords/tutorial.ipynb)
+- Evaluating Key Terms with the Mann-Whitney U Test [📓 Notebook](../../tutorials/topwords/mann_whitney_tutorial.ipynb)
 
 ## Visualization
 

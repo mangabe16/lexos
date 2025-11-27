@@ -12,6 +12,8 @@ The `dfr_browser2` module provides a small helper class `Browser` that automates
 - Manages configuration settings for the browser.
 - Starts a simple HTTP server to serve the browser and opens it in a web browser.
 
+If you have not yet generated a MALLET topic model, it is recommended that you start with the [MALLET](mallet.md) tutorial.
+
 ---
 
 ## Browser class

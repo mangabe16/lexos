@@ -6,6 +6,8 @@ Topic modeling is a statistical method for discovering abstract themes or "topic
 
 For more on topic modeling and installing MALLET, see Shawn Graham, Scott Weingart, and Ian Milligan's tutorial [Getting Started with Topic Modeling and MALLET](https://programminghistorian.org/en/lessons/topic-modeling-and-mallet).
 
+For more advanced methods of exploring a topic model, see the Lexos integration of [DFR Browser 2](dfr_browser2.md).
+
 ---
 
 ## Import the `Mallet` class from the `mallet` Module
