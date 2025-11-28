@@ -38,7 +38,7 @@ The **replace** submodule contains functions which replace [currency symbols](re
 
 ### [Resources](resources.md)
 
-The **resources** submodule contains the [HTMLTextExtractor](resources/#lexos.scrubber.resources.HTMLTextExtractor) class, a subclass of [html.parser.HTMLParser](https://docs.python.org/3/library/html.parser.html). 
+The **resources** submodule contains the [HTMLTextExtractor](resources/#lexos.scrubber.resources.HTMLTextExtractor) class, a subclass of [html.parser.HTMLParser](https://docs.python.org/3/library/html.parser.html).
 
 ### [Scrubber](scrubber.md)
 
@@ -51,4 +51,3 @@ The **tags** submodule uses [Beautiful Soup](https://www.crummy.com/software/Bea
 ### [Utils](utils.md)
 
 The **utils** submodule contains the function [`get_tags`](utils/#lexos.scrubber.utils.get_tags).
-

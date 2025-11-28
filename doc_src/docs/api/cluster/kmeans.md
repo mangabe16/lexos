@@ -4,8 +4,14 @@ The `kmeans` module performs k-means clustering.
 
 ## The `KMeans` Class
 
-### ::: lexos.cluster.kmeans.KMeans
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+::: lexos.cluster.kmeans
+    handler: python
+    selection:
+      members:
+        - KMeans
+        - KMeans.__init__
+        - KMeans.fit
+        - KMeans.predict
+        - KMeans.labels_
+        - KMeans.cluster_centers_
+        - kmeans

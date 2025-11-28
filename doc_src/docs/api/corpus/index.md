@@ -1,181 +1,41 @@
-# corpus
+# Corpus
 
-## Module Description
+The `corpus` module provides functionality for document management and statistical analysis in the Lexos ecosystem. It provides centralized storage, metadata management, and inter-module communication capabilities that enable seamless integration with analysis modules. By default, it is entirely file-based; however, there is an option to manage a corpus database with SQLite.
 
-The Lexos Corpus module is used to manage, search, and analyze text collections. Whilst you can easily pass documents loaded from files or assigned in memory to any Lexos tool, the Corpus module provides useful ways of managing your documents, especially for larger collections. Think of a corpus as a smart filing cabinet for your texts. Each document in your corpus is wrapped in a `Record` object — a container that holds not just the text itself, but also metadata (like author or date) and optional linguistic analysis.
+---
 
-The corpus module allows you to serialize and de-serialize your records to disk, generate statistics about your documents, and activate and de-active records for analysis, and filter and search your documents.
+## Core Classes
 
-### ::: lexos.corpus.corpus.Corpus
+### `Corpus` (`corpus.py`)
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+The [`corpus`](corpus.md) module main container for managing collections of documents. Provides document storage, metadata management, and inter-module communication capabilities.
 
-### ::: lexos.corpus.corpus.Corpus.__init__
+### `Record` (`record.py`)
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+The [`record`](record.md) module implements an individual document container with robust metadata and serialization capabilities.
 
-### ::: lexos.corpus.corpus.Corpus.__iter__
+### `CorpusStats` (`corpus_stats.py`)
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+The [`CorpusStats`](corpus_stats.md) module provides methods for generating statistics about a corpus.
 
-### ::: lexos.corpus.corpus.Corpus.__repr__
+### `LexosModelCache` and `RecordsDict` (`utils.py`)
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+The [`utils`](utils.md) module provides utility classes for efficient model management and type-safe record storage.
 
-### ::: lexos.corpus.corpus.Corpus.active_terms
+---
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+## SQLite Database
 
-### ::: lexos.corpus.corpus.Corpus.meta_df
+Database management is implemented in two modules:
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+### `SQLiteBackend` (database.py)
 
-### ::: lexos.corpus.corpus.Corpus.num_active_tokens
+The [`database`](database.md) module provides the main database functionality.
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+### `SQLiteCorpus` (integration.py)
 
-### ::: lexos.corpus.corpus.Corpus.num_active_terms
+The [`integration`](integration.md) module the handler for integration with the main `corpus` API.
 
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+## Comprehensive Analysis Report
 
-### ::: lexos.corpus.corpus.Corpus._add_to_corpus
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus._ensure_unique_name
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus._generate_unique_id
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus._get_by_name
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus._update_corpus_state
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus._sanitize_metadata
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.add
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.filter_records
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.get
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.get_stats
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.load
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.save
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.remove
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.set
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.term_counts
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.to_df
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.import_analysis_results
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.get_analysis_results
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.export_statistical_fingerprint
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus._generate_corpus_fingerprint
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
-
-### ::: lexos.corpus.corpus.Corpus.validate_analysis_compatibility
-
-    rendering:
-      show_root_heading: true
-      heading_level: 3
+The [`comprehensive_analysis_report`](comprehensive_analysis_report.md) module provides a helper function for generating a comprehensive analysis of the contents of a `corpus` instance.

@@ -1,5 +1,8 @@
 # Plotly Plotter
 
-TBD.
-
-### ::: lexos.rolling_windows.plotters.plotly_plotter
+::: lexos.rolling_windows.plotters.plotly_plotter
+  handler: python
+  selection:
+    members:
+      - MilestonesModel
+      - PlotlyPlotter
