@@ -65,3 +65,14 @@ of the Lexos API modules:
         </tr>
     </tbody>
 </table>
+
+Additional modules:
+
+::: lexos
+    handler: python
+    selection:
+      members:
+        - __init__
+        - constants
+        - exceptions
+        - util
