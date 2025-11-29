@@ -1,6 +1,6 @@
 # API
 
-A full explanation will be added soon. In the meantime, here is a table
+A full overview will be added in the future. In the meantime, here is a table
 of the Lexos API modules:
 
 <table>
@@ -27,7 +27,7 @@ of the Lexos API modules:
         </tr>
         <tr class="row-odd">
             <td><a class="" href="filter/" title="api_lexos.io"><code>filter</code></a></td>
-            <td>A set of functions for handling input-output processes.</td>
+            <td>A set of functions for applying filters to spaCy `Doc` objects.</td>
         </tr>
         <tr class="row-even">
             <td><a class="" href="io/" title="api_lexos.io"><code>io</code></a></td>
