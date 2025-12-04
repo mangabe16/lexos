@@ -55,10 +55,6 @@ of the Lexos API modules:
             <td><a class="" href="topic-modeling/" title="api_lexos.topic_modeling"><code>topic_modeling</code></a></td>
             <td>Provides methods for creating and visualizing topic models.</td>
         </tr>
-        <tr class="row-even">
-            <td><a class="" href="utils/" title="api_lexos.utils"><code>utils</code></a></td>
-            <td>A set of utility functions shared by multiple modules.</td>
-        </tr>
         <tr class="row-odd">
             <td><a class="" href="visualization/" title="api_lexos.visualization"><code>visualization</code></a></td>
             <td>A set of functions for visualising data generated from documents.</td>
