@@ -25,6 +25,8 @@ This will start a local server and automatically build a `docs` folder in the pr
 
 If you make a new page, you must add it to the `doc_src/docs/mkdocs.yml` configuration. If the page is under an `overview.md` page, check to see if the `overview.md` page has discussion or a table of contents where you might want to link to the new page. Note that the `mkdocs.yml` file is very easy to corrupt, so **be careful**.
 
+When building the documentation, errors and warnings will be printed to the console. Please check and resolve them before making a pull request. If there are many warnings, it can be helpful to redirect the console output to a file. You can do this with `uv run mkdocs build > build_full.log 2>&1` and then inspect the generated `build_full.log` file, which will be saved in the `doc_src` folder. **Make sure that you don't push this file to the repository.**
+
 Whether you make a change to an existing page or add a new one, your text should follow [GitHub Markdown conventions](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax), especially for code and code blocks. Markdown text should be formatted following  the default Markdown linting rules of of [Markdownlint](https://github.com/DavidAnson/markdownlint), except as specified in the `doc_src/.markdownlint.json` file. To see examples, you may find it helpful to review the current documentation files in [`doc_src/docs`](doc_src/docs ) or via `mkdocs serve`.
 
 !!! note
