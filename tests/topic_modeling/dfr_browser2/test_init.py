@@ -2,7 +2,7 @@
 
 Coverage 99%. Missing: 328
 
-Last Updated: November 20, 2025
+Last Updated: December 4, 2025
 """
 
 import json
@@ -452,7 +452,7 @@ def test_topic_state_altname_canonicalization(
     )
 
     # The canonical destination should be 'topic-state.gz'
-    assert b._copied_files.get("topic_state_file") == "data/topic-state.gz"
+    assert b.copied_files.get("topic_state_file") == "data/topic-state.gz"
     out_data = Path(b.browser_path) / "data"
     # doc-topics should be canonicalized to doc-topic and not present
     assert not (out_data / "doc-topics.txt").exists()

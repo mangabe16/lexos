@@ -1,4 +1,8 @@
-"""__init__.py."""
+"""__init__.py.
+
+Last Updated: December 4, 2025
+Last Tested: December 4, 2025
+"""
 
 import json
 import os
@@ -11,7 +15,7 @@ from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
 from typing import ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, validate_call
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Browser(BaseModel):
@@ -52,6 +56,9 @@ class Browser(BaseModel):
         default_factory=dict,
         description="Mapping of original filenames to new filenames.",
     )
+    copied_files: dict = Field(
+        default_factory=dict, description="Tracks copied files for config updates."
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
     # Version of the browser distribution this class is creating/serving
@@ -78,6 +85,10 @@ class Browser(BaseModel):
         file will be updated to match the merged configuration. We only write
         after the instance is fully initialized to avoid partial writes during
         construction.
+
+        Args:
+            name (str): Attribute name.
+            value: Attribute value.
         """
         # Use BaseModel's setattr to set attribute (ensures pydantic behavior)
         super().__setattr__(name, value)
@@ -89,9 +100,12 @@ class Browser(BaseModel):
                 # Defensive: don't raise during attribute setting
                 pass
 
-    @validate_call
     def __init__(self, **data) -> None:
-        """Initialize the DFR Browser 2 class."""
+        """Initialize the DFR Browser 2 class.
+
+        Args:
+            **data: Keyword arguments for the BaseModel.
+        """
         # First call BaseModel initializer
         super().__init__(**data)
 
@@ -234,15 +248,15 @@ class Browser(BaseModel):
             docs_filename = "docs.txt"
             shutil.copy2(data_src, data_target / docs_filename)
             # Track which files we copied (so we can update config.json paths)
-            self._copied_files = getattr(self, "_copied_files", {})
+            self.copied_files = getattr(self, "copied_files", {})
             # Save relative path as used by the template
-            self._copied_files["data_source"] = f"data/{docs_filename}"
+            self.copied_files["data_source"] = f"data/{docs_filename}"
 
         # Copy mallet files into the 'data' folder (not a mallet subfolder)
         data_target = self.browser_path / "data"
         data_target.mkdir(parents=True, exist_ok=True)
         # Ensure we have a holder for copied files metadata
-        self._copied_files = getattr(self, "_copied_files", {})
+        self.copied_files = getattr(self, "copied_files", {})
         copied_destnames = set()
         # Expand filenames to include alternate names so we can copy the actual file
         copy_candidates = set(filenames_to_check)
@@ -312,23 +326,23 @@ class Browser(BaseModel):
             lower = dest_filename.lower()
             if canonical_for_src == "doc-topic.txt":
                 # If source belonged to doc-topic alt group, map regardless of dest filename
-                self._copied_files["doc_topic_file"] = f"data/{dest_filename}"
+                self.copied_files["doc_topic_file"] = f"data/{dest_filename}"
             if "topic-keys" in lower or "topic_keys" in lower:
-                self._copied_files["topic_keys_file"] = f"data/{dest_filename}"
+                self.copied_files["topic_keys_file"] = f"data/{dest_filename}"
             elif "doc-topic" in lower or "doc-topics" in lower or "doc_topic" in lower:
                 # Template uses 'doc_topic_file'
-                self._copied_files["doc_topic_file"] = f"data/{dest_filename}"
+                self.copied_files["doc_topic_file"] = f"data/{dest_filename}"
             elif canonical_for_src == "topic-state.gz":
                 # ‘topic-state.gz’ canonical group — ensure mapping written even if dest filename doesn't contain keyword
-                self._copied_files["topic_state_file"] = f"data/{dest_filename}"
+                self.copied_files["topic_state_file"] = f"data/{dest_filename}"
             elif "metadata" in lower:
-                self._copied_files["metadata_file"] = f"data/{dest_filename}"
+                self.copied_files["metadata_file"] = f"data/{dest_filename}"
             elif "topic-state" in lower or "topic_state" in lower:
-                self._copied_files["topic_state_file"] = f"data/{dest_filename}"
+                self.copied_files["topic_state_file"] = f"data/{dest_filename}"
             elif "topic_coords" in lower or "topic-coords" in lower:
-                self._copied_files["topic_coords_file"] = f"data/{dest_filename}"
+                self.copied_files["topic_coords_file"] = f"data/{dest_filename}"
             elif "diagnostics" in lower:
-                self._copied_files["diagnostics_file"] = f"data/{dest_filename}"
+                self.copied_files["diagnostics_file"] = f"data/{dest_filename}"
 
         # Write or update config.json if present in the template
         # First, read and merge the template config with any user-provided `self.config`.
@@ -409,7 +423,7 @@ class Browser(BaseModel):
             merged_cfg.update(self.config)
 
         # Ensure file paths for known data files point to the data/ folder
-        copied = getattr(self, "_copied_files", {}) or {}
+        copied = getattr(self, "copied_files", {}) or {}
         for key, rel_path in copied.items():
             # File path precedence:
             # 1. User-specified config (self.config) — should win and be preserved
