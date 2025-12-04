@@ -2,15 +2,6 @@
 
 To make changes to the Lexos source code or documentation, you will need to have a development environment consisting of a Python 3.12+, (preferably) [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage dependencies and your virtual environment, and [git](https://git-scm.com) installed. The steps below detail how to set up your development environment step by step.
 
-## Table of Contents
-
-1. [Install `uv` Globally](#install-uv-globally)
-2. [Install Python](#install-python)
-3. [Install Git](#install-git)
-4. [Install VS Code](#install-vs-code)
-5. [Get the Code](#get-the-code)
-6. [Activate the Environment](#activate-the-environment)
-
 ## Install `uv` Globally
 
 We recommend `uv` for dependency management. If you haven't already, install `uv` according to the [official documentation](https://docs.astral.sh/uv/getting-started/installation/), follow these steps:

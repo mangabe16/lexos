@@ -6,12 +6,6 @@ Tests for Lexos modules and classes live in their own directories of the same na
 
 When adding tests, make sure to use descriptive names, keep the code short and concise and only test for one behavior at a time. Try to `parametrize` test cases wherever possible, use our pre-defined fixtures for spaCy components and avoid unnecessary imports. Extensive tests that take a long time should be marked with `@pytest.mark.slow`.
 
-## Table of contents
-
-- [Running the Tests](#running-the-tests)
-- [Writing Tests](#writing-tests)
-- [Checking Coverage](#checking-coverage)
-
 ## Running the Tests
 
 Currently, Lexos does not have a procedure for running tests by continuous integretation. You should run all tests locally and make sure they pass before committing. In the header for your test file indicate the coverage and any uncovered lines as follows:

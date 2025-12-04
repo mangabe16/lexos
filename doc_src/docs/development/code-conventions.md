@@ -2,18 +2,6 @@
 
 For a general overview of code conventions for contributors, see the [section in the contributing guide](contributing.md#code-conventions).
 
-1. [Code Compatibility](#code-compatibility)
-2. [Auto-Formatting](#auto-formatting)
-3. [Linting](#linting)
-4. [Documenting code](#documenting-code)
-5. [Type Hints](#type-hints)
-6. [Formatting Strings](#formatting-strings)
-7. [Structuring Logic](#structuring-logic)
-8. [Naming](#naming)
-9. [I/O and Handling Paths](#io-and-handling-paths)
-10. [Error Handling](#error-handling)
-11. [Writing Tests](#writing-tests)
-
 ## Code Compatibility
 
 Lexos supports **Python 3.12** and above, so all code should be written compatible with 3.12.

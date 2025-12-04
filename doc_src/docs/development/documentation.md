@@ -10,16 +10,6 @@ Contributions for all three are welcome. If you design a new feature or module, 
 
 If you contribute a new feature to Lexos, you do not have to produce a tutorial for that feature, but it will be greatly appreciated.
 
-## Table of Contents
-
-- [Lexos Documentation](lexos-documentation)
-  - [Table of Contents](#table-of-contents)
-  - [The Documentation Website](the-documentation-website)
-  - [The User Guide](#the-user-guide)
-  - [The API Documentation](#the-api-documentation)
-  - [The Tutorials](#the-tutorials)
-  - [Submitting Changes](#submitting-changes)
-
 ## The Documentation Website
 
 The documentation website is static website generated with [MkDocs](https://www.mkdocs.org/) and [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/). Each page is a Markdown file, which is converted to HTML when the site is built.

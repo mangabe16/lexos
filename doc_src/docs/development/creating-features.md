@@ -2,22 +2,6 @@
 
 New features can be added to existing modules or in the form of new modules if they offer functionality that is different in nature from the existing modules.
 
-## Table of Contents
-
-- [Creating Features](#creating-features)
-  - [Table of Contents](#table-of-contents)
-  - [General Principles](#general-principles)
-  - [Creating a Module](#creating-a-module)
-  - [Handling Exceptions in Your Module](#handling-exceptions-in-your-module)
-  - [Documenting Your Code](#documenting-your-code)
-  - [Using spaCy Language Models](#using-spacy-language-models)
-  - [Adding Pydantic Data Validation](#adding-pydantic-data-validation)
-      - [Validating Functions with @validate\_call](#validating-functions-with-validate_call)
-      - [Documenting Pydantic Models Using the `Field` Function](#documenting-pydantic-models-using-the-field-function)
-      - [Computed Fields and `model_dump()`](#computed-fields-and-model_dump)
-  - [Testing Your Module](#testing-your-module)
-  - [Submitting Your Module](#submitting-your-module)
-
 ## General Principles
 
 Lexos modules begin at the top of the file with a docstring like this:

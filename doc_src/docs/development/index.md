@@ -2,23 +2,6 @@
 
 Thanks for your interest in contributing to Lexos. This page will give you a quick overview of our contribution guidelines and how to proceed.
 
-## Table of Contents
-
-- [Contribute to Lexos](#contribute-to-lexos)
-  - [Table of Contents](#table-of-contents)
-  - [Issues and Bug Reports](#issues-and-bug-reports)
-    - [Submitting Issues](#submitting-issues)
-  - [Contributing to the Code Base or Documentation](#contributing-to-the-code-base-or-documentation)
-    - [Fork and Clone the Repository](#fork-and-clone-the-repository)
-    - [Set Up Your Development Environment](#set-up-your-development-environment)
-    - [Fixing Bugs](#fixing-bugs)
-    - [Contributing Features](#contributing-features)
-    - [Updating the Documentation Website](#updating-the-documentation-website)
-    - [Submitting Your Contribution](#submitting-your-contribution)
-  - [Code Conventions](#code-conventions)
-  - [Adding Tests](#adding-tests)
-  - [Code of Conduct](#code-of-conduct)
-
 ## Issues and Bug Reports
 
 First, [search the GitHub issues](https://github.com/scottkleinman/lexos/issues) to see if the issue has already been reported. If so, please leave a comment on the existing issue.
