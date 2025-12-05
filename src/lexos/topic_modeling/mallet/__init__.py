@@ -1,6 +1,6 @@
 """__init__.py.
 
-Last Updated: November 26, 2025
+Last Updated: December 4, 2025
 Last Tested: November 26, 2025
 
 A fork of Maria Antoniak's Little Mallet Wrapper: https://github.com/maria-antoniak/little-mallet-wrapper.
@@ -60,7 +60,7 @@ def read_file(file: Path | str) -> list[str]:
     """Import data from a single text file with one document per line.
 
     Args:
-        file (Path | str) A file containing the documents to import.
+        file (Path | str): A file containing the documents to import.
 
     Returns:
         list[str]: The training data.
@@ -119,7 +119,7 @@ def read_dirs(dirs: Path | str | list[Path | str]) -> list[str]:
     """Import a directory or list of directories.
 
     Args:
-        dirs (Path | str | list[Path | str]) A directory or list of directories to import.
+        dirs (Path | str | list[Path | str]): A directory or list of directories to import.
 
     Returns:
         list[str]: The training data.
@@ -1301,7 +1301,7 @@ class Mallet(BaseModel):
         show: Optional[bool] = True,
         round_mask: Any = True,
         title: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Figure:
         """Get a `MultiCloud` object for the topic-term distributions.
 
@@ -1322,7 +1322,7 @@ class Mallet(BaseModel):
                 raise a `LexosException`.
             title (Optional[str]): Optional title for the overall MultiCloud figure. If None, a default
                 of "Topic Clouds (N topics)" will be used.
-            **kwargs: Additional keyword arguments. Use `opts` to pass wordcloud options for each cloud.
+            **kwargs (Any): Additional keyword arguments. Use `opts` to pass wordcloud options for each cloud.
 
         Returns:
             Figure: If `show` is False, returns a Matplotlib Figure object created by `MultiCloud`.
@@ -1607,7 +1607,9 @@ class Mallet(BaseModel):
             docs (list[str] | Path | str): The documents to infer topics for or a path to a file with documents.
             path_to_inferencer (Optional[str]): Path to the MALLET inferencer file. If None, use metadata.
             output_path (Optional[str]): Path to write the output doc-topics file. If None, it defaults to model_dir/infer-doc-topics.txt
-            keep_sequence, preserve_case, remove_stopwords: Converted into the `import-file` step options.
+            keep_sequence (bool): Whether to keep the sequence in the import-file step.
+            preserve_case (bool): Whether to preserve case in the import-file step.
+            remove_stopwords (bool): Whether to remove stopwords in the import-file step.
             use_pipe_from (Optional[str]): Optional pipe file to reuse for formatting.
             show (bool): If True, display the returned distributions (no-op in headless).
 

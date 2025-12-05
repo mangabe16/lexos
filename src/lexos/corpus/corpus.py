@@ -1,6 +1,6 @@
 """corpus.py.
 
-Last updated: November 20, 2025
+Last updated: December 4, 2025
 Last tested: November 20, 2025
 
 This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
@@ -104,7 +104,7 @@ class Corpus(BaseModel):
         srsly.write_json(metadata_file, data)
         msg.good("Corpus created.")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[Record]:
         """Make the corpus iterable.
 
         Returns:
@@ -275,9 +275,6 @@ class Corpus(BaseModel):
         Note:
             This method recalculates the number of records, active records,
             terms, tokens, and unique terms in the entire Corpus.
-
-        Returns:
-            None
         """
         self.num_docs = len(self.records)
         self.num_active_docs = sum(
@@ -368,9 +365,6 @@ class Corpus(BaseModel):
             metadata (dict[str, Any]): A dict containing any metadata.
             id_type (str): The type of ID to generate. Can be "integer" or "uuid4". Defaults to "uuid4".
             cache (bool): Whether or not to cache the record.
-
-        Returns:
-            None
         """
         # Sanitize metadata to ensure JSON-serializable types
         if metadata is not None:
@@ -419,11 +413,11 @@ class Corpus(BaseModel):
             self._add_to_corpus(record, cache=cache)
 
     @validate_call(config=model_config)
-    def filter_records(self, **metadata_filters) -> list[Record]:
+    def filter_records(self, **metadata_filters: Any) -> list[Record]:
         """Return records matching metadata key-value pairs.
 
         Args:
-            **metadata_filters: Arbitrary metadata fields and their required values.
+            **metadata_filters (Any): Arbitrary metadata fields and their required values.
 
         Returns:
             List of Record objects matching all metadata criteria.

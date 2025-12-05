@@ -29,14 +29,14 @@ The class is iterable, so the list can also be accessed with `for chunk in TextC
 
 The `to_dict()` method returns the chunks as a dictionary with source names as keys.
 
-Last updated: 2025-05-26
+Last updated: 2025-12-05
 Tested: 2025-05-26
 """
 
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO, Generator, Iterator, Optional
+from typing import Any, BinaryIO, Generator, Iterator, Optional
 
 from pydantic import BaseModel, Field, validate_call
 
@@ -44,6 +44,7 @@ from lexos.constants import LEXOS_MILESTONE_FLAG
 from lexos.exceptions import LexosException
 from lexos.milestones.string_milestones import StringSpan
 from lexos.util import ensure_list
+
 
 class TextCutter(BaseModel, validate_assignment=True):
     """TextCutter class for chunking files and strings containing untokenised text."""
@@ -195,7 +196,9 @@ class TextCutter(BaseModel, validate_assignment=True):
                         if not chunk:
                             break
                         # Convert to string
-                        chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
+                        chunks.append(
+                            chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk
+                        )
                 finally:
                     buffer.close()
             else:
@@ -203,7 +206,9 @@ class TextCutter(BaseModel, validate_assignment=True):
                     self._read_by_lines if self.newline else self._read_chunks
                 )(buffer, self.chunksize):
                     # Convert to string
-                    chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
+                    chunks.append(
+                        chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk
+                    )
         return chunks
 
     def _process_file(
@@ -283,11 +288,11 @@ class TextCutter(BaseModel, validate_assignment=True):
         chunk = buffer.read(size)
         return chunk
 
-    def _set_attributes(self, **data) -> None:
+    def _set_attributes(self, **data: Any) -> None:
         """Update multiple attributes on the TextCutter instance.
-        
+
         Args:
-            **data: Arbitrary keyword arguments matching attribute names.
+            **data (Any): Arbitrary keyword arguments matching attribute names.
         """
         for key, value in data.items():
             if hasattr(self, key):

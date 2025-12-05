@@ -2,16 +2,15 @@
 
 This file contains the main logic for the Scrubber class.
 
-Last Update: 2025-01-20
+Last Update: 2025-12-04
 Tested: 2025-01-20
 """
 
-from dataclasses import field
 from functools import partial
 from typing import Any, Callable, Iterable, Optional
 
 import catalogue
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 from pydantic.dataclasses import dataclass
 
 from lexos.exceptions import LexosException
@@ -19,27 +18,30 @@ from lexos.scrubber.registry import scrubber_components
 from lexos.util import ensure_list
 
 type ScrubberComponent = (
-    partial | Pipe | str | tuple[str, dict] | Iterable[partial | Pipe | str | tuple[str, dict]]
+    partial
+    | Pipe
+    | str
+    | tuple[str, dict]
+    | Iterable[partial | Pipe | str | tuple[str, dict]]
 )
 type PipelineComponents = Iterable[Callable | partial | Pipe | str | tuple[str, dict]]
+
 
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class Pipe:
     """A Pydantic dataclass containing a pipeline component.
 
-    Args:
-        name (str): The name of the component.
-        opts (Optional[dict[str, Any]], optional): Options to pass to the component. Defaults to {}.
-        factory (Optional[catalogue.Registry], optional): The factory to use to get the component. Defaults to scrubber
-
     Calls:
         The class is callable and returns a function that takes a string and returns a string.
     """
 
-    name: str
-    opts: Optional[dict[str, Any]] = field(default_factory=lambda: {})
-    factory: Optional[catalogue.Registry] = field(
-        default_factory=lambda: scrubber_components
+    name: str = Field(..., description="The name of the component.")
+    opts: Optional[dict[str, Any]] = Field(
+        default={}, description="Options to pass to the component."
+    )
+    factory: Optional[catalogue.Registry] = Field(
+        default_factory=lambda: scrubber_components,
+        description="The factory to use to get the component.",
     )
 
     def __call__(self, text: str) -> Callable:
@@ -98,11 +100,15 @@ class Scrubber:
             return 0
         elif isinstance(before, str):
             if before not in self.pipes:
-                raise LexosException(f"The component name {before} is not in the pipeline.")
+                raise LexosException(
+                    f"The component name {before} is not in the pipeline."
+                )
             return self.pipes.index(before)
         elif isinstance(after, str):
             if after not in self.pipes:
-                raise LexosException(f"The component name {after} is not in the pipeline.")
+                raise LexosException(
+                    f"The component name {after} is not in the pipeline."
+                )
             return self.pipes.index(after) + 1
         # We only accept indices referring to components that exist.
         # We can't use isinstance here because bools are instance of int.
@@ -165,7 +171,7 @@ class Scrubber:
         for component in pipes:
             # If component exists, merge options
             if component.name in self.pipes:
-                 # Find the index of the existing component
+                # Find the index of the existing component
                 idx = self.pipes.index(component.name)
                 instance_opts = self._components[idx].opts
                 component.opts = {**instance_opts, **component.opts}
@@ -183,7 +189,7 @@ class Scrubber:
         """Scrub a list of texts with the current pipeline.
 
         Args:
-            text (str | list[str]): The text(s) to scrub.
+            texts (Iterable[str]): The text(s) to scrub.
             disable	(Optional[list[str]]): Names of pipeline components to disable.
             component_cfg (Optional[dict[str, dict[str, Any]]]): Optional dictionary of keyword arguments for components, keyed by component names. Defaults to None.
 
@@ -232,6 +238,7 @@ class Scrubber:
         for pipe in self._components:
             text = pipe(text)
         return text
+
 
 def scrub(
     text: str,

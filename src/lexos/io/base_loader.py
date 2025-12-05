@@ -1,6 +1,6 @@
 """base_loader.py.
 
-Last Update: 2025-06-29
+Last Update: 2025-12-04
 Tested: 2025-06-29
 """
 
@@ -30,11 +30,11 @@ class BaseLoader(BaseModel, ABC):
         return (record for record in self.records)
 
     @property
-    def data(self):
+    def data(self) -> dict[str, list]:
         """Get the data as a dictionary.
 
         Returns:
-            dict: A dictionary containing the paths, mime_types, names, texts, and errors.
+            dict[str, list]: A dictionary containing the paths, mime_types, names, texts, and errors.
         """
         return {
             "paths": self.paths,
@@ -45,7 +45,7 @@ class BaseLoader(BaseModel, ABC):
         }
 
     @property
-    def df(self):
+    def df(self) -> pd.DataFrame:
         """Get a pandas DataFrame of file records.
 
         Returns:
@@ -54,7 +54,7 @@ class BaseLoader(BaseModel, ABC):
         return pd.DataFrame(self.records)
 
     @property
-    def records(self):
+    def records(self) -> list[dict[str, str]]:
         """Get a list of file records.
 
         Returns:

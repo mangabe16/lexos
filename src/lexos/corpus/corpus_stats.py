@@ -1,6 +1,6 @@
 """corpus_stats.py.
 
-Last updated: November 18, 2025
+Last updated: December 4, 2025
 Last tested: November 18, 2025
 """
 
@@ -308,12 +308,8 @@ class CorpusStats(BaseModel):
     def _get_doc_stats_df(self) -> pd.DataFrame:
         """Get a Pandas dataframe containing the statistics of each record.
 
-        Args:
-            df: A DTM.to_df() dataframe.
-            names: A list of record names corresponding to the rows in the dataframe.
-
         Returns:
-            A Pandas dataframe containing statistics of each record.
+            pd.DataFrame: A Pandas dataframe containing statistics of each record.
         """
         # Check if empty corpus is given.
         if self.df.empty:

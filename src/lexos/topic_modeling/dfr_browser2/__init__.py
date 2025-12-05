@@ -13,7 +13,7 @@ import threading
 import webbrowser
 from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -78,7 +78,7 @@ class Browser(BaseModel):
             pass
         return self.BROWSER_VERSION
 
-    def __setattr__(self, name: str, value) -> None:
+    def __setattr__(self, name: str, value: Any) -> None:
         """Intercept assignments to `config` and write merged config to disk.
 
         This ensures that once `self.config` is set, the persisted `config.json`
@@ -88,7 +88,7 @@ class Browser(BaseModel):
 
         Args:
             name (str): Attribute name.
-            value: Attribute value.
+            value (Any): Attribute value.
         """
         # Use BaseModel's setattr to set attribute (ensures pydantic behavior)
         super().__setattr__(name, value)
@@ -100,11 +100,11 @@ class Browser(BaseModel):
                 # Defensive: don't raise during attribute setting
                 pass
 
-    def __init__(self, **data) -> None:
+    def __init__(self, **data: Any) -> None:
         """Initialize the DFR Browser 2 class.
 
         Args:
-            **data: Keyword arguments for the BaseModel.
+            **data (Any): Keyword arguments for the BaseModel.
         """
         # First call BaseModel initializer
         super().__init__(**data)

@@ -1,6 +1,6 @@
 """record.py.
 
-Last updated: November 20, 2025
+Last updated: December 4, 2025
 Last tested: November 20, 2025
 
 
@@ -35,6 +35,7 @@ from pydantic import (
 )
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Token
+from spacy.vocab import Vocab
 
 from lexos.corpus.utils import LexosModelCache
 from lexos.exceptions import LexosException
@@ -59,7 +60,7 @@ class Record(BaseModel):
     )
 
     @field_serializer("content")
-    def serialize_content(self, content: Doc | str):
+    def serialize_content(self, content: Doc | str) -> bytes | str:
         """Serialize the content to bytes if it is a Doc object.
 
         Args:
@@ -78,7 +79,7 @@ class Record(BaseModel):
         return content
 
     @field_serializer("id")
-    def serialize_id(self, id, _info):
+    def serialize_id(self, id, _info) -> str:
         """Always serialize ID as string for JSON compatibility.
 
         Args:
@@ -276,7 +277,7 @@ class Record(BaseModel):
 
     def _get_vocab(
         self, model: Optional[str] = None, model_cache: Optional[LexosModelCache] = None
-    ):
+    ) -> Vocab:
         """Get the vocabulary from the model or model cache.
 
         Args:
@@ -460,11 +461,11 @@ class Record(BaseModel):
             raise LexosException("Record is not parsed.")
 
     @validate_call(config=model_config)
-    def set(self, **props) -> None:
+    def set(self, **props: Any) -> None:
         """Set a record property.
 
         Args:
-            **props: A dict containing the properties to set on the record.
+            **props (Any): A dict containing the properties to set on the record.
 
         Returns:
             None

@@ -5,7 +5,7 @@ Database integration layer for the Corpus class.
 This module extends the existing Corpus class with optional SQLite database
 capabilities while maintaining full compatibility with the file-based system.
 
-Last Updated: November 15, 2025
+Last Updated: December 4, 2025
 Last Tested: November 15, 2025
 
 """
@@ -58,14 +58,11 @@ class SQLiteCorpus(Corpus):
         default=None, description="Database connection object", exclude=True
     )
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any):
         """Initialize corpus with optional database integration.
 
         Args:
-            sqlite_path: Path to SQLite database file (None for memory-based)
-            use_sqlite: Whether to enable database storage alongside files
-            sqlite_only: Whether to use database-only mode (no file storage)
-            **data: Standard Corpus initialization parameters
+            **data (Any): Standard Corpus initialization parameters
         """
         # Extract database-specific parameters
         sqlite_path = data.pop("sqlite_path", None)
@@ -349,8 +346,15 @@ class SQLiteCorpus(Corpus):
         """Add a record to the corpus with optional database storage.
 
         Args:
-            store_in_db: Override database storage for this record (None = use corpus setting)
-            **kwargs: Standard Corpus.add() parameters
+            content (str | Doc | Record): The content of the record
+            name (Optional[str]): Optional name for the record
+            is_active (Optional[bool]): Whether the record is active
+            model (Optional[str]): spaCy model name for parsing
+            extensions (Optional[list[str]]): List of spaCy extensions to add
+            metadata (Optional[dict[str, Any]]): Optional metadata dictionary
+            id_type (Optional[str]): Type of ID to generate ('uuid4' or 'int')
+            cache (Optional[bool]): Whether to cache the record in memory
+            store_in_db (Optional[bool]): Whether to store the record in the database
         """
         # Sanitize metadata to ensure JSON-serializable types
         if metadata is not None:
@@ -647,16 +651,16 @@ def create_corpus(
     sqlite_path: Optional[Union[str, Path]] = None,
     name: Optional[str] = None,
     sqlite_only: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> SQLiteCorpus:
     """Convenience function to create a SQLite-enabled corpus with sensible defaults.
 
     Args:
-        corpus_dir: Directory for file-based storage
-        sqlite_path: Path to SQLite database (None for auto-generated)
-        name: Corpus name
-        sqlite_only: Whether to use database-only mode
-        **kwargs: Additional Corpus initialization parameters
+        corpus_dir (str): Directory for file-based storage
+        sqlite_path (Optional[Union[str, Path]]): Path to SQLite database (None for auto-generated)
+        name (Optional[str]): Corpus name
+        sqlite_only (bool): Whether to use database-only mode
+        **kwargs (Any): Additional Corpus initialization parameters
 
     Returns:
         SQLiteCorpus instance

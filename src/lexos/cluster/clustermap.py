@@ -1,6 +1,6 @@
 """clustermap.py.
 
-Last Updated: July 25, 2025
+Last Updated: December 3, 2025
 Last Tested: July 25, 2025
 
 Note: These clustermap classes are highly experimental and may change in the future.
@@ -263,8 +263,12 @@ class Clustermap(BaseModel):
 
         return col_colors, row_colors
 
-    def _set_attrs(self, **kwargs):
-        """Set the attributes of the class."""
+    def _set_attrs(self, **kwargs: Any):
+        """Set the attributes of the class.
+
+        Args:
+            **kwargs: The attributes to set.
+        """
         for key, value in kwargs.items():
             if value is not None:
                 setattr(self, key, value)
@@ -293,12 +297,12 @@ class Clustermap(BaseModel):
             except (TypeError, ValueError) as e:
                 raise LexosException(f"Invalid `col_linkage` value: {e}")
 
-    def save(self, path: Path | str, **kwargs):
+    def save(self, path: Path | str, **kwargs: Any):
         """Save the figure to a file.
 
         Args:
             path (Path | str): The path of the file to save.
-            **kwargs: Additional keyword arguments for pyplot.savefig. See https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html.
+            **kwargs (Any): Additional keyword arguments for pyplot.savefig. See https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html.
         """
         self.fig.savefig(path, **kwargs)
 
@@ -1104,14 +1108,14 @@ class PlotlyClustermap(BaseModel):
                 self.labels = [f"Doc{i + 1}" for i, _ in enumerate(self.dtm)]
 
     @validate_call(config=model_config)
-    def save(self, path: Path | str, **kwargs) -> None:
+    def save(self, path: Path | str, **kwargs: Any) -> None:
         """Save a static image of the figure to disk.
 
         Alias of `write_image()`
 
         Args:
             path: The file path to save the image.
-            **kwargs: Additional arguments to pass to the write_image method.
+            **kwargs (Any): Additional arguments to pass to the write_image method.
         """
         self.write_image(path, **kwargs)
 
@@ -1124,11 +1128,18 @@ class PlotlyClustermap(BaseModel):
         )
         self.fig.show(config=config)
 
-    def to_html(self, include_sync=False, **kwargs) -> str:
+    def to_html(self, include_sync=False, **kwargs: Any) -> str:
         """Create an HTML representation of the figure with optional synchronization.
 
         Wrapper from the Plotly Figure to_html method.
         See https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html.
+
+        Args:
+            include_sync (bool): Whether to include the synchronization script.
+            **kwargs (Any): Additional keyword arguments for the to_html method.
+
+        Returns:
+            str: The HTML representation of the figure.
         """
         html = self.fig.to_html(**kwargs)
 
@@ -1138,8 +1149,14 @@ class PlotlyClustermap(BaseModel):
 
         return html
 
-    def to_image(self, **kwargs) -> bytes:
+    def to_image(self, **kwargs: Any) -> bytes:
         """Create a static image of the figure.
+
+        Args:
+            **kwargs (Any): Additional keyword arguments for the to_image method.
+
+        Returns:
+            bytes: The image in bytes.
 
         Wrapper from the Plotly Figure to_html method.
         See https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html.
@@ -1147,8 +1164,12 @@ class PlotlyClustermap(BaseModel):
         return self.fig.to_image(**kwargs)
 
     @validate_call(config=model_config)
-    def write_html(self, path: Path | str, **kwargs) -> None:
+    def write_html(self, path: Path | str, **kwargs: Any) -> None:
         """Save an HTML representation of the figure to disk.
+
+        Args:
+            path (Path | str): The file path to save the HTML.
+            **kwargs (Any): Additional arguments to pass to the write_html method.
 
         Wrapper from the Plotly Figure write_html method.
         See https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html.
@@ -1156,8 +1177,12 @@ class PlotlyClustermap(BaseModel):
         return self.fig.write_html(path, **kwargs)
 
     @validate_call(config=model_config)
-    def write_image(self, path: Path | str, **kwargs) -> None:
+    def write_image(self, path: Path | str, **kwargs: Any) -> None:
         """Save a static image of the figure to disk.
+
+        Args:
+            path (Path | str): The file path to save the image.
+            **kwargs (Any): Additional arguments to pass to the write_image method.
 
         Wrapper from the Plotly Figure write_image method.
         See https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html.

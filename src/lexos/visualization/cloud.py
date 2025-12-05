@@ -1,6 +1,6 @@
 """cloud.py.
 
-Last Update: November 7, 2025
+Last Update: December 4, 2025
 Last Tested: November 7, 2025
 """
 
@@ -104,12 +104,12 @@ class WordCloud(BaseModel):
         self.cloud = PythonWordCloud(**self.opts).generate_from_frequencies(self.counts)
 
     @validate_call
-    def save(self, path: Path | str, **kwargs) -> None:
+    def save(self, path: Path | str, **kwargs: Any) -> None:
         """Save the WordCloud to a file.
 
         Args:
             path (Path | str): The file path to save the WordCloud image.
-            **kwargs: Additional keyword arguments for `plt.savefig`.
+            **kwargs (Any): Additional keyword arguments for `plt.savefig`.
         """
         if self.cloud is None:
             raise LexosException("No WordCloud object to save.")
@@ -335,12 +335,12 @@ class MultiCloud(BaseModel):
         plt.close()
 
     @validate_call
-    def save(self, path: Path | str, **kwargs) -> None:
+    def save(self, path: Path | str, **kwargs: Any) -> None:
         """Save the MultiCloud figure to a file.
 
         Args:
             path (Path | str): The file path to save the MultiCloud image.
-            **kwargs: Additional keyword arguments for `plt.savefig`.
+            **kwargs (Any): Additional keyword arguments for `plt.savefig`.
         """
         if self.fig is None:
             raise LexosException("No figure to save.")
@@ -593,12 +593,12 @@ class MultiCloudOld(BaseModel):
         plt.close()
 
     @validate_call
-    def save(self, path: Path | str, **kwargs) -> None:
+    def save(self, path: Path | str, **kwargs: Any) -> None:
         """Save the MultiCloud figure to a file.
 
         Args:
             path (Path | str): The file path to save the MultiCloud image.
-            **kwargs: Additional keyword arguments for `plt.savefig`.
+            **kwargs (Any): Additional keyword arguments for `plt.savefig`.
         """
         if self.fig is None:
             raise LexosException("No figure to save.")

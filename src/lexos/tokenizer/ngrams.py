@@ -1,6 +1,6 @@
 """ngrams.py.
 
-Last Update: May 24, 2025
+Last Update: December 4, 2025
 Last Tested: May 26, 2025
 
 Current usage:
@@ -38,8 +38,9 @@ ng.from_tokens(["This", "is", "a", "test."])
 # Generate ngrams from a list of token lists
 ng.from_token_lists([["This", "is", "a", "test."], ["Another", "test."]])
 """
+
 import re
-from typing import Callable, Generator, Iterable, Optional
+from typing import Any, Callable, Generator, Iterable, Optional
 
 from cytoolz.itertoolz import frequencies
 from pydantic import BaseModel, ConfigDict, Field, validate_call
@@ -51,10 +52,11 @@ from lexos.exceptions import LexosException
 from lexos.tokenizer import SliceTokenizer, WhitespaceTokenizer
 
 validation_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        json_schema_extra=DocJSONSchema.schema(),
-        validate_assignment=True,
-    )
+    arbitrary_types_allowed=True,
+    json_schema_extra=DocJSONSchema.schema(),
+    validate_assignment=True,
+)
+
 
 class Ngrams(BaseModel):
     """Generate ngrams from a text."""
@@ -158,7 +160,7 @@ class Ngrams(BaseModel):
         output: Optional[str] = "text",
         min_freq: Optional[int] = 1,
         skip_set_attrs: Optional[bool] = False,
-        **kwargs
+        **kwargs: Any,
     ) -> Generator:
         """Generate a list of ngrams from a Doc.
 
@@ -172,7 +174,7 @@ class Ngrams(BaseModel):
             output (str): The output format. Can be 'text', 'spans', or 'tuples'.
             min_freq (int): Remove ngrams that occur in text, doc, or tokens fewer than min_freq times.
             skip_set_attrs (bool): Whether to skip setting the attributes.
-            **kwargs: Extra keyword arguments to pass to textacy.extract.basics.ngrams.
+            **kwargs (Any): Extra keyword arguments to pass to textacy.extract.basics.ngrams.
 
         Returns:
             Generator: A generator of ngrams.
@@ -209,7 +211,9 @@ class Ngrams(BaseModel):
         # Apply min_freq (for some reason, it doesn't work if passed to Textacy)
         if min_freq > 1:
             freqs = frequencies(ng.text.lower() for ng in ngram_spans)
-            ngram_spans = (ng for ng in ngram_spans if freqs[ng.text.lower()] >= min_freq)
+            ngram_spans = (
+                ng for ng in ngram_spans if freqs[ng.text.lower()] >= min_freq
+            )
         # Yield the desired output
         if self.output == "text":
             for span in ngram_spans:
@@ -233,7 +237,7 @@ class Ngrams(BaseModel):
         filter_stops: Optional[bool] = False,
         min_freq: Optional[int] = 1,
         output: Optional[str] = "text",
-        **kwargs
+        **kwargs: Any,
     ) -> list[Generator]:
         """Generate a list of ngrams from a Doc.
 
@@ -246,7 +250,7 @@ class Ngrams(BaseModel):
             filter_stops (list[str]): Remove ngrams that start or end with a stop word in the provided list.
             min_freq (int): Remove ngrams that occur in text, doc, or tokens fewer than min_freq times.
             output (str): The output format. Can be 'text', 'spans', or 'tuples'.
-            **kwargs: Extra keyword arguments to pass to textacy.extract.basics.ngrams.
+            **kwargs (Any): Extra keyword arguments to pass to textacy.extract.basics.ngrams.
 
         Returns:
             list[Generator]: A list of ngram generators.
