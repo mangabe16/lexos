@@ -1,7 +1,7 @@
 """__init__.py.
 
-Last Update: July 15, 2025
-Last Tested: June 15, 2025
+Last Update: November 10, 2025
+Last Tested: November 10, 2025
 
 # WARNING: The sorted_terms_list and sorted_term_counts properties only work if the DTM has been built with a vectorizer that has compatible `terms_list` and `vocabulary_terms` attributes.
 """
@@ -387,9 +387,19 @@ class DTM(BaseModel):
                 df["Mean"] = df.mean(numeric_only=True, axis=1)
             if median:
                 df["Median"] = np.median(df.to_numpy())
+        df = df.sort_values(by=by, ascending=ascending)
         if transpose:
             df = df.T
+<<<<<<< HEAD
         if by is not None: # only sort when "by" is provided
             df = df.sort_values(by=by, ascending=ascending)
 
+=======
+        # NOTE: Sorting may need to be made conditional
+        # if transpose:
+        #     df = df.T
+        #     # After transpose, sort by index or don't sort
+        # else:
+        #     df = df.sort_values(by=by, ascending=ascending)
+>>>>>>> origin/main
         return df

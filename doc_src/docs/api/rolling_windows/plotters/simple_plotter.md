@@ -1,5 +1,9 @@
 # Simple Plotter
 
-TBD.
-
-### ::: lexos.rolling_windows.plotters.simple_plotter
+::: lexos.rolling_windows.plotters.simple_plotter
+  handler: python
+  selection:
+    members:
+      - interpolate
+      - MilestonesModel
+      - SimplePlotter

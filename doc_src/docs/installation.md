@@ -1,5 +1,7 @@
 # Installation
 
+The information below describes how to install Lexos as a user. If you are interested in contributing to the Lexos source code or documentation, see the separate [Development](development/index.md) documentation.
+
 ## Installing Python
 
 Lexos requires Python 3.12 or greater. Our development environment is <a href="https://docs.astral.sh/uv/" target="blank">uv</a>, and Lexos should work in a Python virtual environment created using that tool. If you are using a different Python environment, you can install Lexos using `pip`.
@@ -75,4 +77,4 @@ This should display the version of Lexos that is installed. If you see an error,
 
 ## Troubleshooting
 
-In this section, we will cover common issues that may arise during the installation of Lexos and how to resolve them. If you encounter any problems, not covered here, please consider reaching out to the Lexos community or checking the <a href="https://github.com/scottkleinman/lexos/issues" target="_blank">GitHub Issues page</a> for assistance.
+In this section, we will cover common issues that may arise during the installation of Lexos and how to resolve them. If you encounter any problems, not covered here, please consider reaching out to the Lexos community Discussion forum on GitHub or checking the <a href="https://github.com/scottkleinman/lexos/issues" target="_blank">GitHub Issues page</a> for assistance.

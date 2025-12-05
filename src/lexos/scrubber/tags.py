@@ -7,7 +7,7 @@ and their attributes in HTML or XML documents.
 It supports both exact, contains, and regex matching for selectors and
 attributes, and can filter elements based on attributes and their values.
 
-Last Updated: September 5, 2025
+Last Updated: December 4, 2025
 Last Tested: September 5, 2025
 """
 
@@ -152,7 +152,7 @@ def remove_attribute(
     Args:
         text: HTML or XML text to process
         selector: Tag name or CSS selector to match elements
-        attributes: List of attribute names to remove. If None, removes all attributes
+        attribute: Attribute name to remove.
         mode: Parser mode, either "html" or "xml"
         matcher_type: Type of match to perform, either "exact", "contains", or "regex"
         attribute_value: Optional value for the attribute filter

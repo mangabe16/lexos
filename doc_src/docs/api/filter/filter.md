@@ -1,0 +1,47 @@
+# Filters
+
+::: lexos.filter.filters
+  handler: python
+  selection:
+    members:
+      - BaseFilter
+      - BaseFilter.id
+      - BaseFilter.doc
+      - BaseFilter.matcher
+      - BaseFilter.matches
+      - BaseFilter.model_config
+      - BaseFilter.__call__
+      - BaseFilter.matched_token_ids
+      - BaseFilter.matched_tokens
+      - BaseFilter.filtered_tokens
+      - BaseFilter.filtered_token_ids
+      - BaseFilter._set_extensions
+      - BaseFilter.get_matched_doc
+      - BaseFilter.get_filtered_doc
+      - IsRomanFilter
+      - IsRomanFilter.id
+      - IsRomanFilter.doc
+      - IsRomanFilter.attr
+      - IsRomanFilter.default
+      - IsRomanFilter.model_config
+      - IsRomanFilter.__init__
+      - IsRomanFilter.__call__
+      - IsRomanFilter.is_roman
+      - IsStopwordFilter
+      - IsStopwordFilter.id
+      - IsStopwordFilter.doc
+      - IsStopwordFilter.stopwords
+      - IsStopwordFilter.remove
+      - IsStopwordFilter.model_config
+      - IsStopwordFilter.__init__
+      - IsStopwordFilter.__call__
+      - IsWordFilter
+      - IsWordFilter.id
+      - IsWordFilter.doc
+      - IsWordFilter.attr
+      - IsWordFilter.default
+      - IsWordFilter.exclude
+      - IsWordFilter.exclude_digits
+      - IsWordFilter.exclude_roman_numerals
+      - IsWordFilter.exclude_pattern
+      - IsWordFilter.model_config

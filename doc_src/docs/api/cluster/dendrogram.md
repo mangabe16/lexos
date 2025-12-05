@@ -10,33 +10,25 @@ The `dendrogram` module performs hierarchical aggolomerative clustering.
       show_root_heading: true
       heading_level: 3
 
-## The `PlotlyDendrogram` Class
-
-### ::: lexos.cluster.plotly_dendrogram.PlotlyDendrogram
+### ::: lexos.cluster.dendrogram.Dendrogram.__init__
 
     rendering:
       show_root_heading: true
       heading_level: 3
 
-## The `BCT` Class
-
-### ::: lexos.cluster.bootstrap_consensus.BCT
+### ::: lexos.cluster.dendrogram.Dendrogram._get_valid_matrix
 
     rendering:
       show_root_heading: true
       heading_level: 3
 
-## The `Clustermap` Class
-
-### ::: lexos.cluster.clustermap.Clustermap
+### ::: lexos.cluster.dendrogram.Dendrogram.save
 
     rendering:
       show_root_heading: true
       heading_level: 3
 
-## The `PlotlyClusterMap` Class
-
-### ::: lexos.cluster.clustermap.PlotlyClustermap
+### ::: lexos.cluster.dendrogram.Dendrogram.show
 
     rendering:
       show_root_heading: true

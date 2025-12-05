@@ -1,6 +1,6 @@
 """__init__.py.
 
-Last Update: May 27, 2025
+Last Update: December 4, 2025
 Last Tested: May 27, 2025
 
 Current usage:
@@ -24,7 +24,7 @@ docs = list(doc_stream)
 """
 
 from itertools import batched
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import spacy
 from pydantic import BaseModel, ConfigDict, Field, validate_call
@@ -139,7 +139,7 @@ class Tokenizer(BaseModel):
 
     @validate_call
     def make_doc(
-        self, text: str, max_length: int = None, disable: list[str] = [], **kwargs
+        self, text: str, max_length: int = None, disable: list[str] = [], **kwargs: Any
     ) -> Doc:
         """Return a doc from a text.
 
@@ -147,7 +147,7 @@ class Tokenizer(BaseModel):
             text (str): The text to be parsed.
             max_length (int): The maximum length of the doc.
             disable (list[str]): A list of spaCy pipeline components to disable.
-            kwargs: Additional keyword arguments. Accepts any keyword arguments that
+            kwargs (Any): Additional keyword arguments. Accepts any keyword arguments that
                 can be passed to spaCy's `Language.pipe` method, such as `batch_size`.
 
         Returns:
@@ -168,14 +168,14 @@ class Tokenizer(BaseModel):
         texts: Iterable[str],
         max_length: int = None,
         disable: Iterable[str] = [],
-        **kwargs,
+        **kwargs: Any,
     ) -> Iterable[Doc]:
         """Return a generator of docs from an iterable of texts.
 
         Args:
             texts (Iterable[str]): The texts to be parsed.
             max_length (int): The maximum length of the docs.
-            kwargs: Additional keyword arguments. Accepts any keyword arguments that
+            kwargs (Any): Additional keyword arguments. Accepts any keyword arguments that
                 can be passed to spaCy's `Language.pipe` method, such as `batch_size`.
 
         Yields:

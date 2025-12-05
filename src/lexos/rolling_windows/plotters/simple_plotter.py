@@ -1,11 +1,11 @@
 """simple_plotter.py.
 
-Last Update: September 13, 2025
+Last Update: December 4, 2025
 Last Tested: September 13, 2025
 """
 
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -323,12 +323,12 @@ class SimplePlotter(BasePlotter):
                 )
 
     @validate_call(config=model_config)
-    def plot(self, show: Optional[bool] = True, **kwargs) -> None:
+    def plot(self, show: Optional[bool] = True, **kwargs: Any) -> None:
         """Call the plotter.
 
         Args:
             show (Optional[bool]): Whether to show the plot after generating it.
-            **kwargs: Additional keyword arguments accepted by matplotlib.pyplot.plot().
+            **kwargs (Any): Additional keyword arguments accepted by matplotlib.pyplot.plot().
         """
         # Grid
         if self.show_grid:

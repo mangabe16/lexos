@@ -1,6 +1,6 @@
 """bubbleviz.py.
 
-Last Update: August 17, 2025
+Last Update: December 4, 2025
 Last Tested: August 17, 2025
 """
 
@@ -298,12 +298,12 @@ class BubbleChart(BaseModel):
             )
 
     @validate_call(config=model_config)
-    def save(self, path: Path | str, **kwargs):
+    def save(self, path: Path | str, **kwargs: Any):
         """Save the figure as a file.
 
         Args:
             path (Path | str): The path to the file to save.
-            **kwargs: Additional keyword arguments for `plt.savefig`.
+            **kwargs (Any): Additional keyword arguments for `plt.savefig`.
         """
         if path == "":
             raise LexosException("You must provide a valid path.")

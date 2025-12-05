@@ -72,8 +72,11 @@ def process_data(
             "Supported types: str, dict, list, DTM, DataFrame, spaCy Doc/Span objects."
         )
 
+    # WARNING: This renders the code unusable if the data contains float counts
+    # such as topic model distributions. It doesn't seem necessary for any of
+    # our current use cases, so I'm commenting it out for now.
     # Ensure counts are integers
-    counts = Counter({k: int(v) for k, v in counts.items()})
+    # counts = Counter({k: int(v) for k, v in counts.items()})
 
     # Limit the number of terms if specified
     if limit is not None:

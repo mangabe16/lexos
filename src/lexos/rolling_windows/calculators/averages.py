@@ -62,8 +62,7 @@ class Averages(Counts):
         """Convert the data to a pandas dataframe.
 
         Args:
-            show_spacy_rules (Optional[bool]): If True, use full spaCy rules for labels; otherwise use only the
-            string pattern.
+            show_spacy_rules (Optional[bool]): If True, use full spaCy rules for labels; otherwise use only the string pattern.
 
         Returns:
             pd.DataFrame: A pandas DataFrame.

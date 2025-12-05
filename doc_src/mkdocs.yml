@@ -21,9 +21,12 @@ nav:
         - Tokenizing Texts: user_guide/tokenizing_texts.md
         - Cutting Documents: user_guide/cutting_documents.md
         - Cutting Bracken: user_guide/cutting_bracken.md
+      - Using Milestones: user_guide/using_milestones.md
       - The Document-Term Matrix: user_guide/the_document_term_matrix.md
       - Visualization: user_guide/visualization.md
-      - Managing a Corpus: user_guide/managing_a_corpus.md
+      - Managing a Corpus:
+        - The Corpus module: user_guide/corpus/index.md
+        - Working with Records: user_guide/corpus/working_with_records.md
       - Analyzing Documents:
         - Overview: user_guide/analyzing_documents.md
         - Clustering:
@@ -33,33 +36,50 @@ nav:
         - Rolling Windows: user_guide/rolling_windows.md
         - Topwords: user_guide/topwords.md
         - Keywords in Context (KWIC): user_guide/kwic.md
-  #     - Training a Language Model: user_guide/training_a_language_model.md
-  #     - Topic Modelling with MALLET: user_guide/mallet_topic_models.md
+      - Topic Modelling:
+        - Topic Modeling with MALLET: user_guide/topic_modeling/mallet.md
+        - Exploring MALLET Topic Models with DFR Browser 2: user_guide/topic_modeling/dfr_browser2.md
   - Tutorials:
       - Overview: tutorials/index.md
   - API:
       - Overview: api/index.md
       - cluster:
           - Overview: api/cluster/index.md
+          - bootstrap_consensus: api/cluster/bootstrap_consensus.md
+          - clustermap: api/cluster/clustermap.md
           - dendrogram: api/cluster/dendrogram.md
           - kmeans: api/cluster/kmeans.md
+          - plotly_dendrogram: api/cluster/plotly_dendrogram.md
+          - sync_script.md: api/cluster/sync_script.md
+      - constants: api/constants.md
       - corpus:
-          - Corpus: api/corpus/index.md
+          - Overview: api/corpus/index.md
+          - corpus: api/corpus/corpus.md
+          - corpus_analysis_report: api/corpus/corpus_analysis_report.md
+          - corpus_stats: api/corpus/corpus_stats.md
+          - record: api/corpus/record.md
+          - utils: api/corpus/utils.md
+          - sqlite.database: api/corpus/sqlite/database.md
+          - sqlite.integration: api/corpus/sqlite/integration.md
       - cutter:
-          - Cutter: api/cutter/index.md
+          - Overview: api/cutter/index.md
+          - spacy_attrs: api/cutter/spacy_attrs.md
+          - text_cutter: api/cutter/text_cutter.md
+          - token_cutter: api/cutter/token_cutter.md
       - dtm:
           - Overview: api/dtm/index.md
           - dtm: api/dtm/dtm.md
+      - exceptions: api/exceptions.md
       - filter:
-          - Overview: api/filters/index.md
-          - filters: api/filters/filters.md
+          - Overview: api/filter/index.md
+          - filters: api/filter/filter.md
       - io:
           - Overview: api/io/index.md
           - base_loader: api/io/base_loader.md
+          - data_loader: api/io/data_loader.md
           - loader: api/io/loader.md
-          - data_loader: api/io/dataloader.md
       - milestones:
-          - Overview: api/milestones/overview.md
+          - Overview: api/milestones/index.md
           - span_milestones: api/milestones/span_milestones.md
           - string_milestones: api/milestones/string_milestones.md
           - token_milestones: api/milestones/token_milestones.md
@@ -78,8 +98,6 @@ nav:
               - base_plotter: api/rolling_windows/plotters/base_plotter.md
               - plotly_plotter: api/rolling_windows/plotters/plotly_plotter.md
               - simple_plotter: api/rolling_windows/plotters/simple_plotter.md
-  #     - Language_Model:
-  #         - Language_Model: api/language_model/index.md
       - scrubber:
           - Overview: api/scrubber/index.md
           - normalize: api/scrubber/normalize.md
@@ -91,37 +109,28 @@ nav:
           - scrubber: api/scrubber/scrubber.md
           - tags: api/scrubber/tags.md
           - utils: api/scrubber/utils.md
-  #     - Topic_Model:
-  #         - Topic_Model: api/topic_model/index.md
       - tokenizer:
           - Overview: api/tokenizer/index.md
           - tokenizer: api/tokenizer/tokenizer.md
           - ngrams: api/tokenizer/ngrams.md
-  #         - LexosDoc: api/tokenizer/lexosdoc.md
-  #     - Visualization:
-  #         - Overview: api/visualization/index.md
-  #         - Bubbleviz: api/visualization/bubbleviz.md
-  #         - Cloud: api/visualization/wordcloud.md
-  #         - Plotly: api/visualization/plotly.md
-  #         - Seaborn: api/visualization/seaborn.md
-  #     - Utils: api/utils.md
       - topic_modeling:
           - Overview: api/topic_modeling/index.md
-          - dfr_browser:
-            - Overview: api/topic_modeling/dfr_browser/index.md
-            - dfr_browser: api/topic_modeling/dfr_browser/dfr_browser.md
-            - prepare_data: api/topic_modeling/dfr_browser/prepare_data.md
-            - scale_model: api/topic_modeling/dfr_browser/scale_model.md
           - mallet: api/topic_modeling/mallet.md
+          - dfr_browser2: api/topic_modeling/dfr_browser2.md
+      - util: api/util.md
       - visualization:
           - Overview: api/visualization/index.md
           - bubbleviz: api/visualization/bubbleviz.md
           - cloud: api/visualization/cloud.md
-          - plotly_wordcloud: api/visualization/plotly_wordcloud.md
           - processors: api/visualization/processors.md
   - Development:
       - Overview: development/index.md
-
+      - Setup: development/setup.md
+      - Code Conventions: development/code-conventions.md
+      - Creating Features: development/creating-features.md
+      - Testing: development/tests.md
+      - Documentation: development/documentation.md
+  - Credits: credits.md
 theme:
   name: material
   favicon: http://lexos.wheatoncollege.edu/static/favicon.png

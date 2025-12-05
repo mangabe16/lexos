@@ -6,19 +6,27 @@
 
 ## Introduction
 
-The Lexos API is a library of methods for programmatically implementing and extending the functionality in the <a href="http://lexos.wheatoncollege.edu/" target="_blank">Lexos</a> text analysis tool. Eventually, the web app will be rewritten to use the API directly. The goal of this alpha stage of development is to reproduce (and in some cases extend) the functionality of the current web app.
+The Lexos API is a library of methods for programmatically implementing and extending the functionality in the <a href="http://lexos.wheatoncollege.edu/" target="_blank">Lexos</a> text analysis tool. Eventually, the web app will be rewritten to use the API directly. The goal of this beta stage of development is to reproduce (and in some cases extend) the functionality of the current web app, as well as to identify bugs and polish the documentation prior to the release of version 1.0.0.
 
-For the moment, much of the thinking behind the API's architecture is explained in the [Tutorial](tutorial).
+For the moment, much of the thinking behind the API's architecture is explained in the [User Guide](user_guide/index.md).
 
-**Current Status:** v0.0.1-alpha, working on v0.1.0-beta
+**Current Status:** v0.0.1-beta
 
 ## Features
 
 - Loads texts from a variety of sources.
 - Manages a corpus of texts.
 - Performs text pre-processing ("scrubbing") and splitting ("cutting").
-- Performs tokenization and trains language models using <a href="https://spacy.io/" target="_blank">spaCy</a>.
+- Performs tokenization using <a href="https://spacy.io/" target="_blank">spaCy</a> language models.
 - Creates assorted visualizations of term vectors.
-- Generates topic models and topic model visualizations using <a href="https://github.com/mimno/Mallet" target="_blank">MALLET</a> and <a href="https://github.com/agoldst/dfr-browser" target="_blank">dfr-browser</a>.
+- Generates topic models and topic model visualizations using <a href="https://github.com/mimno/Mallet" target="_blank">MALLET</a> and <a href="https://github.com/scottkleinman/dfr-browser2" target="_blank">DFR Browser 2</a>.
 
-An expanded set of features is planned for the future.
+An expanded set of features is planned for the future. See the [Roadmap](https://github.com/scottkleinman/uv_lexos/blob/main/README.md).
+
+## Questions
+
+If are looking for help using Lexos, please post you question on the [GitHub Discussions board](https://github.com/scottkleinman/lexos/discussions).
+
+## Contributing
+
+Lexos is an open-source project, and contributions from the public are welcome. If you are interested in contributing or have a bug to report, see the [Development](development/index.md) pages for information on how to get started.

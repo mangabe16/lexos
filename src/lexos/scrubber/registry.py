@@ -1,9 +1,10 @@
 """registry.py.
 
-Last Update: 2025-06-08
+Last Update: 2025-12-05
 Tested: 2025-06-08
 """
-from typing import Callable
+
+from typing import Callable, Generator
 
 import catalogue
 from pydantic import validate_call
@@ -72,7 +73,7 @@ def get_component(s: str) -> Callable:
 
 
 @validate_call
-def get_components(t: tuple[str, ...]):
+def get_components(t: tuple[str, ...]) -> Generator:
     """Get components from a tuple.
 
     Args:
