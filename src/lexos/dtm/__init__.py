@@ -163,6 +163,21 @@ class DTM(BaseModel):
         )
         return dict(sorted_items)
 
+    @property
+    def feature_names(self) -> list[str]:
+        """
+        Retrieve the list of feature names (terms) from the vectorizer.
+
+        Returns:
+            list[str]: A list of feature names (terms) in the document-term matrix.
+        """
+        if self.vectorizer is None:
+            raise LexosException("The DTM must be fitted before accessing feature names.")
+        try:
+            return self.vectorizer.terms_list  # Retrieve terms from the vectorizer
+        except AttributeError:
+            raise LexosException("The vectorizer does not provide a terms_list attribute.")
+
     def __init__(
         self, **data: dict[str, list | str | Callable | ns | sp.spmatrix]
     ) -> None:
@@ -390,16 +405,66 @@ class DTM(BaseModel):
         df = df.sort_values(by=by, ascending=ascending)
         if transpose:
             df = df.T
-<<<<<<< HEAD
         if by is not None: # only sort when "by" is provided
             df = df.sort_values(by=by, ascending=ascending)
 
-=======
-        # NOTE: Sorting may need to be made conditional
-        # if transpose:
-        #     df = df.T
-        #     # After transpose, sort by index or don't sort
-        # else:
-        #     df = df.sort_values(by=by, ascending=ascending)
->>>>>>> origin/main
         return df
+    
+    def fit(self, docs: list[list[str] | Doc], labels: Optional[list[str]] = None, **kwargs) -> None:
+        """
+        Fit the vectorizer to the provided documents and build the document-term matrix.
+
+        Args:
+            docs (list[list[str] | Doc]): A list of tokenized documents or spaCy Docs.
+            labels (list[str], optional): A list of labels for the documents. Defaults to None.
+            **kwargs: Additional keyword arguments to configure the vectorizer.
+        """
+        if not docs:
+            raise LexosException("You must provide a non-empty list of documents to fit the DTM.")
+
+        # Coerce spaCy Docs to token lists if necessary
+        self.docs = [
+            [token.text for token in doc] if isinstance(doc, Doc) else doc
+            for doc in docs
+        ]
+
+        # Set labels if provided, otherwise generate default labels
+        self.labels = labels or [f"Doc{i + 1}" for i in range(len(self.docs))]
+
+        # Ensure the number of docs matches the number of labels
+        if len(self.docs) != len(self.labels):
+            raise LexosException("The number of documents must match the number of labels.")
+
+        # Update the vectorizer with any additional keyword arguments
+        self._update_vectorizer(**kwargs)
+
+        # Fit the vectorizer to the documents and build the document-term matrix
+        try:
+            self.doc_term_matrix = self.vectorizer.fit_transform(self.docs)
+        except Exception as e:
+            raise LexosException(f"Error fitting the DTM: {e}")
+
+    def transform(self, docs: list[list[str] | Doc]) -> sp.spmatrix:
+        """
+        Transform new documents into the document-term matrix format using the fitted vectorizer.
+
+        Args:
+            docs (list[list[str] | Doc]): A list of tokenized documents or spaCy Docs.
+
+        Returns:
+            sp.spmatrix: The transformed document-term matrix for the new documents.
+        """
+        if self.vectorizer is None:
+            raise LexosException("The DTM must be fitted before calling transform().")
+
+        # Coerce spaCy Docs to token lists if necessary
+        docs = [
+            [token.text for token in doc] if isinstance(doc, Doc) else doc
+            for doc in docs
+        ]
+
+        # Transform the new documents using the fitted vectorizer
+        try:
+            return self.vectorizer.transform(docs)
+        except Exception as e:
+            raise LexosException(f"Error transforming the documents: {e}")
