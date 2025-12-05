@@ -21,11 +21,11 @@ For the moment, much of the thinking behind the API's architecture is explained 
 - Creates assorted visualizations of term vectors.
 - Generates topic models and topic model visualizations using <a href="https://github.com/mimno/Mallet" target="_blank">MALLET</a> and <a href="https://github.com/scottkleinman/dfr-browser2" target="_blank">DFR Browser 2</a>.
 
-An expanded set of features is planned for the future. See the [Roadmap](https://github.com/scottkleinman/uv_lexos/blob/main/README.md).
+An expanded set of features is planned for the future. See the <a href="https://github.com/scottkleinman/uv_lexos/blob/main/README.md" target="_blank">Roadmap</a>.
 
 ## Questions
 
-If are looking for help using Lexos, please post you question on the [GitHub Discussions board](https://github.com/scottkleinman/lexos/discussions).
+If are looking for help using Lexos, please post you question on the <a href="https://github.com/scottkleinman/lexos/discussions" target="_blank">GitHub Discussions board</a>.
 
 ## Contributing
 
