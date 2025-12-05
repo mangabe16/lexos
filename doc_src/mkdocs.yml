@@ -20,7 +20,6 @@ nav:
           - Internal Components: user_guide/scrubber/internal_components.md
         - Tokenizing Texts: user_guide/tokenizing_texts.md
         - Cutting Documents: user_guide/cutting_documents.md
-        - Cutting Bracken: user_guide/cutting_bracken.md
       - Using Milestones: user_guide/using_milestones.md
       - The Document-Term Matrix: user_guide/the_document_term_matrix.md
       - Visualization: user_guide/visualization.md

@@ -63,7 +63,7 @@ kwic(docs=doc, labels=None, patterns=patterns, window=5, matcher="tokens", use_r
 
 This will find any token containing a character followed by "wic" (and the search will be case insensitive).
 
-We can also perform more sophisticated token-based searches using spaCy's rule-matching syntax. To use it, we set the `matcher` parameter to "rule". See the [spaCy documentation](https://spacy.io/usage/rule-based-matching#matcher) for details of how to construct rules for token-based matching.
+We can also perform more sophisticated token-based searches using spaCy's rule-matching syntax. To use it, we set the `matcher` parameter to "rule". See the <a href="https://spacy.io/usage/rule-based-matching#matcher" target="_blank">spaCy documentation</a> for details of how to construct rules for token-based matching.
 
 ```python
 pattern1 = [{"LOWER": "key"}, {"LOWER": "word"}, {"LOWER": "in"}, {"LOWER": "context"}]

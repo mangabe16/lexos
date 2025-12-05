@@ -37,7 +37,7 @@ Many filtering procedures are easy to implement in this way.
 
 The easiest method for splitting a text into tokens is to use a simple rule-based approach, such as splitting the text on whitespace. However, this method is not always sufficient, especially for languages with complex morphology or syntax or where whitespace is not used to separate words (typical of Chinese, Japanese, and Korean). In these cases, it is often necessary to use a more sophisticated approach that takes into account the language's grammar and structure.
 
-Lexos uses language models to automate the tokenization process. A **language model** is a statistical model that has been trained on a large corpus of text in a specific language. It can be used to predict the likelihood of a sequence of words, which can help in identifying the boundaries between tokens. Language models can implement both rule-based and probabilistic strategies for separating document strings into tokens. The Lexos [`tokenizer`](../../api/tokenizer/) module enables you to choose a language model appropriate to your data in order to split your texts into tokens.
+Lexos uses language models to automate the tokenization process. A **language model** is a statistical model that has been trained on a large corpus of text in a specific language. It can be used to predict the likelihood of a sequence of words, which can help in identifying the boundaries between tokens. Language models can implement both rule-based and probabilistic strategies for separating document strings into tokens. The Lexos [`tokenizer`](../api/tokenizer/index.md) module enables you to choose a language model appropriate to your data in order to split your texts into tokens.
 
 !!! note
     The `tokenizer` module is a big change for Lexos, as it formally separates tokenization from preprocessing. In the Lexos web app, users employ Scrubber to massage the text into shape using their implicit knowledge about the text's language. Tokenization then takes place by splitting the text according to a regular expression pattern (normally whitespace). By contrast, the Lexos `tokenizer` module uses a language model that formalizes the implicit rules and probabilities needed to tokenize the text. Because they have built-in procedures appropriate to specific languages, language models can often do a better job of tokenization than the approach used in the Lexos web app.
@@ -50,7 +50,7 @@ There are some trade-offs to using language models. Because the algorithm does m
 
 !!! note "Using Other Tokenizers"
 
-    Many machine-learning tools &mdash; including the Lexos web app &mdash; deploy `scikit-learn`'s `CountVectorizer` (and similar) classes to perform tokenizations. Such tools combine the process of tokenizing and counting tokens, whereas the Lexos `tokenizer` module keeps them separate. Moreover, tools like `CountVectorizer` use simple regular expression patterns to divide texts into tokens and do not leverage the capabilities of a language model. If you need a toolk like `CountVectorizer` to perform tokenization but still want to make use of the NLP capabilities of the Lexos Tokenizer, there is an example of how to do it on the [Document-Term Matrix](../the_document_term_matrix/#advanced-usage-with-scikit-learn-vectorizers) page.
+    Many machine-learning tools &mdash; including the Lexos web app &mdash; deploy `scikit-learn`'s `CountVectorizer` (and similar) classes to perform tokenizations. Such tools combine the process of tokenizing and counting tokens, whereas the Lexos `tokenizer` module keeps them separate. Moreover, tools like `CountVectorizer` use simple regular expression patterns to divide texts into tokens and do not leverage the capabilities of a language model. If you need a toolk like `CountVectorizer` to perform tokenization but still want to make use of the NLP capabilities of the Lexos Tokenizer, there is an example of how to do it on the [Document-Term Matrix](the_document_term_matrix.md#advanced-usage-with-scikit-learn-vectorizers) page.
 
 ## SpaCy Docs
 
@@ -79,7 +79,7 @@ This returns a `Doc` object.
 !!! note
     The `tokenizer` module is a wrapper for the spaCy library, so you can also use spaCy directly to create a `Doc` object since spaCy is installed with Lexos. Lexos is designed to make it easier to work with spaCy's functionality, but it is not necessary to use the Lexos API to work with spaCy.
 
-By default the tokenizer uses spaCy's "<a href="https://spacy.io/models/xx#xx_sent_ud_sm">xx_sent_ud_sm</a>" language model, which has been trained for tokenization and sentence segmentation on multiple languages. This model performs statistical sentence segmentation and possesses general rules for token segmentation that work well for a variety of languages. The default model has been chosen to be as language-agnostic as possible, so it can be used for many languages without requiring a specific model. However, it is not guaranteed to work well for all languages.
+By default the tokenizer uses spaCy's "<a href="https://spacy.io/models/xx#xx_sent_ud_sm" target="_blank">xx_sent_ud_sm</a>" language model, which has been trained for tokenization and sentence segmentation on multiple languages. This model performs statistical sentence segmentation and possesses general rules for token segmentation that work well for a variety of languages. The default model has been chosen to be as language-agnostic as possible, so it can be used for many languages without requiring a specific model. However, it is not guaranteed to work well for all languages.
 
 If you were making a document from a text in a language which rquired a more language-specific model, you would specify the model to be used. For instance, to use spaCy's small English model trained on web texts, instantiate the `Tokenizer` class and use the `model` keyword argument to specify the model (it must be installed in your Python environment):
 
@@ -98,7 +98,7 @@ doc = tokenizer.make_doc("This is a test.")
 The `Tokenizer` class also has a `make_docs()` method to parse a list of texts into a list of spaCy docs.
 
 !!! important
-    Tokenization using spaCy uses a lot of memory. For a small English-language model, the parser and named entity recognizer (NER) can require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the memory limit with the `max_length` parameter in `make_doc()` or `makes_docs()`. The limit is in number of characters (the default is set to 2,000,000 for Lexos), so you can check whether your inputs are too long by checking `len(text)`. If you are not using RAM-hungry pipeline components, you can disable or exclude them to avoid errors an increase efficiency (see the discussion on the spaCy pipeline below). In some cases, it may also be possible to cut the texts into segments before tokenization. See [Cutting Texts](../user_guide/cutting_texts.md) for more information.
+    Tokenization using spaCy uses a lot of memory. For a small English-language model, the parser and named entity recognizer (NER) can require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the memory limit with the `max_length` parameter in `make_doc()` or `makes_docs()`. The limit is in number of characters (the default is set to 2,000,000 for Lexos), so you can check whether your inputs are too long by checking `len(text)`. If you are not using RAM-hungry pipeline components, you can disable or exclude them to avoid errors an increase efficiency (see the discussion on the spaCy pipeline below). In some cases, it may also be possible to cut the texts into segments before tokenization. See [Cutting Documents](cutting_documents.md) for more information.
 
 ### Working with SpaCy Docs
 
@@ -196,7 +196,7 @@ print(slices)
 
 Both texts and documents can be parsed into sequences of two or more tokens called **ngrams**. Many spaCy models can identify syntactic units such as noun chunks. These capabilities are not covered here since they are language specific. Instead, the section below describe how to obtain more general ngram sequences.
 
-The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call the [`ngrams_from_doc()`](../../api/tokenizer/ngrams/#lexos.tokenizer.ngrams.Ngrams.from_doc) method:
+The easiest method of obtaining ngrams from a text is to create a spaCy doc and then call the [`ngrams_from_doc()`](../api/tokenizer/ngrams.md#lexos.tokenizer.ngrams.Ngrams.from_doc) method:
 
 ```python
 import spacy
@@ -227,7 +227,7 @@ The `from_doc()` function yields a generator, so, if you wish to view it as a li
     ngrams = ng(doc, 2, min_freq=2)
     ```
 
-    The `min_freq` parameter removes ngrams that do not occur at least two times. This can cut down on the size of the generated ngrams. Textacy has a lot of additional options, which are documented in the Textacy API reference under <code><a href="https://textacy.readthedocs.io/en/latest/api_reference/extract.html#textacy.extract.basics.ngrams" target="_blank">textacy.extract.basics.ngrams</a></code>. The Lexos `Ngrams.from_doc()` method accepts the same parameters as Textacy's method with a few additional options (see the [API documentation](../api/tokenizer/ngrams/)).
+    The `min_freq` parameter removes ngrams that do not occur at least two times. This can cut down on the size of the generated ngrams. Textacy has a lot of additional options, which are documented in the Textacy API reference under <code><a href="https://textacy.readthedocs.io/en/latest/api_reference/extract.html#textacy.extract.basics.ngrams" target="_blank">textacy.extract.basics.ngrams</a></code>. The Lexos `Ngrams.from_doc()` method accepts the same parameters as Textacy's method with a few additional options (see the [API documentation](../api/tokenizer/ngrams.md)).
 
 There is also a `Ngrams.from_docs()` method that accepts a list of `Doc` objects and returns a list of ngram generators.
 

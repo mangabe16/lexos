@@ -53,4 +53,4 @@ This will work in a standalone script as well. Any errors will be printed to you
 
     This will enable your application to handle errors without stopping the program.
 
-To learn about each of the individual Lexos modules, browse through the pages in this guide. More examples of the use of Lexos functions can be found in the [Tutorial notebooks](../../tutorials), and a full descriptions can be found in the [API documentation](../../api).
+To learn about each of the individual Lexos modules, browse through the pages in this guide. More examples of the use of Lexos functions can be found in the [Tutorial notebooks](../tutorials/index.md), and a full descriptions can be found in the [API documentation](../api/index.md).

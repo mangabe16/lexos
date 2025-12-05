@@ -41,7 +41,7 @@ Lexos aims to be as language-agnostic as possible, so the default spaCy language
 
 ## Adding Pydantic Data Validation
 
-Lexos also tries to be agnostic about the context in which it will be used. One possibility is to build a backend for a text analysis application like the original Lexos web app. For this purpose, it offers its own data validation using the Python [Pydantic](https://docs.pydantic.dev/latest/) library. Wherever possible, Lexos classes and functions should offer data validation using Pydantic. This section contains a short primer on how to use it.
+Lexos also tries to be agnostic about the context in which it will be used. One possibility is to build a backend for a text analysis application like the original Lexos web app. For this purpose, it offers its own data validation using the Python <a href="https://docs.pydantic.dev/latest/" target="_blank">Pydantic</a> library. Wherever possible, Lexos classes and functions should offer data validation using Pydantic. This section contains a short primer on how to use it.
 
 !!! note
     Note that Lexos uses Pydantic v2.
@@ -74,9 +74,9 @@ pydantic_instance = MyPydanticClass(value={"myvalue": 1})
 The `python_instance` will not raise an error because there is no type checking. The first `pydantic_instance` will also raise an error because, by default, Pydantic attempts to coerce data into the expected data type (you can change this behaviour). By default, it knows to convert strings to integers. However, it will raise a `ValidaError` for the second `pydantic instance` since it doesn't know how to coerce dicts.
 
 !!! important
-    Pydantic requires keyword arguments when instantiating a class, and you cannot use positional arguments. This is a [design choice](https://github.com/pydantic/pydantic/issues/116) made by Pydantic to avoid ambiguity in the order of arguments. This comes at some cost to libraries like Lexos, where all Pydantic-validated functions (as well as code samples and tutorials) need to supply keywords for every parameter.
+    Pydantic requires keyword arguments when instantiating a class, and you cannot use positional arguments. This is a <a href="https://github.com/pydantic/pydantic/issues/116" target="_blank">design choice</a> made by Pydantic to avoid ambiguity in the order of arguments. This comes at some cost to libraries like Lexos, where all Pydantic-validated functions (as well as code samples and tutorials) need to supply keywords for every parameter.
 
-#### Validating Functions with @validate_call
+### Validating Functions with @validate_call
 
 The @validate_call decorator can be used to apply Pydantic validation to a function.
 

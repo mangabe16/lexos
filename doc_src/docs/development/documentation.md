@@ -12,7 +12,7 @@ If you contribute a new feature to Lexos, you do not have to produce a tutorial 
 
 ## The Documentation Website
 
-The documentation website is static website generated with [MkDocs](https://www.mkdocs.org/) and [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/). Each page is a Markdown file, which is converted to HTML when the site is built.
+The documentation website is static website generated with <a href="https://www.mkdocs.org/" target="_blank">MkDocs</a> and <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank">Material for MkDocs</a>. Each page is a Markdown file, which is converted to HTML when the site is built.
 
 To preview changes to the documentation, serve it locally with
 
@@ -27,12 +27,12 @@ If you make a new page, you must add it to the `doc_src/docs/mkdocs.yml` configu
 
 When building the documentation, errors and warnings will be printed to the console. Please check and resolve them before making a pull request. If there are many warnings, it can be helpful to redirect the console output to a file. You can do this with `uv run mkdocs build > build_full.log 2>&1` and then inspect the generated `build_full.log` file, which will be saved in the `doc_src` folder. **Make sure that you don't push this file to the repository.**
 
-Whether you make a change to an existing page or add a new one, your text should follow [GitHub Markdown conventions](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax), especially for code and code blocks. Markdown text should be formatted following  the default Markdown linting rules of of [Markdownlint](https://github.com/DavidAnson/markdownlint), except as specified in the `doc_src/.markdownlint.json` file. To see examples, you may find it helpful to review the current documentation files in the `doc_src/docs` folder or via `mkdocs serve`.
+Whether you make a change to an existing page or add a new one, your text should follow <a href="https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax" target="_blank">GitHub Markdown conventions</a>, especially for code and code blocks. To see examples, you may find it helpful to review the current documentation files in the `doc_src/docs` folder or via `mkdocs serve`.
+
+Before you make a pull request, check that the site builds properly in your local environment and make sure that your content does not contain any Markdown linting errors Lexos uses the default Markdown linting rules of of <a href="https://github.com/DavidAnson/markdownlint" target="_blank">Markdownlint</a>, except as specified in the `doc_src/.markdownlint.json` file.
 
 !!! note
-    It is recommended that you install the Markdownlint extension in VS Code for linting Markdown files when producing documentation.
-
-Before you make a pull request, check that the site builds properly in your local environment and make sure that your content does not contain any Markdown linting errors Lexos uses the default Markdown linting rules of of [Markdownlint](https://github.com/DavidAnson/markdownlint), except as specified in the `doc_src/.markdownlint.json` file. If you are using VS Code, the Markdownlint extension will show you any errors.
+    It is recommended that you install the Markdownlint extension in VS Code for linting Markdown files when producing documentation. The Markdownlint extension will show you any errors.
 
 ## The User Guide
 
@@ -40,17 +40,17 @@ The User Guide is intended to provide an entry-level introduction to the major f
 
 Where possible, provide code samples in code blocks. Sample code should follow the conventions described on the [Code Conventions](code-conventions.md) page. If your code generates visualizations, provide links to static images in `.png` format. Typically, your page would be in a folder along with accompanying images.
 
-User Guide pages should follow the Markdown principles noted above under **The Documentation Website**. Since User Guide pages are mostly written description, they should be well-edited and follow established standards for published writing. The Lexos documentation does not follow a specific style guide, but we recommend [The Chicago Manual of Style, 17th Edition](https://www.chicagomanualofstyle.org/) if you are in need of guidance but what written convention to adopt. This obviously only applies to documents in English. At present, the Lexos documentation does not have any pages in other languages, but we can imagine adding sections in other languages if users contribute them.
+User Guide pages should follow the Markdown principles noted above under **The Documentation Website**. Since User Guide pages are mostly written description, they should be well-edited and follow established standards for published writing. The Lexos documentation does not follow a specific style guide, but we recommend <a href="https://www.chicagomanualofstyle.org/" target="_blank">The Chicago Manual of Style, 17th Edition</a> if you are in need of guidance but what written convention to adopt. This obviously only applies to documents in English. At present, the Lexos documentation does not have any pages in other languages, but we can imagine adding sections in other languages if users contribute them.
 
 ## The API Documentation
 
 Each API documentation is meant primarily for developers, as it is highly technical, but it is also the only portion of the documentation that describes the full functionality of all Lexos features. For instance, a User Guide page or a Tutorial may describe only the major parameters of a function or method &mdash; those most likely to be used or most relevant to the workflow being discussed. If the User Guide or a tutorial does not mention a possible configuration or customization of a function, it is worth checking the API Documentation to see if the function has a parameter to do what you want.
 
-Unlike the User Guide, the API documentation is mostly generated automatically from the type hints and docstrings in the Python source code. This information is converted to HTML with [`mkdocstrings`](https://mkdocstrings.github.io/) when you build the documentation website.
+Unlike the User Guide, the API documentation is mostly generated automatically from the type hints and docstrings in the Python source code. This information is converted to HTML with <code><a href="https://mkdocstrings.github.io/" target="_blank">mkdocstrings</a></code> when you build the documentation website.
 
 Each module should have its own folder, the name of which should correspond to the name of the module. Inside, there should be an `index.md` page, which is the starting point for the module's API documentation. The `index.md` file should contain a brief Markdown description of the module and a link to any other pages in the module's API documentation (these should be additional Markdown files). API pages should follow the Markdown principles noted above under **The Documentation Website**.
 
-Each Markdown file in the module's API documentation should contain a [`mkdocstrings`](https://mkdocstrings.github.io/) template like the following:
+Each Markdown file in the module's API documentation should contain a <code><a href="https://mkdocstrings.github.io/" target="_blank">mkdocstrings</a></code> template like the following:
 
 ```yaml
   ::: lexos.module
