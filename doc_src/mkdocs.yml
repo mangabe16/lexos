@@ -21,9 +21,12 @@ nav:
         - Tokenizing Texts: user_guide/tokenizing_texts.md
         - Cutting Documents: user_guide/cutting_documents.md
         - Cutting Bracken: user_guide/cutting_bracken.md
+      - Using Milestones: user_guide/using_milestones.md
       - The Document-Term Matrix: user_guide/the_document_term_matrix.md
       - Visualization: user_guide/visualization.md
-      - Managing a Corpus: user_guide/managing_a_corpus.md
+      - Managing a Corpus:
+        - The Corpus module: user_guide/corpus/index.md
+        - Working with Records: user_guide/corpus/working_with_records.md
       - Analyzing Documents:
         - Overview: user_guide/analyzing_documents.md
         - Clustering:
@@ -68,15 +71,15 @@ nav:
           - dtm: api/dtm/dtm.md
       - exceptions: api/exceptions.md
       - filter:
-          - Overview: api/filters/index.md
-          - filters: api/filters/filters.md
+          - Overview: api/filter/index.md
+          - filters: api/filter/filter.md
       - io:
           - Overview: api/io/index.md
           - base_loader: api/io/base_loader.md
           - data_loader: api/io/data_loader.md
           - loader: api/io/loader.md
       - milestones:
-          - Overview: api/milestones/overview.md
+          - Overview: api/milestones/index.md
           - span_milestones: api/milestones/span_milestones.md
           - string_milestones: api/milestones/string_milestones.md
           - token_milestones: api/milestones/token_milestones.md
@@ -111,9 +114,9 @@ nav:
           - tokenizer: api/tokenizer/tokenizer.md
           - ngrams: api/tokenizer/ngrams.md
       - topic_modeling:
-          - Overview: api/topic_model/index.md
-          - mallet: api/topic_model/mallet.md
-          - dfr_browser2: api/topic_model/dfr_browser2.md
+          - Overview: api/topic_modeling/index.md
+          - mallet: api/topic_modeling/mallet.md
+          - dfr_browser2: api/topic_modeling/dfr_browser2.md
       - util: api/util.md
       - visualization:
           - Overview: api/visualization/index.md
@@ -124,9 +127,10 @@ nav:
       - Overview: development/index.md
       - Setup: development/setup.md
       - Code Conventions: development/code-conventions.md
-      - Creating Features: development/creating_features.md
-      - Testing: development/testing.md
+      - Creating Features: development/creating-features.md
+      - Testing: development/tests.md
       - Documentation: development/documentation.md
+  - Credits: credits.md
 theme:
   name: material
   favicon: http://lexos.wheatoncollege.edu/static/favicon.png

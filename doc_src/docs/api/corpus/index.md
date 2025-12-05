@@ -30,12 +30,12 @@ Database management is implemented in two modules:
 
 ### `SQLiteBackend` (database.py)
 
-The [`database`](database.md) module provides the main database functionality.
+The [`database`](sqlite/database.md) module provides the main database functionality.
 
 ### `SQLiteCorpus` (integration.py)
 
-The [`integration`](integration.md) module the handler for integration with the main `corpus` API.
+The [`integration`](sqlite/integration.md) module the handler for integration with the main `corpus` API.
 
-## Comprehensive Analysis Report
+## Corpus Analysis Report
 
-The [`comprehensive_analysis_report`](comprehensive_analysis_report.md) module provides a helper function for generating a comprehensive analysis of the contents of a `corpus` instance.
+The [`corpus_analysis_report`](corpus_analysis_report.md) module provides a helper function for generating a comprehensive analysis of the contents of a `corpus` instance.

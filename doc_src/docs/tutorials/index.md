@@ -8,58 +8,58 @@ Here is a list of the currently available tutorials, organised by module:
 
 ## Cluster
 
-- Dendrograms (Hierarchical Agglomerative Clustering): [📓 Notebook](../../tutorials/cluster/dendrogram_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/data.zip)
-- Clustermaps (Hierarchical Agglomerative Clustering): [📓 Notebook](../../tutorials/cluster/clustermap_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/data.zip)
-- Bootstrap Consenus Trees (Hierarchical Agglomerative Clustering): [📓 Notebook](../../tutorials/cluster/bct_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/FilesToUse.zip)
-- K-Means Clustering: [📓 Notebook](../../tutorials/cluster/kmeans_tutorial.ipynb) | [🗄️ Data](../../tutorials/cluster/FilesToUse.zip)
+- Dendrograms (Hierarchical Agglomerative Clustering): [📓 Notebook](cluster/dendrogram_tutorial.ipynb) | [🗄️ Data](cluster/data.zip)
+- Clustermaps (Hierarchical Agglomerative Clustering): [📓 Notebook](cluster/clustermap_tutorial.ipynb) | [🗄️ Data](cluster/data.zip)
+- Bootstrap Consenus Trees (Hierarchical Agglomerative Clustering): [📓 Notebook](cluster/bct_tutorial.ipynb) | [🗄️ Data](cluster/FilesToUse.zip)
+- K-Means Clustering: [📓 Notebook](cluster/kmeans_tutorial.ipynb) | [🗄️ Data](cluster/FilesToUse.zip)
 
 ## Corpus
 
-- Corpus Tutorial: [📓 Notebook](../../tutorials/corpus/corpus_tutorial.ipynb)
-- SQLite Tutorial: [📓 Notebook](../../tutorials/corpus/sqlite_tutorial.ipynb)
+- Corpus Tutorial: [📓 Notebook](corpus/corpus_tutorial.ipynb)
+- SQLite Tutorial: [📓 Notebook](corpus/sqlite_tutorial.ipynb)
 
 ## Cutter
 
-- Text Cutter and Token Cutter: [📓 Notebook](../../tutorials/cutter/tutorial.ipynb) | [🗄️ Data](../../tutorials/cutter/Austen_Pride.txt)
+- Text Cutter and Token Cutter: [📓 Notebook](cutter/tutorial.ipynb) | [🗄️ Data](cutter/Austen_Pride.txt)
 
 ## DTM
 
-- Making and Using a Document-Term Matrix [📓 Notebook](../../tutorials/dtm/tutorial.ipynb) | [🗄️ Data](../../tutorials/dtm/txt_files.zip)
+- Making and Using a Document-Term Matrix [📓 Notebook](dtm/tutorial.ipynb) | [🗄️ Data](dtm/txt_files.zip)
 
 ## IO
 
-- Loading Data [📓 Notebook](../../tutorials/io/tutorial.ipynb) | [🗄️ Data](../../tutorials/io/sample_files.zip)
+- Loading Data [📓 Notebook](io/tutorial.ipynb) | [🗄️ Data](io/sample_files.zip)
 
 ## Keywords in Context (KWIC)
 
-- Keywords in Context (KWIC) [📓 Notebook](../../tutorials/kwic/tutorial.ipynb)
+- Keywords in Context (KWIC) [📓 Notebook](kwic/tutorial.ipynb)
 
 ## Milestones
 
-- Using Milestones [📓 Notebook](../../tutorials/milestones/tutorial.ipynb)
+- Using Milestones [📓 Notebook](milestones/tutorial.ipynb)
 
 ## Rolling Windows
 
-- Using Rolling Windows [📓 Notebook](../../tutorials/rolling_windows/rolling_windows_tutorial.ipynb) | [🗄️ Data](../../tutorials/rolling_windows/A_Scandal_in_Bohemia.txt)
+- Using Rolling Windows [📓 Notebook](rolling_windows/rolling_windows_tutorial.ipynb) | [🗄️ Data](rolling_windows/A_Scandal_in_Bohemia.txt)
 
 ## Scrubber
 
-- Using Scrubber [📓 Notebook](../../tutorials/scrubber/scrubber_tutorial.ipynb)
-- Scrubbing Markup Tags [📓 Notebook](../../tutorials/scrubber/tags_tutorial.ipynb)
+- Using Scrubber [📓 Notebook](scrubber/scrubber_tutorial.ipynb)
+- Scrubbing Markup Tags [📓 Notebook](scrubber/tags_tutorial.ipynb)
 
 ## Tokenizer
 
-- Using Tokenizer [📓 Notebook](../../tutorials/tokenizer/tutorial.ipynb)
+- Using Tokenizer [📓 Notebook](tokenizer/tutorial.ipynb)
 
 ## Topic Modeling
 
-- Mallet Topic Modeling Tutorial [📓 Notebook](../../tutorials/topic_modeling/mallet_tutorial.ipynb) | [🗄️ Data](../../tutorials/topic_modeling/sample_data.zip)
+- Mallet Topic Modeling Tutorial [📓 Notebook](topic_modeling/mallet_tutorial.ipynb) | [🗄️ Data](topic_modeling/sample_data.zip)
 
 ## TopWords
 
-- TopicWords Tutorial [📓 Notebook](../../tutorials/topwords/tutorial.ipynb)
-- Evaluating Key Terms with the Mann-Whitney U Test [📓 Notebook](../../tutorials/topwords/mann_whitney_tutorial.ipynb)
+- TopicWords Tutorial [📓 Notebook](topwords/tutorial.ipynb)
+- Evaluating Key Terms with the Mann-Whitney U Test [📓 Notebook](topwords/mann_whitney_tutorial.ipynb)
 
 ## Visualization
 
-- Word Clouds [📓 Notebook](../../tutorials/visualization/tutorial.ipynb)
+- Word Clouds [📓 Notebook](visualization/tutorial.ipynb)

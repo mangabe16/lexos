@@ -27,7 +27,7 @@ If you make a new page, you must add it to the `doc_src/docs/mkdocs.yml` configu
 
 When building the documentation, errors and warnings will be printed to the console. Please check and resolve them before making a pull request. If there are many warnings, it can be helpful to redirect the console output to a file. You can do this with `uv run mkdocs build > build_full.log 2>&1` and then inspect the generated `build_full.log` file, which will be saved in the `doc_src` folder. **Make sure that you don't push this file to the repository.**
 
-Whether you make a change to an existing page or add a new one, your text should follow [GitHub Markdown conventions](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax), especially for code and code blocks. Markdown text should be formatted following  the default Markdown linting rules of of [Markdownlint](https://github.com/DavidAnson/markdownlint), except as specified in the `doc_src/.markdownlint.json` file. To see examples, you may find it helpful to review the current documentation files in [`doc_src/docs`](doc_src/docs ) or via `mkdocs serve`.
+Whether you make a change to an existing page or add a new one, your text should follow [GitHub Markdown conventions](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax), especially for code and code blocks. Markdown text should be formatted following  the default Markdown linting rules of of [Markdownlint](https://github.com/DavidAnson/markdownlint), except as specified in the `doc_src/.markdownlint.json` file. To see examples, you may find it helpful to review the current documentation files in the `doc_src/docs` folder or via `mkdocs serve`.
 
 !!! note
     It is recommended that you install the Markdownlint extension in VS Code for linting Markdown files when producing documentation.
@@ -82,8 +82,8 @@ To preview changes to the documentation, serve it locally with
 
 To create direct links to individual classes, properties, and methods anywhere in the documentation, use syntax like the following:
 
-- [\`BaseLoader.data\`](base_loader/#lexos.io.base_loader.BaseLoader.data)
-- [\`BaseLoader.load_dataset\`](base_loader/#lexos.io.base_loader.BaseLoader.load_dataset)
+- To link to `BaseLoader.data`, use `base_loader/#lexos.io.base_loader.BaseLoader.data`
+- To link to `BaseLoader.load_dataset`, use `base_loader/#lexos.io.base_loader.BaseLoader.load_dataset`
 
 If you create API documentation for a new module, be sure to add it to the HTML table in `doc_src/docs/api/index.md`. When you add another row, make sure that you edit the `row-even` and `row-odd` class names so that the table striping alternates in the generated output.
 

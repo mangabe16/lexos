@@ -5,8 +5,8 @@ The `topic_modeling` module implements Lexos topic modeling functionality. Curre
 
 ## Mallet
 
-See [Mallet](mallet/mallet.md) for API details.
+See [Mallet](mallet.md) for API details.
 
 ## DFR Browser 2
 
-See [DFR Browser 2](dfr_browser/dfr_browser2.md) for API details.
+See [DFR Browser 2](dfr_browser2.md) for API details.

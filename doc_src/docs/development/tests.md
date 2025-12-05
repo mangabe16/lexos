@@ -2,7 +2,7 @@
 
 Lexos uses the [pytest](http://doc.pytest.org/) framework for testing. For more info on this, see the [pytest documentation](http://docs.pytest.org/en/latest/contents.html).
 
-Tests for Lexos modules and classes live in their own directories of the same name. For example, tests for the `Tokenizer` can be found in [`/tests/tokenizer`](tokenizer). To be interpreted and run, all test files and test functions need to be prefixed with `test_`.
+Tests for Lexos modules and classes live in their own directories of the same name. For example, tests for the `Tokenizer` can be found in `/tests/tokenizer`. To be interpreted and run, all test files and test functions need to be prefixed with `test_`.
 
 When adding tests, make sure to use descriptive names, keep the code short and concise and only test for one behavior at a time. Try to `parametrize` test cases wherever possible, use our pre-defined fixtures for spaCy components and avoid unnecessary imports. Extensive tests that take a long time should be marked with `@pytest.mark.slow`.
 

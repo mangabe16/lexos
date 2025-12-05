@@ -1,6 +1,6 @@
 # Code Conventions
 
-For a general overview of code conventions for contributors, see the [section in the contributing guide](contributing.md#code-conventions).
+This page provides a general overview of code conventions used in the Lexos project.
 
 ## Code Compatibility
 

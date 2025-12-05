@@ -8,7 +8,7 @@
 
 The Lexos API is a library of methods for programmatically implementing and extending the functionality in the <a href="http://lexos.wheatoncollege.edu/" target="_blank">Lexos</a> text analysis tool. Eventually, the web app will be rewritten to use the API directly. The goal of this beta stage of development is to reproduce (and in some cases extend) the functionality of the current web app, as well as to identify bugs and polish the documentation prior to the release of version 1.0.0.
 
-For the moment, much of the thinking behind the API's architecture is explained in the [User Guide](user-guide).
+For the moment, much of the thinking behind the API's architecture is explained in the [User Guide](user_guide/index.md).
 
 **Current Status:** v0.0.1-beta
 

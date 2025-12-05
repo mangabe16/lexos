@@ -41,7 +41,7 @@ To make changes to the Lexos source code or documentation, you will need to have
 
 When fixing a bug, first create an [issue](https://github.com/scottkleinman/lexos/issues) if one does not already exist.
 
-Next, add a test to the relevant file in the [`lexos/tests`](lexos/tests) folder. Then add a [pytestmark](https://docs.pytest.org/en/6.2.x/example/markers.html#working-with-custom-markers), `@pytest.mark.issue(NUMBER)`, to reference the issue number.
+Next, add a test to the relevant file in the `lexos/tests` folder. Then add a [pytestmark](https://docs.pytest.org/en/6.2.x/example/markers.html#working-with-custom-markers), `@pytest.mark.issue(NUMBER)`, to reference the issue number.
 
 ```python
 # Assume you're fixing Issue #1234
@@ -56,7 +56,7 @@ Test for the bug you're fixing, and make sure the test fails. Next, add and comm
 
 ### Contributing Features
 
-When contributing new features, it is important to understand the architecture of the Lexos Library. New features should be added to existing modules or should be created in new modules, as appropriate for the type of feature. All new features must be accompanied by tests and documentation as outlined on the [Lexos Tests](lexos/tests.md) page.
+When contributing new features, it is important to understand the architecture of the Lexos Library. New features should be added to existing modules or should be created in new modules, as appropriate for the type of feature. All new features must be accompanied by tests and documentation as outlined on the [Lexos Tests](tests.md) page.
 
 📖 **For more information on how to create new features, see the [Creating Features](creating-features.md) page.**
 
@@ -104,7 +104,7 @@ All Python code must be compatible with Python 3.12+ and follow the project's co
 
 ## Adding Tests
 
-Lexos uses the [pytest](http://doc.pytest.org/) framework for testing. For more info on this, see the [pytest documentation](http://docs.pytest.org/en/latest/contents.html). Tests for Lexos modules and classes live in their own directories of the same name. For example, tests for the `Tokenizer` class can be found in [`/lexos/tests/tokenizer`](lexs/tests/tokenizer). To be interpreted and run, all test files and test functions need to be prefixed with `test_`.
+Lexos uses the [pytest](http://doc.pytest.org/) framework for testing. For more info on this, see the [pytest documentation](http://docs.pytest.org/en/latest/contents.html). Tests for Lexos modules and classes live in their own directories of the same name. For example, tests for the `Tokenizer` class can be found in the `/lexos/tests/tokenizer` folder. To be interpreted and run, all test files and test functions need to be prefixed with `test_`.
 
 📖 **For more guidelines and information on how to add tests, check out the separate [Lexos Tests](tests.md) page.**
 
