@@ -1,6 +1,6 @@
 # Tags
 
-A set of functions to replace or remove HTML/XML tags using [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/).
+A set of functions to replace or remove HTML/XML tags using <a href="https://www.crummy.com/software/BeautifulSoup/" target="_blank">Beautiful Soup</a>.
 
 ::: lexos.scrubber.tags
   handler: python

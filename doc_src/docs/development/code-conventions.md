@@ -8,7 +8,7 @@ Lexos supports **Python 3.12** and above, so all code should be written compatib
 
 ## Auto-Formatting
 
-Lexos uses [`ruff`](https://docs.astral.sh/ruff/) for auto-formatting. `ruff` is an opinionated Python code formatter, optimized to produce readable code and small diffs. The following examples show how to run `ruff` from the command-line.
+Lexos uses <code><a href="https://docs.astral.sh/ruff/" target="_blank">ruff</a></code> for auto-formatting. `ruff` is an opinionated Python code formatter, optimized to produce readable code and small diffs. The following examples show how to run `ruff` from the command-line.
 
 ### Lint Your Code
 
@@ -28,7 +28,7 @@ uv run ruff check . --fix
 uv run ruff format .
 ```
 
-You can also run `ruff` in your code editor. For example, if you're using [Visual Studio Code](https://code.visualstudio.com/), you can set up **Ruff** as the default formatter. Add the following to your `settings.json` (in the command pallette, type `Preferences: Open Settings (JSON)`):
+You can also run `ruff` in your code editor. For example, if you're using <a href="https://code.visualstudio.com" target="_blank">Visual Studio Code</a>, you can set up **Ruff** as the default formatter. Add the following to your `settings.json` (in the command pallette, type `Preferences: Open Settings (JSON)`):
 
 ```json
 {
@@ -64,10 +64,10 @@ To ignore a given line, you can add a comment like `# noqa: F401`, specifying th
 
 All functions and methods you write should be documented with a docstring inline. The docstring can contain a simple summary, and an overview of the arguments and their (simplified) types. Modern editors will show this information to users when they call the function or method in their code.
 
-The Lexos project follows the [Google Style Python Docstrings](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) for docstrings. This is a widely used style guide that provides a consistent format for writing docstrings in Python code. It is recommended to follow this style guide for all docstrings in the Lexos project.
+The Lexos project follows the <a href="https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings" target="_blank">Google Style Python Docstrings</a> for docstrings. This is a widely used style guide that provides a consistent format for writing docstrings in Python code. It is recommended to follow this style guide for all docstrings in the Lexos project.
 
 !!! note
-    The Lexos project uses [mkdocs](https://www.mkdocs.org/) to generate API documentation from directly docstrings. The API documentation is automatically generated from the docstrings in the codebase, so it is important to keep the docstrings up to date and consistent with the code.
+    The Lexos project uses <a href="https://www.mkdocs.org/" target="_blank">MkDocs</a> to generate API documentation from directly docstrings. The API documentation is automatically generated from the docstrings in the codebase, so it is important to keep the docstrings up to date and consistent with the code.
 
 The basic structure of a docstring in the Google Style is as follows:
 
@@ -168,7 +168,7 @@ Note that we typically put the `from typing` import statements on the first line
 
 ## Formatting Strings
 
-Wherever possible, use [f-strings](https://docs.python.org/3/tutorial/inputoutput.html#formatted-string-literals) for any formatting of strings.
+Wherever possible, use <a href="https://docs.python.org/3/tutorial/inputoutput.html#formatted-string-literals" target="_blank">f-strings</a> for any formatting of strings.
 
 ## Structuring Logic
 
@@ -191,7 +191,7 @@ Note that Pydantic enforces the use of keyword arguments instead of positional a
 
 ### Avoid Mutable Default Arguments
 
-A common Python gotcha are [mutable default arguments](https://docs.python-guide.org/writing/gotchas/#mutable-default-arguments): if your argument defines a mutable default value like `[]` or `{}` and then goes and mutates it, the default value is created _once_ when the function is created and the same object is then mutated every time the function is called. This can be pretty unintuitive when you first encounter it. We therefore avoid writing logic that does this.
+A common Python gotcha are <a href="https://docs.python-guide.org/writing/gotchas/#mutable-default-arguments" target="_blank">mutable default arguments</a>: if your argument defines a mutable default value like `[]` or `{}` and then goes and mutates it, the default value is created _once_ when the function is created and the same object is then mutated every time the function is called. This can be pretty unintuitive when you first encounter it. We therefore avoid writing logic that does this.
 
 ### Don't Use `try`/`except` for Control Flow
 
@@ -231,7 +231,7 @@ If you have to use `try`/`except`, make sure to only include what's **absolutely
 
 ### Avoid Lambda Functions
 
-`lambda` functions can be useful for defining simple anonymous functions in a single line, but they also introduce problems: for instance, they require [additional logic](https://stackoverflow.com/questions/25348532/can-python-pickle-lambda-functions) in order to be pickled and are pretty ugly to type-annotate. So we typically avoid them in the code base and only use them in the serialization handlers and within tests for simplicity. Instead of `lambda`s, check if your code can be refactored to not need them, or use helper functions instead.
+`lambda` functions can be useful for defining simple anonymous functions in a single line, but they also introduce problems: for instance, they require <a href="https://stackoverflow.com/questions/25348532/can-python-pickle-lambda-functions" target="_blank">additional logic</a> in order to be pickled and are pretty ugly to type-annotate. So we typically avoid them in the code base and only use them in the serialization handlers and within tests for simplicity. Instead of `lambda`s, check if your code can be refactored to not need them, or use helper functions instead.
 
 ```diff
 - split_string: Callable[[str], List[str]] = lambda value: [v.strip() for v in value.split(",")]
@@ -313,7 +313,7 @@ except ValueError as e:
     raise LexosException(f"Something went wrong: {e}")
 ```
 
-The second example exemplifes what we might do if we anticipate possible errors in third-party code that we don't control, or our own code in a very different context, we typically try to provide custom and more specific error messages if possible. This is an example of [re-raising `from`](https://docs.python.org/3/tutorial/errors.html#exception-chaining) the original caught exception so the user sees both the original error, as well as the custom message.
+The second example exemplifes what we might do if we anticipate possible errors in third-party code that we don't control, or our own code in a very different context, we typically try to provide custom and more specific error messages if possible. This is an example of <a href="https://docs.python.org/3/tutorial/errors.html#exception-chaining" target="_blank">re-raising from</a> the original caught exception so the user sees both the original error, as well as the custom message.
 
 ### Avoid Using Naked `assert`
 

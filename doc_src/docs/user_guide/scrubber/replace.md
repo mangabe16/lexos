@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `replace` component of Scrubber is a submodule containing functions for components replacing strings and string patterns from text. This includes functions for replacing diacritics, punctuation marks, digits, HTML and XML markup tags, and other items that are typically removed from texts prior to analysis. This page offers an overview of the component functions. For a fuller description of their usage, see the [API documentation](api/scrubber/remove/).
+The `replace` component of Scrubber is a submodule containing functions for components replacing strings and string patterns from text. This includes functions for replacing diacritics, punctuation marks, digits, HTML and XML markup tags, and other items that are typically removed from texts prior to analysis. This page offers an overview of the component functions. For a fuller description of their usage, see the [API documentation](../../api/scrubber/replace.md).
 
 Here is a list of the functions available in the `replace` component:
 
@@ -18,7 +18,7 @@ Here is a list of the functions available in the `replace` component:
 - `urls`: Replaces all urls with a common symbol.
 - `user_handles`: Replaces all Twitter-style user handles with a common symbol.
 
-Each function has parameters that allow you to specify how the function should behave. For example, the `re_pattern` function allows you to specify a regular expression pattern to match and replace in the text. The `re_punctuation` function allows you to specify which punctuation marks should be replaced with whitespace. The functions that replace patterns with a common symbol allow you to specify the common symbol, such as "_EMAIL_". See the [API documentation](api/scrubber/remove/) for more details on the parameters available for each function.
+Each function has parameters that allow you to specify how the function should behave. For example, the `re_pattern` function allows you to specify a regular expression pattern to match and replace in the text. The `re_punctuation` function allows you to specify which punctuation marks should be replaced with whitespace. The functions that replace patterns with a common symbol allow you to specify the common symbol, such as "_EMAIL_". See the [API documentation](../../api/scrubber/replace.md) for more details on the parameters available for each function.
 
 !!! note
     The `replace` component can often perform the same or similar actions on text, so it is up to the user to decide which is appropriate. For instance, both components have methods for manipulating digits and punctuation marks. In order to disambiguate the function calls, we adopt the convention of naming ambiguous functions in the `replace` component with the prefix `re_` (which visually imitates the usage of the Python `re` module).

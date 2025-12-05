@@ -38,7 +38,7 @@ The **replace** submodule contains functions which replace [currency symbols](re
 
 ### [Resources](resources.md)
 
-The **resources** submodule contains the [HTMLTextExtractor](resources.md/#lexos.scrubber.resources.HTMLTextExtractor) class, a subclass of [html.parser.HTMLParser](https://docs.python.org/3/library/html.parser.html).
+The **resources** submodule contains the [HTMLTextExtractor](resources.md/#lexos.scrubber.resources.HTMLTextExtractor) class, a subclass of <a href="https://docs.python.org/3/library/html.parser.html" target="_blank">html.parser.HTMLParser</a>.
 
 ### [Scrubber](scrubber.md)
 
@@ -46,7 +46,7 @@ The **scrubber** submodule contains the main logic for the Scrubber module. It c
 
 ### [Tags](tags.md)
 
-The **tags** submodule uses [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) for several functions to [remove attributes](tags.md/#lexos.scrubber.tags.remove_attribute), [remove comments](tags.md/#lexos.scrubber.tags.remove_comments), [remove doctypes](tags.md/#lexos.scrubber.tags.remove_doctype), [remove elements](tags.md/#lexos.scrubber.tags.remove_element), [remove tags](tags.md/#lexos.scrubber.tags.remove_tag), [replace attributes](tags.md/#lexos.scrubber.tags.replace_attribute), and [replace tags](tags.md/#lexos.scrubber.tags.replace_tag) in HTML and XML files.
+The **tags** submodule uses <a href="https://www.crummy.com/software/BeautifulSoup/" target="_blank">Beautiful Soup</a> for several functions to [remove attributes](tags.md/#lexos.scrubber.tags.remove_attribute), [remove comments](tags.md/#lexos.scrubber.tags.remove_comments), [remove doctypes](tags.md/#lexos.scrubber.tags.remove_doctype), [remove elements](tags.md/#lexos.scrubber.tags.remove_element), [remove tags](tags.md/#lexos.scrubber.tags.remove_tag), [replace attributes](tags.md/#lexos.scrubber.tags.replace_attribute), and [replace tags](tags.md/#lexos.scrubber.tags.replace_tag) in HTML and XML files.
 
 ### [Utils](utils.md)
 

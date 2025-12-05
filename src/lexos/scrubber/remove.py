@@ -17,10 +17,15 @@ from lexos.util import ensure_list, to_collection
 
 validation_config = ConfigDict(arbitrary_types_allowed=True)
 
+
 @validate_call(config=validation_config)
-def accents(text: str, *, fast: Optional[bool] = False, accents: Optional[str | tuple[str, ...]] = None) -> str:
-    """Remove accents from any accented unicode characters in `text`, either
-    by replacing them with ASCII equivalents or removing them entirely.
+def accents(
+    text: str,
+    *,
+    fast: Optional[bool] = False,
+    accents: Optional[str | tuple[str, ...]] = None,
+) -> str:
+    """Remove accents from any accented unicode characters in `text`, either by replacing them with ASCII equivalents or removing them entirely.
 
     Args:
         text (str): The text from which accents will be removed.
@@ -75,8 +80,7 @@ def brackets(
     *,
     only: Optional[str | Collection[str]] = ["curly", "square", "round"],
 ) -> str:
-    """Remove text within curly {}, square [], and/or round () brackets, as well as
-    the brackets themselves.
+    """Remove text within curly {}, square [], and/or round () brackets, as well as the brackets themselves.
 
     Args:
         text (str): The text from which brackets will be removed.
@@ -127,7 +131,7 @@ def digits(text: str, *, only: Optional[str | Collection[str]] = None) -> str:
     """
     if only:
         if isinstance(only, list):
-            pattern = re.compile(f'[{"".join(only)}]')
+            pattern = re.compile(f"[{''.join(only)}]")
         else:
             pattern = re.compile(only)
     else:
@@ -212,7 +216,9 @@ def project_gutenberg_headers(text: str) -> str:
     return sep.join(out).strip()
 
 
-def tags(text: str, sep: Optional[str] = " ", remove_whitespace: Optional[bool] = True) -> str:
+def tags(
+    text: str, sep: Optional[str] = " ", remove_whitespace: Optional[bool] = True
+) -> str:
     """Remove tags from `text`.
 
     Args:
