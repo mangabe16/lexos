@@ -389,5 +389,7 @@ class DTM(BaseModel):
                 df["Median"] = np.median(df.to_numpy())
         if transpose:
             df = df.T
-        df = df.sort_values(by=by, ascending=ascending)
+        if by is not None: # only sort when "by" is provided
+            df = df.sort_values(by=by, ascending=ascending)
+
         return df
