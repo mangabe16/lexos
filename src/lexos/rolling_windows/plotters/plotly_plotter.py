@@ -1,11 +1,11 @@
 """plotly_plotter.py.
 
-Last Update: September 13, 2025
+Last Update: December 4, 2025
 Last Tested: September 13, 2025
 """
 
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -136,14 +136,14 @@ class PlotlyPlotter(BasePlotter):
 
     @validate_call(config=model_config)
     def plot(
-        self, show: Optional[bool] = True, config: Optional[dict] = None, **kwargs
+        self, show: Optional[bool] = True, config: Optional[dict] = None, **kwargs: Any
     ) -> None:
         """Initialise object.
 
         Args:
             show (Optional[bool]): Whether to display the plot immediately.
             config (Optional[dict]): A dictionary supply Plotly configuration values.
-            **kwargs: Additional keyword arguments accepted by plotly.express.line.
+            **kwargs (Any): Additional keyword arguments accepted by plotly.express.line.
 
         """
         # Massage the DataFrame for Plotly Express
@@ -287,12 +287,12 @@ class PlotlyPlotter(BasePlotter):
         )
 
     @validate_call(config=model_config)
-    def save(self, path: Path | str, **kwargs) -> None:
+    def save(self, path: Path | str, **kwargs: Any) -> None:
         """Save the plot to a file.
 
         Args:
             path (Path | str): The path to the file to save.
-            **kwargs: Additional keyword arguments accepted by plotly.io.write_html or plotly.io.write_image.
+            **kwargs (Any): Additional keyword arguments accepted by plotly.io.write_html or plotly.io.write_image.
         """
         if not self.fig:
             raise LexosException(

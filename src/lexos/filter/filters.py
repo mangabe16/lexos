@@ -1,6 +1,6 @@
 """filters.py.
 
-Last Update: June 24, 2025
+Last Update: December 5, 2025
 Last Tested: June 24, 2025
 
 The filter model provides a base class for applying filters to a document and returning
@@ -31,9 +31,11 @@ class BaseFilter(BaseModel):
     """BaseFilter class."""
 
     id: ClassVar[str] = "base_filter"
-    doc: Optional[Doc] = None
-    matcher: Optional[Matcher] = None
-    matches: Optional[list[tuple[int, int, int]]] = None
+    doc: Optional[Doc] = Field(default=None, description="A spaCy doc.")
+    matcher: Optional[Matcher] = Field(default=None, description="A spaCy matcher.")
+    matches: Optional[list[tuple[int, int, int]]] = Field(
+        default=None, description="List of matches."
+    )
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
@@ -41,7 +43,15 @@ class BaseFilter(BaseModel):
 
     @validate_call(config=model_config)
     def __call__(self, doc: Optional[Doc], matcher: Optional[Matcher] = None) -> Doc:
-        """Call the filter function."""
+        """Call the filter function.
+
+        Args:
+            doc (Optional[Doc]): A spaCy doc.
+            matcher (Optional[Matcher]): A spaCy matcher.
+
+        Returns:
+            Doc: The filtered doc.
+        """
         # Validate the inputs
         if not doc and not self.doc:
             raise LexosException("No doc has been assigned to the filter.")
@@ -110,9 +120,13 @@ class IsRomanFilter(BaseFilter):
     """A filter for Roman numerals."""
 
     id: ClassVar[str] = "is_roman"
-    doc: Optional[Doc] = None
-    attr: Optional[str] = None
-    default: Optional[Any] = None
+    doc: Optional[Doc] = Field(default=None, description="A spaCy doc.")
+    attr: Optional[str] = Field(
+        default=None, description="The name of the attribute to add to the tokens."
+    )
+    default: Optional[Any] = Field(
+        default=None, description="The default value of the attribute."
+    )
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
@@ -127,16 +141,15 @@ class IsRomanFilter(BaseFilter):
     @validate_call(config=model_config)
     def __call__(
         self,
-        doc: Optional[Doc],
-        attr: Optional[str] = None,
-        default: Optional[Any] = None,
+        doc: Optional[Doc] = Field(default=None, description="A spaCy doc."),
+        attr: Optional[str] = Field(
+            default=None, description="The name of the attribute to add to the tokens."
+        ),
+        default: Optional[Any] = Field(
+            default=None, description="The default value of the attribute."
+        ),
     ) -> Doc:
         """Apply the filter.
-
-        Args:
-            doc (Optional[Doc]): A spaCy doc.
-            attr (Optional[str]): The name of the attribute to add to the tokens.
-            default (Optional[Any]): The default value of the attribute.
 
         Returns:
             Doc: The filtered doc.
@@ -148,16 +161,22 @@ class IsRomanFilter(BaseFilter):
             self.attr = attr
         if default is not None:
             self.default = default
-        
+
         # Use instance attributes if we have them
         working_doc = self.doc if self.doc is not None else doc
-        working_attr = self.attr if hasattr(self, 'attr') and self.attr is not None else attr
-        working_default = self.default if hasattr(self, 'default') and self.default is not None else default
-        
+        working_attr = (
+            self.attr if hasattr(self, "attr") and self.attr is not None else attr
+        )
+        working_default = (
+            self.default
+            if hasattr(self, "default") and self.default is not None
+            else default
+        )
+
         # Set custom extensions
         if working_attr:
             self._set_extensions(working_attr, working_default)
-        
+
         # Apply the filter only if we have a valid doc
         if working_doc is not None:
             for i, token in enumerate(working_doc):
@@ -185,21 +204,25 @@ class IsStopwordFilter(BaseFilter):
     """A filter to detect stop words in a spaCy doc."""
 
     id: ClassVar[str] = "is_stopword"
-    doc: Optional[Doc] = None
-    stopwords: Optional[list | str] = None
-    remove: Optional[bool] = False
+    doc: Optional[Doc] = Field(default=None, description="A spaCy doc.")
+    stopwords: Optional[list | str] = Field(
+        default=None,
+        description="A list or string containing the stop word(s) to add or remove.",
+    )
+    remove: Optional[bool] = Field(
+        default=False,
+        description="If True, the stop word(s) will be removed from the model.",
+    )
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
     )
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any):
         """Initialise the filter object with configuration.
 
         Args:
-            doc (Optional[Doc]): A spaCy doc.
-            stopwords (Optional[list | str]): A list or string containing the stop word(s) to add or remove.
-            remove (Optional[bool]): If True, the stop word(s) will be removed from the model.
+            **data (Any): Configuration data
         """
         super().__init__(**data)
         self.stopwords = ensure_list(self.stopwords)
@@ -207,16 +230,17 @@ class IsStopwordFilter(BaseFilter):
     @validate_call(config=model_config)
     def __call__(
         self,
-        doc: Optional[Doc],
-        stopwords: Optional[list | str] = None,
-        remove: Optional[bool] = False,
+        doc: Optional[Doc] = Field(default=None, description="A spaCy doc."),
+        stopwords: Optional[list | str] = Field(
+            default=None,
+            description="A list or string containing the stop word(s) to add or remove.",
+        ),
+        remove: Optional[bool] = Field(
+            default=False,
+            description="If True, the stop word(s) will be removed from the model.",
+        ),
     ) -> Doc:
         """Apply the filter.
-
-        Args:
-            doc (Optional[Doc]): A spaCy doc.
-            stopwords (Optional[list | str]): A list or string containing the stop word(s) to add or remove.
-            default (Optional[Any]): If True, the stop word(s) will be removed from the model.
 
         Returns:
             Doc: The filtered doc.
@@ -232,25 +256,33 @@ class IsStopwordFilter(BaseFilter):
             self.stopwords = ensure_list(stopwords)
         if remove is not None:
             self.remove = remove
-        
+
         # Use instance attributes if parameters are None
         working_doc = self.doc if self.doc is not None else doc
         # Handle stopwords carefully - convert to list if it's a pydantic ValidatorIterator
-        if stopwords is None and hasattr(self, 'stopwords') and self.stopwords is not None:
+        if (
+            stopwords is None
+            and hasattr(self, "stopwords")
+            and self.stopwords is not None
+        ):
             try:
                 working_stopwords = list(self.stopwords)
             except (TypeError, AttributeError):
                 working_stopwords = self.stopwords
         else:
             working_stopwords = stopwords
-        working_remove = self.remove if hasattr(self, 'remove') and self.remove is not None else remove
-        
+        working_remove = (
+            self.remove
+            if hasattr(self, "remove") and self.remove is not None
+            else remove
+        )
+
         # Apply the filter only if we have valid inputs
         if working_doc is not None and working_stopwords is not None:
             # Ensure stopwords is iterable and properly formatted
             if not isinstance(working_stopwords, list):
                 working_stopwords = ensure_list(working_stopwords)
-            
+
             if working_remove:
                 for item in working_stopwords:
                     if item is not None:  # Skip None values
@@ -267,29 +299,38 @@ class IsWordFilter(BaseFilter):
     """A filter to detect words in a spaCy doc."""
 
     id: ClassVar[str] = "is_word"
-    doc: Optional[Doc] = None
-    attr: Optional[str] = "is_word"
-    default: Optional[bool] = False
-    exclude: Optional[Optional[list[str] | str]] = [" ", "\n"]
-    exclude_digits: Optional[Optional[bool]] = False
-    exclude_roman_numerals: Optional[Optional[bool]] = False
-    exclude_pattern: Optional[list[str] | str] = None
+    doc: Optional[Doc] = Field(default=None, description="A spaCy doc.")
+    attr: Optional[str] = Field(
+        default="is_word", description="The name of the attribute to add to the tokens."
+    )
+    default: Optional[bool] = Field(
+        default=False, description="The default value of the attribute."
+    )
+    exclude: Optional[Optional[list[str] | str]] = Field(
+        default=[" ", "\n"],
+        description="A string/regex or list of strings/regex patterns to exclude.",
+    )
+    exclude_digits: Optional[Optional[bool]] = Field(
+        default=False, description="If True, digits will not be treated as words."
+    )
+    exclude_roman_numerals: Optional[Optional[bool]] = Field(
+        default=False,
+        description="Same as above for Roman numerals, but only works on capital letters.",
+    )
+    exclude_pattern: Optional[list[str] | str] = Field(
+        default=None,
+        description="Additional patterns to add to the default exclude list.",
+    )
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True, json_schema_extra=DocJSONSchema.schema()
     )
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any):
         """Initialise the filter object with configuration.
 
         Args:
-            doc (Optional[Doc]): A spaCy doc.
-            attr (Optional[str]): The name of the attribute to add to the tokens.
-            default (Optional[Any]): The default value of the attribute.
-            exclude (Optional[list[str] | str]): A string/regex or list of strings/regex patterns to exclude.
-            exclude_digits: (Optional[bool]): If True, digits will not be treated as words.
-            exclude_roman_numerals (Optional[bool]): Same as above for Roman numerals, but only works on capital letters.
-            exclude_pattern (Optional[list[str] | str]): Additional patterns to add to the default exclude list.
+            **data (Any): Configuration data
         """
         super().__init__(**data)
         if self.attr:
@@ -298,24 +339,31 @@ class IsWordFilter(BaseFilter):
     @validate_call(config=model_config)
     def __call__(
         self,
-        doc: Optional[Doc],
-        attr: Optional[str] = "is_word",
-        default: Optional[bool] = False,
-        exclude: Optional[list[str] | str] = [" ", "\n"],
-        exclude_digits: Optional[bool] = False,
-        exclude_roman_numerals: Optional[bool] = False,
-        exclude_pattern: Optional[list[str] | str] = None,
+        doc: Optional[Doc] = Field(default=None, description="A spaCy doc."),
+        attr: Optional[str] = Field(
+            default="is_word",
+            description="The name of the attribute to add to the tokens.",
+        ),
+        default: Optional[bool] = Field(
+            default=False, description="The default value of the attribute."
+        ),
+        exclude: Optional[list[str] | str] = Field(
+            default=[" ", "\n"],
+            description="A string/regex or list of strings/regex patterns to exclude.",
+        ),
+        exclude_digits: Optional[bool] = Field(
+            default=False, description="If True, digits will not be treated as words."
+        ),
+        exclude_roman_numerals: Optional[bool] = Field(
+            default=False,
+            description="Same as above for Roman numerals, but only works on capital letters.",
+        ),
+        exclude_pattern: Optional[list[str] | str] = Field(
+            default=None,
+            description="Additional patterns to add to the default exclude list.",
+        ),
     ) -> Doc:
         """Apply the filter.
-
-        Args:
-            doc (Optional[Doc]): A spaCy doc.
-            attr (Optional[str]): The name of the attribute to add to the tokens.
-            default (Optional[Any]): The default value of the attribute.
-            exclude (Optional[list[str] | str]): A string/regex or list of strings/regex patterns to exclude.
-            exclude_digits: (Optional[bool]): If True, digits will not be treated as words.
-            exclude_roman_numerals (Optional[bool]): Same as above for Roman numerals, but only works on capital letters.
-            exclude_pattern (Optional[list[str] | str]): Additional patterns to add to the default exclude list.
 
         Returns:
             Doc: The filtered doc.
@@ -335,16 +383,22 @@ class IsWordFilter(BaseFilter):
             self.attr = attr
         if default is not None:
             self.default = default
-        
+
         # Use instance attributes if we have them
         working_doc = self.doc if self.doc is not None else doc
-        working_attr = self.attr if hasattr(self, 'attr') and self.attr is not None else attr
-        working_default = self.default if hasattr(self, 'default') and self.default is not None else default
-        
+        working_attr = (
+            self.attr if hasattr(self, "attr") and self.attr is not None else attr
+        )
+        working_default = (
+            self.default
+            if hasattr(self, "default") and self.default is not None
+            else default
+        )
+
         # Set ._is_word extension
         if working_attr:
             self._set_extensions(working_attr, working_default)
-        
+
         # Apply the filter only if we have a valid doc
         if working_doc is not None:
             for i, token in enumerate(working_doc):

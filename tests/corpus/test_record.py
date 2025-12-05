@@ -2,13 +2,15 @@
 
 Test suite for the Record class in lexos.corpus.record.
 
-Last Update: 2025-06-23.
+Coverage: 100%
+
+Last Update: 2025-11-20.
 """
 
-import uuid
 import tempfile
-from pathlib import Path
+import uuid
 from collections import Counter
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -17,6 +19,7 @@ import pytest
 try:
     import spacy
     from spacy.tokens import Doc, Token
+
     SPACY_AVAILABLE = True
 except ImportError:
     SPACY_AVAILABLE = False
@@ -29,6 +32,7 @@ try:
     from lexos.corpus.record import Record
     from lexos.corpus.utils import LexosModelCache
     from lexos.exceptions import LexosException
+
     CORPUS_AVAILABLE = True
 except ImportError as e:
     CORPUS_AVAILABLE = False
@@ -36,8 +40,7 @@ except ImportError as e:
 
 # Mark all tests to skip if dependencies not available
 pytestmark = pytest.mark.skipif(
-    not CORPUS_AVAILABLE, 
-    reason="Corpus module dependencies not available"
+    not CORPUS_AVAILABLE, reason="Corpus module dependencies not available"
 )
 
 
@@ -69,10 +72,7 @@ def sample_doc(nlp, sample_text):
 def sample_record_text(sample_text):
     """Sample Record with text content."""
     return Record(
-        id=str(uuid.uuid4()),
-        name="test_record",
-        content=sample_text,
-        is_active=True
+        id=str(uuid.uuid4()), name="test_record", content=sample_text, is_active=True
     )
 
 
@@ -84,7 +84,7 @@ def sample_record_doc(sample_doc):
         name="test_record_doc",
         content=sample_doc,
         is_active=True,
-        model="en_core_web_sm"
+        model="en_core_web_sm",
     )
 
 
@@ -93,11 +93,7 @@ class TestRecordBasic:
 
     def test_record_creation_with_text(self, sample_text):
         """Test creating a Record with text content."""
-        record = Record(
-            name="test",
-            content=sample_text,
-            is_active=True
-        )
+        record = Record(name="test", content=sample_text, is_active=True)
         assert record.name == "test"
         assert record.content == sample_text
         assert record.is_active is True
@@ -105,11 +101,7 @@ class TestRecordBasic:
 
     def test_record_creation_with_doc(self, sample_doc):
         """Test creating a Record with Doc content."""
-        record = Record(
-            name="test_doc",
-            content=sample_doc,
-            is_active=True
-        )
+        record = Record(name="test_doc", content=sample_doc, is_active=True)
         assert record.name == "test_doc"
         assert record.content == sample_doc
         assert record.is_active is True
@@ -128,7 +120,7 @@ class TestRecordBasic:
         repr_text = repr(sample_record_text)
         assert "Record(" in repr_text
         assert "name=test_record" in repr_text
-        
+
         repr_doc = repr(sample_record_doc)
         assert "Record(" in repr_doc
         assert "name=test_record_doc" in repr_doc
@@ -148,7 +140,7 @@ class TestRecordProperties:
         assert preview_text.endswith("...")
         # The preview shows 50 chars + "..." but actual implementation may vary slightly
         assert len(preview_text) <= 55  # Allow some flexibility for implementation
-        
+
         preview_doc = sample_record_doc.preview
         assert preview_doc.endswith("...")
         assert len(preview_doc) <= 55
@@ -285,17 +277,13 @@ class TestRecordSerialization:
         # Add a custom extension
         if not Token.has_extension("test_ext"):
             Token.set_extension("test_ext", default="test_value")
-        
+
         doc = nlp("Test document")
         for token in doc:
             token._.test_ext = f"value_{token.i}"
-        
-        record = Record(
-            name="test_with_ext",
-            content=doc,
-            extensions=["test_ext"]
-        )
-        
+
+        record = Record(name="test_with_ext", content=doc, extensions=["test_ext"])
+
         bytes_data = record.to_bytes(extensions=["test_ext"])
         assert isinstance(bytes_data, bytes)
 
@@ -303,15 +291,15 @@ class TestRecordSerialization:
         """Test saving to disk and loading from disk."""
         with tempfile.TemporaryDirectory() as temp_dir:
             file_path = Path(temp_dir) / "test_record.bin"
-            
+
             # Save to disk
             sample_record_doc.to_disk(file_path)
             assert file_path.exists()
-            
+
             # Load from disk
             new_record = Record()
             new_record.from_disk(file_path, model="en_core_web_sm")
-            
+
             assert new_record.name == sample_record_doc.name
             assert new_record.is_active == sample_record_doc.is_active
             assert new_record.text == sample_record_doc.text
@@ -334,7 +322,7 @@ class TestRecordSerialization:
         """Test to_disk with a valid path."""
         with tempfile.TemporaryDirectory() as temp_dir:
             file_path = Path(temp_dir) / "test_record.bin"
-            
+
             # This should work without raising an exception
             try:
                 sample_record_doc.to_disk(file_path)
@@ -346,7 +334,7 @@ class TestRecordSerialization:
     def test_from_disk_with_nonexistent_path(self, sample_record_doc):
         """Test from_disk with a non-existent path."""
         nonexistent_path = Path("nonexistent_file.bin")
-        
+
         # This should raise some kind of exception (file not found, etc.)
         with pytest.raises(Exception):
             sample_record_doc.from_disk(nonexistent_path)
@@ -355,11 +343,11 @@ class TestRecordSerialization:
         """Test from_bytes method."""
         # First serialize
         bytes_data = sample_record_doc.to_bytes()
-        
+
         # Create new record and deserialize
         new_record = Record()
         new_record.from_bytes(bytes_data, model="en_core_web_sm")
-        
+
         assert new_record.name == sample_record_doc.name
         assert new_record.is_active == sample_record_doc.is_active
 
@@ -403,7 +391,9 @@ class TestRecordVocab:
         """Test _get_vocab raises exception with cache but no model."""
         record = Record()
         cache = LexosModelCache()
-        with pytest.raises(LexosException, match="Model cache provided but no model specified"):
+        with pytest.raises(
+            LexosException, match="Model cache provided but no model specified"
+        ):
             record._get_vocab(model_cache=cache)
 
 
@@ -415,24 +405,22 @@ class TestRecordExtensions:
         # Add custom extension
         if not Token.has_extension("test_ext"):
             Token.set_extension("test_ext", default=None)
-        
+
         doc = nlp("Test document")
         for i, token in enumerate(doc):
             token._.test_ext = f"value_{i}"
-        
-        record = Record(
-            name="test",
-            content=doc,
-            extensions=["test_ext"]
-        )
-        
+
+        record = Record(name="test", content=doc, extensions=["test_ext"])
+
         # Convert to bytes
         doc_bytes = record._doc_to_bytes()
-        
+
         # Convert back from bytes
         cache = LexosModelCache()
-        new_doc = record._doc_from_bytes(doc_bytes, model="en_core_web_sm", model_cache=cache)
-        
+        new_doc = record._doc_from_bytes(
+            doc_bytes, model="en_core_web_sm", model_cache=cache
+        )
+
         # Check that extensions are preserved
         for i, token in enumerate(new_doc):
             assert token._.test_ext == f"value_{i}"
@@ -467,18 +455,14 @@ class TestRecordEdgeCases:
         """Test field serializer properly handles extensions."""
         if not Token.has_extension("custom"):
             Token.set_extension("custom", default="default")
-        
+
         doc = nlp("Test text")
-        record = Record(
-            name="test",
-            content=doc,
-            extensions=["custom"]
-        )
-        
+        record = Record(name="test", content=doc, extensions=["custom"])
+
         # The field serializer should be called during model_dump
         dumped = record.model_dump()
         assert isinstance(dumped["content"], bytes)
-    
+
     def test_record_repr_else_branch(self):
         """Test else branch in __repr__."""
         # Create a Record with no content
@@ -487,12 +471,12 @@ class TestRecordEdgeCases:
             name="test",
             content=None,
             model="en_core_web_sm",
-            is_active=True
+            is_active=True,
         )
         # __repr__ should hit the else branch and set fields["content"] = "None"
         rep = repr(record)
         assert "content=None" in rep
-    
+
     def test_record_from_bytes_parsed_doc(self, tmp_path, nlp):
         """Test from_bytes with parsed Doc content."""
         # Create a parsed record
@@ -502,7 +486,7 @@ class TestRecordEdgeCases:
             name="test",
             content=doc,
             model="en_core_web_sm",
-            is_active=True
+            is_active=True,
         )
         record.is_parsed  # Ensure property is cached
 
@@ -520,15 +504,18 @@ class TestRecordEdgeCases:
     def test_record_from_disk_raises_on_empty_string(self):
         """Test from_disk raises exception on empty string path."""
         record = Record()
-        with pytest.raises(LexosException, match="No path specified for loading the record."):
+        with pytest.raises(
+            LexosException, match="No path specified for loading the record."
+        ):
             record.from_disk("")
 
     def test_record_to_disk_raises_on_empty_string(self):
         """Test from_disk raises exception on empty string path."""
         record = Record()
-        with pytest.raises(LexosException, match="No path specified for saving the record."):
+        with pytest.raises(
+            LexosException, match="No path specified for saving the record."
+        ):
             record.to_disk("")
-    
 
     def test_record_from_disk_permission_and_ioerror(self, tmp_path):
         """Test from_disk raises exceptions for permission and IO errors."""
@@ -537,7 +524,9 @@ class TestRecordEdgeCases:
 
         # Simulate PermissionError
         with patch("builtins.open", side_effect=PermissionError("No permission")):
-            with pytest.raises(LexosException, match="Permission denied accessing record file"):
+            with pytest.raises(
+                LexosException, match="Permission denied accessing record file"
+            ):
                 record.from_disk(fake_path)
 
         # Simulate generic IOError
@@ -547,14 +536,10 @@ class TestRecordEdgeCases:
 
     def test_record_to_disk_permission_os_io_errors(self, tmp_path, nlp):
         """Test to_disk raises exceptions for permission and IO errors."""
-
         # Create a parsed record
         doc = nlp("foo bar baz")
         record = Record(
-            name="test",
-            content=doc,
-            model="en_core_web_sm",
-            is_active=True
+            name="test", content=doc, model="en_core_web_sm", is_active=True
         )
         file_path = tmp_path / "record.bin"
 
@@ -565,10 +550,231 @@ class TestRecordEdgeCases:
 
         # Simulate OSError with "No space left on device"
         with patch("builtins.open", side_effect=OSError("No space left on device")):
-            with pytest.raises(LexosException, match="Insufficient disk space to save record:"):
+            with pytest.raises(
+                LexosException, match="Insufficient disk space to save record:"
+            ):
                 record.to_disk(file_path)
 
         # Simulate generic OSError
         with patch("builtins.open", side_effect=OSError("Some other OS error")):
             with pytest.raises(LexosException, match="Failed to write record to disk:"):
                 record.to_disk(file_path)
+
+
+class TestRecordMetadataSanitization:
+    """Test Record metadata sanitization for JSON serialization."""
+
+    def test_sanitize_metadata_with_uuid(self):
+        """Test _sanitize_metadata handles UUID objects."""
+        from uuid import uuid4
+
+        record = Record(name="test")
+
+        metadata = {"id": uuid4(), "name": "test"}
+        sanitized = record._sanitize_metadata(metadata)
+
+        assert isinstance(sanitized["id"], str)
+        assert sanitized["name"] == "test"
+
+    def test_sanitize_metadata_with_datetime(self):
+        """Test _sanitize_metadata handles datetime objects."""
+        from datetime import date, datetime
+
+        record = Record(name="test")
+
+        now = datetime.now()
+        today = date.today()
+        metadata = {"timestamp": now, "date": today}
+        sanitized = record._sanitize_metadata(metadata)
+
+        assert isinstance(sanitized["timestamp"], str)
+        assert isinstance(sanitized["date"], str)
+
+    def test_sanitize_metadata_with_path(self):
+        """Test _sanitize_metadata handles Path objects."""
+        from pathlib import Path
+
+        record = Record(name="test")
+
+        metadata = {"path": Path("/some/path")}
+        sanitized = record._sanitize_metadata(metadata)
+
+        assert isinstance(sanitized["path"], str)
+
+    def test_sanitize_metadata_with_nested_dict(self):
+        """Test _sanitize_metadata handles nested dictionaries."""
+        from uuid import uuid4
+
+        record = Record(name="test")
+
+        metadata = {"outer": {"inner": {"id": uuid4()}}}
+        sanitized = record._sanitize_metadata(metadata)
+
+        assert isinstance(sanitized["outer"]["inner"]["id"], str)
+
+    def test_sanitize_metadata_with_list_of_uuids(self):
+        """Test _sanitize_metadata handles lists with UUID objects."""
+        from uuid import uuid4
+
+        record = Record(name="test")
+
+        metadata = {"ids": [uuid4(), uuid4()]}
+        sanitized = record._sanitize_metadata(metadata)
+
+        assert all(isinstance(item, str) for item in sanitized["ids"])
+
+    def test_sanitize_metadata_with_list_of_dicts(self):
+        """Test _sanitize_metadata handles lists with dict objects."""
+        from uuid import uuid4
+
+        record = Record(name="test")
+
+        metadata = {
+            "items": [
+                {"id": uuid4(), "name": "first"},
+                {"id": uuid4(), "name": "second"},
+            ]
+        }
+        sanitized = record._sanitize_metadata(metadata)
+
+        assert all(isinstance(item["id"], str) for item in sanitized["items"])
+
+    def test_sanitize_metadata_with_mixed_list(self):
+        """Test _sanitize_metadata handles lists with mixed types."""
+        from datetime import datetime
+        from pathlib import Path
+        from uuid import uuid4
+
+        record = Record(name="test")
+
+        metadata = {
+            "mixed": [uuid4(), datetime.now(), Path("/test"), "regular string", 123]
+        }
+        sanitized = record._sanitize_metadata(metadata)
+
+        # UUIDs, datetimes, Paths should be strings
+        assert isinstance(sanitized["mixed"][0], str)
+        assert isinstance(sanitized["mixed"][1], str)
+        assert isinstance(sanitized["mixed"][2], str)
+        # Regular values preserved
+        assert sanitized["mixed"][3] == "regular string"
+        assert sanitized["mixed"][4] == 123
+
+
+class TestRecordDeserializationErrors:
+    """Test Record deserialization error handling."""
+
+    def test_from_bytes_invalid_data(self):
+        """Test from_bytes with corrupted data (lines 274-275)."""
+        record = Record(name="test")
+
+        # Invalid msgpack data
+        invalid_data = b"not valid msgpack data"
+
+        with pytest.raises(LexosException, match="Failed to deserialize record"):
+            record.from_bytes(invalid_data)
+
+    def test_from_bytes_hash_mismatch(self, nlp):
+        """Test from_bytes with hash mismatch (line 289)."""
+        import msgpack
+
+        # Create a record and serialize it
+        doc = nlp("Test document")
+        record = Record(name="test", content=doc, model="en_core_web_sm")
+        valid_bytes = record.to_bytes(include_hash=True)
+
+        # Unpack and modify the hash to create a mismatch
+        data = msgpack.unpackb(valid_bytes)
+        if "data_integrity_hash" in data:
+            data["data_integrity_hash"] = "invalid_hash_value_that_wont_match"
+            corrupted_bytes = msgpack.packb(data)
+
+            new_record = Record(name="test2")
+            with pytest.raises(LexosException, match="Data integrity check failed"):
+                new_record.from_bytes(corrupted_bytes, verify_hash=True)
+        else:
+            # If no hash field, skip this test
+            pytest.skip("Hash field not found in serialized data")
+
+    def test_from_bytes_spacy_model_not_found(self):
+        """Test from_bytes when spaCy model is not available (lines 308-311)."""
+        from uuid import uuid4
+
+        import msgpack
+
+        # Create serialized data that requires a non-existent model
+        data = {
+            "name": "test",
+            "is_active": True,
+            "is_parsed": True,
+            "model": "nonexistent_model_xyz",
+            "content": b"fake_content",
+            "id": str(uuid4()),
+            "extensions": [],
+            "meta": {},
+            "data_source": None,
+        }
+        serialized = msgpack.packb(data)
+
+        record = Record(name="test")
+        with pytest.raises(LexosException, match="Failed to load spaCy model"):
+            record.from_bytes(serialized, model="nonexistent_model_xyz")
+
+    def test_from_bytes_spacy_deserialization_error(self, nlp):
+        """Test from_bytes when spaCy deserialization fails (lines 312-315)."""
+        from uuid import uuid4
+
+        import msgpack
+
+        # Create data with invalid doc bytes
+        data = {
+            "name": "test",
+            "is_active": True,
+            "is_parsed": True,
+            "model": "en_core_web_sm",
+            "content": b"invalid_spacy_doc_bytes",
+            "id": str(uuid4()),
+            "extensions": [],
+            "meta": {},
+            "data_source": None,
+        }
+        serialized = msgpack.packb(data)
+
+        record = Record(name="test")
+        with pytest.raises(
+            LexosException, match="Failed to deserialize spaCy document"
+        ):
+            record.from_bytes(serialized, model="en_core_web_sm")
+
+    def test_record_str(self, nlp):
+        """Test __str__ method with all three content states (lines 138-148)."""
+        # Test with None content (line 141)
+        record_none = Record(name="test_none", content=None)
+        str_none = str(record_none)
+        assert "test_none" in str_none
+        # __str__ now reports parsed as boolean 'parsed=False' instead of the word 'unparsed'
+        assert "parsed=False" in str_none
+        assert "content=None" in str_none
+        assert "id=" in str_none
+        assert "active=" in str_none
+
+        # Test with parsed content (line 143)
+        doc = nlp("This is a sample text for testing the string representation")
+        record_parsed = Record(name="test_parsed", content=doc)
+        str_parsed = str(record_parsed)
+        assert "test_parsed" in str_parsed
+        assert "parsed=True" in str_parsed
+        assert "active=True" in str_parsed
+        assert "id=" in str_parsed
+        # content preview should include a reasonable substring of the text
+        assert "This is a sample text for testing the" in str_parsed
+
+        # Test with unparsed string content (line 145)
+        record_unparsed = Record(
+            name="test_unparsed", content="This is unparsed text content"
+        )
+        str_unparsed = str(record_unparsed)
+        assert "test_unparsed" in str_unparsed
+        assert "parsed=False" in str_unparsed
+        assert "active=True" in str_unparsed
+        assert "This is unparsed text content" in str_unparsed

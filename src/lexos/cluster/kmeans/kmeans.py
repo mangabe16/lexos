@@ -2,7 +2,7 @@
 
 Lexos KMeans clustering module for document-term matrices.
 
-Last Updated: 2025-07-26
+Last Updated: 2025-12-04
 Last Tested: 2025-07-26
 
 # TODO:
@@ -10,7 +10,7 @@ Last Tested: 2025-07-26
 """
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -198,15 +198,13 @@ class KMeans(BaseModel):
             return optimal_k
 
     @validate_call(config=model_config)
-    def save(self, path: str | Path, html: bool = False, **kwargs) -> None:
+    def save(self, path: str | Path, html: bool = False, **kwargs: Any) -> None:
         """Save the most recent Plotly figure to an image or HTML file.
 
         Args:
             path (str | Path): Path to the output image file.
             html (bool): If True, save as HTML; otherwise, save as image.
-            **kwargs: Additional parameters for saving the figure.
-            See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html and
-            https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_html.html.
+            **kwargs (Any): Additional parameters for saving the figure. See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html and https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_html.html.
         """
         if self.fig is None:
             raise LexosException("No figure available: run a plot method first.")
@@ -222,7 +220,7 @@ class KMeans(BaseModel):
         title: Optional[str] = None,
         show: bool = False,
         save_path: Optional[str | Path] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[go.Figure]:
         """Generate a 2D or 3D PCA scatter plot of the KMeans clusters.
 
@@ -231,7 +229,7 @@ class KMeans(BaseModel):
             dim: (int): The number of dimensions.
             title (Optional[str]): Optional title for the plot.
             save_path (Optional[str | Path]): Optional file path to save the plot.
-            **kwargs: Additional parameters for saving the figure. See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html.
+            **kwargs (Any): Additional parameters for saving the figure. See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html.
 
         Returns:
             go.Figure: The Plotly 3D scatter plot.
@@ -325,12 +323,12 @@ class KMeans(BaseModel):
             return fig
 
     @validate_call(config=model_config)
-    def to_csv(self, path: str | Path, **kwargs) -> None:
+    def to_csv(self, path: str | Path, **kwargs: Any) -> None:
         """Export a CSV of PCA coordinates and cluster labels.
 
         Args:
             path (str | Path): File path to save the CSV.
-            **kwargs: Additional parameters for pandas DataFrame.to_csv().
+            **kwargs (Any): Additional parameters for pandas DataFrame.to_csv().
         """
         if self.cluster_assignments is None:
             raise LexosException("No clustering results: run clustering first.")
@@ -364,7 +362,7 @@ class KMeans(BaseModel):
         save_path: Optional[str | Path] = None,
         grid_step: Optional[float] = None,
         max_points: int = 200_000,
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[go.Figure]:
         """Plot Voronoi-like decision regions for KMeans clustering using 2D PCA.
 
@@ -374,7 +372,7 @@ class KMeans(BaseModel):
             save_path (Optional[str | Path]): File path to save the plot.
             grid_step (Optional[float]): Grid step size; estimated if None.
             max_points (int): Maximum grid points for memory efficiency.
-            **kwargs: Additional parameters for saving the figure. See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html.
+            **kwargs (Any): Additional parameters for saving the figure. See https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html.
         """
         # Reduce dimensions for 2D Voronoi visualization
         matrix = self._get_valid_matrix()

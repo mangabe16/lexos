@@ -13,6 +13,7 @@ class BasePlotter(BaseModel):
 
     id: ClassVar[str] = "base_plotter"
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
     @property
     def metadata(self) -> dict:
         """Return metadata about the object.
@@ -20,6 +21,12 @@ class BasePlotter(BaseModel):
         Returns:
             dict: A dictionary containing metadata about the object.
         """
+        # Note: model_dump() may evaluate computed fields on this model.
+        # If computed properties rely on external state or are expensive to
+        # compute, calling model_dump() may cause unexpected exceptions or
+        # performance issues. Subclasses should exclude costly computed
+        # fields by overriding this property or explicitly excluding fields
+        # when calling model_dump().
         return self.model_dump()
 
     def _set_attrs(self, **kwargs) -> None:

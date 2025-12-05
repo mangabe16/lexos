@@ -1,7 +1,8 @@
 """record.py.
 
-Last updated: June 23, 2025
-Last tested: It works in a noteboook, but no unit tests written yet.
+Last updated: December 4, 2025
+Last tested: November 20, 2025
+
 
 Wrapping texts and spaCy Docs in a Pydantic model provides a lot of extra functionality, particularly through the model_dump() and model_dump_json() methods. See the Pydantic documentation for more information.
 
@@ -9,18 +10,17 @@ Other than that, the Record class provides methods for serializing and deseriali
 
 The Record class handles the difficult task of keeping track of whether the content is a spaCy Doc or a string, as well as the tricky job of preserving custom Token attributes when spaCy Docs are serialised and deserialised.
 
-This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternaively, the ID can be set to an incrementing integer with `id_type="integer"`.
-
-# TODO:
-- Test.
+This code is designed to work by default with UUID4 for the ID field, which is a universally unique identifier. UUID7 is a better choice but does not yet have full support in the Python standard library and Pydantic. Once that takes place, it can be easily changed in the Record model. Alternatively, the ID can be set to an incrementing integer with `id_type="integer"`.
 """
 
-import uuid
 import hashlib
+import uuid
 from collections import Counter
+from datetime import date, datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Optional
+from uuid import UUID
 
 import msgpack
 import spacy
@@ -35,6 +35,7 @@ from pydantic import (
 )
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Token
+from spacy.vocab import Vocab
 
 from lexos.corpus.utils import LexosModelCache
 from lexos.exceptions import LexosException
@@ -59,7 +60,7 @@ class Record(BaseModel):
     )
 
     @field_serializer("content")
-    def serialize_content(self, content: Doc | str):
+    def serialize_content(self, content: Doc | str) -> bytes | str:
         """Serialize the content to bytes if it is a Doc object.
 
         Args:
@@ -71,17 +72,71 @@ class Record(BaseModel):
         if isinstance(content, Doc):
             content.user_data["extensions"] = {}
             for ext in self.extensions:
-                content.user_data["extensions"][ext] = [token._.get(ext) for token in content]
+                content.user_data["extensions"][ext] = [
+                    token._.get(ext) for token in content
+                ]
             return content.to_bytes()
         return content
 
     @field_serializer("id")
-    def serialize_id(self, id, _info):
-        """Always serialize ID as string for JSON compatibility."""
+    def serialize_id(self, id, _info) -> str:
+        """Always serialize ID as string for JSON compatibility.
+
+        Args:
+            id (UUID|int|str): The ID value being serialized.
+            _info (Any): Encoder info (pydantic serializer internals).
+
+        Returns:
+            str: The serialized ID as a string.
+        """
         return str(id)
+
+    @field_serializer("meta")
+    def serialize_meta(self, meta: dict[str, Any]) -> dict[str, Any]:
+        """Ensure metadata is JSON-serializable by converting special types to strings."""
+        return self._sanitize_metadata(meta)
+
+    def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Convert non-JSON-serializable types to strings.
+
+        Args:
+            metadata: Original metadata dictionary
+
+        Returns:
+            Sanitized metadata dictionary with JSON-serializable values
+        """
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, UUID):
+                sanitized[key] = str(value)
+            elif isinstance(value, (datetime, date)):
+                sanitized[key] = value.isoformat()
+            elif isinstance(value, Path):
+                sanitized[key] = str(value)
+            elif isinstance(value, dict):
+                sanitized[key] = self._sanitize_metadata(value)  # Recursive
+            elif isinstance(value, list):
+                sanitized[key] = [
+                    self._sanitize_metadata({"item": item})["item"]
+                    if isinstance(item, dict)
+                    else str(item)
+                    if isinstance(item, (UUID, datetime, date, Path))
+                    else item
+                    for item in value
+                ]
+            else:
+                sanitized[key] = value
+
+        return sanitized
 
     def __repr__(self):
         """Return a string representation of the record."""
+        # We exclude `terms`, `text`, and `tokens` here because these are
+        # computed / cached fields that can rely on the record being parsed.
+        # For unparsed records, evaluating these computed properties will
+        # raise a LexosException. `__repr__` should be lightweight and safe
+        # to call in debugging contexts, so we exclude these computed fields
+        # intentionally.
         fields = self.model_dump(exclude=["terms", "text", "tokens"])
         fields["is_parsed"] = str(self.is_parsed)
         if self.content and self.is_parsed:
@@ -93,10 +148,29 @@ class Record(BaseModel):
         field_list = [f"{k}={v}" if v else f"{k}=None" for k, v in fields.items()]
         return f"Record({', '.join(field_list)})"
 
+    def __str__(self) -> str:
+        """Return a user-friendly string representation of the record for printing."""
+        active = "True" if self.is_active else "False"
+        parsed = "True" if self.is_parsed else "False"
+
+        # Get a preview of content
+        if self.content is None:
+            content_preview = "None"
+        elif self.is_parsed:
+            content_preview = f"'{self.content.text[:40]}...'"
+        else:
+            content_preview = f"'{self.content[:40]}...'"
+
+        return f"Record(id={self.id}, name={self.name!r}, active={active}, parsed={parsed}, content={content_preview})"
+
     @computed_field
     @cached_property
     def is_parsed(self) -> bool:
-        """Return whether the record is parsed."""
+        """Return whether the record is parsed.
+
+        Returns:
+            bool: True if the record content is a spaCy Doc, False otherwise.
+        """
         if isinstance(self.content, Doc):
             return True
         return False
@@ -104,7 +178,11 @@ class Record(BaseModel):
     @computed_field
     @cached_property
     def preview(self) -> str:
-        """Return a preview of the record text."""
+        """Return a preview of the record text.
+
+        Returns:
+            str | None: A shortened preview of the record content, or None if content is None.
+        """
         if self.content is None:
             return None
 
@@ -115,7 +193,11 @@ class Record(BaseModel):
     @computed_field
     @cached_property
     def terms(self) -> Counter:
-        """Return the terms in the record."""
+        """Return the terms in the record.
+
+        Returns:
+            Counter: Collection mapping term -> count for the record.
+        """
         if self.is_parsed:
             return Counter([t.text for t in self.content])
         else:
@@ -123,14 +205,22 @@ class Record(BaseModel):
 
     @property
     def text(self) -> str:
-        """Return the text of the record."""
+        """Return the text of the record.
+
+        Returns:
+            str | None: The record text as string or None if no content is present.
+        """
         if self.is_parsed:
             return self.content.text
         return self.content
 
     @cached_property
     def tokens(self) -> list[str]:
-        """Return the tokens in the record."""
+        """Return the tokens in the record.
+
+        Returns:
+            list[str]: A list of token strings extracted from the parsed content.
+        """
         if self.is_parsed:
             return [t.text for t in self.content]
         else:
@@ -187,7 +277,7 @@ class Record(BaseModel):
 
     def _get_vocab(
         self, model: Optional[str] = None, model_cache: Optional[LexosModelCache] = None
-    ):
+    ) -> Vocab:
         """Get the vocabulary from the model or model cache.
 
         Args:
@@ -242,7 +332,7 @@ class Record(BaseModel):
             core_data = {k: v for k, v in data.items() if k != "data_integrity_hash"}
             core_bytes = msgpack.dumps(core_data)
             computed_hash = hashlib.sha256(core_bytes).hexdigest()
-            
+
             if stored_hash != computed_hash:
                 raise LexosException(
                     f"Data integrity check failed: Hash mismatch detected. "
@@ -316,14 +406,14 @@ class Record(BaseModel):
         # Get the record content from the bytestring
         self.from_bytes(data, model=model, model_cache=model_cache)
 
-    def least_common_terms(self, n: Optional[int] = None) -> int:
+    def least_common_terms(self, n: Optional[int] = None) -> list[tuple[str, int]]:
         """Return the least common terms.
 
         Args:
             n (Optional[int]): The number of least common terms to return. If None, return all terms.
 
         Returns:
-            int: The least common terms in the record.
+            list[tuple[str, int]]: A list of (term, count) pairs sorted by least frequent.
         """
         if self.is_parsed:
             return (
@@ -334,14 +424,14 @@ class Record(BaseModel):
         else:
             raise LexosException("Record is not parsed.")
 
-    def most_common_terms(self, n: Optional[int] = None) -> int:
+    def most_common_terms(self, n: Optional[int] = None) -> list[tuple[str, int]]:
         """Return the most common terms.
 
         Args:
             n (Optional[int]): The number of most common terms to return. If None, return all terms.
 
         Returns:
-            int: The most common terms in the record.
+            list[tuple[str, int]]: A list of (term, count) pairs sorted by most frequent.
         """
         if self.is_parsed:
             return self.terms.most_common(n)
@@ -349,31 +439,44 @@ class Record(BaseModel):
             raise LexosException("Record is not parsed.")
 
     def num_terms(self) -> int:
-        """Return the number of terms."""
+        """Return the number of terms.
+
+        Returns:
+            int: The count of unique terms in this record.
+        """
         if self.is_parsed:
             return len(self.terms)
         else:
             raise LexosException("Record is not parsed.")
 
     def num_tokens(self) -> int:
-        """Return the number of tokens."""
+        """Return the number of tokens.
+
+        Returns:
+            int: The count of token elements in this record.
+        """
         if self.is_parsed:
             return len(self.tokens)
         else:
             raise LexosException("Record is not parsed.")
 
     @validate_call(config=model_config)
-    def set(self, **props) -> None:
+    def set(self, **props: Any) -> None:
         """Set a record property.
 
         Args:
-            **props: A dict containing the properties to set on the record.
+            **props (Any): A dict containing the properties to set on the record.
+
+        Returns:
+            None
         """
         for k, v in props.items():
             setattr(self, k, v)
 
     @validate_call(config=model_config)
-    def to_bytes(self, extensions: Optional[list[str]] = [], include_hash: bool = True) -> bytes:
+    def to_bytes(
+        self, extensions: Optional[list[str]] = [], include_hash: bool = True
+    ) -> bytes:
         """Serialize the record to a dictionary.
 
         Args:
@@ -388,6 +491,11 @@ class Record(BaseModel):
             self.extensions = list(set(self.extensions + extensions))
 
         # Convert record to a dictionary
+        # model_dump is used to create a serializable dict representation.
+        # We exclude the computed fields (`terms`, `text`, `tokens`) because
+        # they might trigger evaluation and raise `LexosException` for
+        # unparsed `Record` objects. The saved content is handled below,
+        # and `id` is stringified to ensure JSON compatibility.
         data = self.model_dump(exclude=["terms", "text", "tokens"])
 
         # Make UUID serialisable
@@ -423,7 +531,7 @@ class Record(BaseModel):
 
         # Serialize and save the record
         data = self.to_bytes(extensions)
-        
+
         try:
             with open(path, "wb") as f:
                 f.write(data)

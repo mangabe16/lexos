@@ -1,13 +1,17 @@
 """mann_whitney.py.
 
 Implements the Mann-Whitney U (AKA Wilcoxon Rank-Sum) Test.
+
+Last Updated: November 10, 2025
+Last Tested: November 14, 2025
 """
 
 from typing import Optional
+
 import pandas as pd
+from pydantic import ConfigDict, Field
 from scipy.stats import mannwhitneyu
 from wasabi import msg
-from pydantic import ConfigDict, Field
 
 from lexos.exceptions import LexosException
 from lexos.topwords import TopWords
@@ -16,10 +20,10 @@ from lexos.topwords import TopWords
 class MannWhitney(TopWords):
     """Mann-Whitney U test model."""
 
-    x: pd.DataFrame = Field(
+    target: pd.DataFrame = Field(
         ..., description="DataFrame containing frequencies for control documents."
     )
-    y: pd.DataFrame = Field(
+    comparison: pd.DataFrame = Field(
         ..., description="DataFrame containing frequencies for compare documents."
     )
     add_freq: Optional[bool] = Field(
@@ -34,22 +38,26 @@ class MannWhitney(TopWords):
     def __init__(self, **data):
         """Initializes the MannWhitney model with data."""
         super().__init__(**data)
-        if not isinstance(self.x, pd.DataFrame) or not isinstance(self.y, pd.DataFrame):
+        if not isinstance(self.target, pd.DataFrame) or not isinstance(
+            self.comparison, pd.DataFrame
+        ):
             raise LexosException("Error: Inputs must be Pandas DataFrames.")
-        if self.x.empty or self.y.empty:
+        if self.target.empty or self.comparison.empty:
             msg.warn("Warning: One or both input DataFrames are empty.")
 
         results = []
 
         # Iterate through columns of the first DataFrame (assumes y has same columns)
-        for col in self.x.columns:
-            if col not in self.y.columns:
+        for col in self.target.columns:
+            if col not in self.comparison.columns:
                 msg.warn(f"Warning: Column '{col}' not found in y. Skipping.")
                 continue
 
             # Extract data for the current column
-            x_data = self.x[col].dropna()  # Drop NaNs as mannwhitneyu can't handle them
-            y_data = self.y[col].dropna()
+            x_data = self.target[
+                col
+            ].dropna()  # Drop NaNs as mannwhitneyu can't handle them
+            y_data = self.comparison[col].dropna()
 
             # Ensure data is numeric and there's enough data to perform the test
             if not pd.api.types.is_numeric_dtype(
@@ -125,11 +133,11 @@ class MannWhitney(TopWords):
         """
         # If valid_terms is provided, only calculate stats for those terms
         if valid_terms is not None:
-            x_subset = self.x[valid_terms]
-            y_subset = self.y[valid_terms]
+            x_subset = self.target[valid_terms]
+            y_subset = self.comparison[valid_terms]
         else:
-            x_subset = self.x
-            y_subset = self.y
+            x_subset = self.target
+            y_subset = self.comparison
 
         x_sorted = x_subset.T.sort_index(ascending=True)
         # Use numeric_only=True to handle non-numeric columns gracefully

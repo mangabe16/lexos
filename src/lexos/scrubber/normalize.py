@@ -3,6 +3,7 @@
 Last Update: 2025-01-15
 Tested: 2025-01-15
 """
+
 import re
 import unicodedata
 from typing import Literal, Optional
@@ -12,6 +13,7 @@ from pydantic import ConfigDict, validate_call
 import lexos.scrubber.resources as resources
 
 validation_config = ConfigDict(arbitrary_types_allowed=True)
+
 
 @validate_call(config=validation_config)
 def bullet_points(text: str) -> str:
@@ -99,20 +101,16 @@ def repeating_chars(text: str, *, chars: Optional[str], maxn: Optional[int] = 1)
 
 
 @validate_call(config=validation_config)
-def unicode(text: str, *, form: Optional[Literal["NFC", "NFD", "NFKC", "NFKD"]] = "NFC") -> str:
+def unicode(
+    text: str, *, form: Optional[Literal["NFC", "NFD", "NFKC", "NFKD"]] = "NFC"
+) -> str:
     """Normalize unicode characters in `text` into canonical forms.
 
     Duplicates Textacy's `utils.normalize_unicode`.
 
     Args:
         text (str): The text to normalize.
-        form Optional[Literal["NFC", "NFD", "NFKC", "NFKD"]]: Form of normalization
-            applied to unicode characters. For example, an "e" with accute accent "´"
-            can be written as "e´" (canonical decomposition, "NFD") or "é" (canonical
-            composition, "NFC"). Unicode can be normalized to NFC form without any
-            change in meaning, so it's usually a safe bet. If "NFKC", additional
-            normalizations are applied that can change characters' meanings, e.g.
-            ellipsis characters are replaced with three periods.
+        form (Optional[Literal["NFC", "NFD", "NFKC", "NFKD"]]): Form of normalization applied to unicode characters. For example, an "e" with accute accent "´" can be written as "e´" (canonical decomposition, "NFD") or "é" (canonical composition, "NFC"). Unicode can be normalized to NFC form without any change in meaning, so it's usually a safe bet. If "NFKC", additional normalizations are applied that can change characters' meanings, e.g. ellipsis characters are replaced with three periods.
 
     Returns:
         str: The normalized text.

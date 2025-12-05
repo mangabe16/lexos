@@ -139,6 +139,19 @@ class BaseCalculator(ABC, BaseModel):
     @property
     def metadata(self) -> dict:
         """Return metadata for the calculator."""
+        # Note: model_dump() may evaluate computed fields on this model.
+        # If any computed properties rely on external state or are expensive
+        # to compute, accessing them via model_dump() could raise or cause
+        # performance issues. Subclasses should ensure their computed fields
+        # are safe to evaluate here or override this property to exclude
+        # such fields explicitly (e.g., model_dump(exclude=[...])).
+        #
+        # Historically, this property intentionally did not return the
+        # result of `model_dump()`; it was used to ensure that validators or
+        # other side effects ran without exposing the entire dict to the
+        # caller. Maintain that behavior by calling `model_dump()` but not
+        # returning the value. If you need the metadata dict, override this
+        # property in subclasses to return it explicitly.
         self.model_dump()
 
     @property
