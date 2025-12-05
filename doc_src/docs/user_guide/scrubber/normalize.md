@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `normalize` component of Scrubber is a submodule containing functions for manipulating text into a standardized form. This includes functions for converting text to lower case, removing whitespace, and more. This page offers an overview of the component functions. For a fuller description of their usage, see the [API documentation](api/scrubber/normalize/).
+The `normalize` component of Scrubber is a submodule containing functions for manipulating text into a standardized form. This includes functions for converting text to lower case, removing whitespace, and more. This page offers an overview of the component functions. For a fuller description of their usage, see the [API documentation](../../api/scrubber/normalize.md).
 
 A classic problem in text processing is that the same text string can be represented in many different ways. For example, an the single quotation mark, or apostrophe, may straight (') or curly (‘ or ’, depending on position). A text may contain either one or a mixture of the two, which may not be desirable for a target publication. However, it may also have significant downstream consequences such as breaking XML code or influencing token counts used in computational analysis. The `normalize` component contains function that allow you to convert these variants into a single desired (normalized) form.
 

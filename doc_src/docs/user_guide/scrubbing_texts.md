@@ -16,7 +16,7 @@ The Scrubber module has the following features:
 
 Scrubbing works by applying a single function or a pipeline of functions to the text, with each function applied in the order given.
 
-Scrubber can be defined as a _destructive_ preprocessor. In other words, it changes the text as loaded in ways that potentially make mapping the results onto the original text impossible. It is therefore best used before other procedures so that the scrubbed text is essentially treated as the "original" text. This differs from the [Tokenizer](user_guide/tokenizing_texts.md), which divides the text into "tokens" (often words) without destroying the original text.
+Scrubber can be defined as a _destructive_ preprocessor. In other words, it changes the text as loaded in ways that potentially make mapping the results onto the original text impossible. It is therefore best used before other procedures so that the scrubbed text is essentially treated as the "original" text. This differs from the [Tokenizer](tokenizing_texts.md), which divides the text into "tokens" (often words) without destroying the original text.
 
 !!! note
     In the Lexos web app, Scrubber is used to tokenize the text before any other scrubbing actions occur. In the Lexos Python package, these preprocessing and tokenization are kept strictly separate.
@@ -87,7 +87,7 @@ scrubber_components.register("title_case", func=title_case)
 To use a custom scrubbing function, you must register it _before_ you call `get_component()` or `get_components()`.
 
 !!! note "Developer's Note"
-    The Scrubber component registry is managed using the Python [catalogue](https://github.com/explosion/catalogue) library, which also allows you to register functions with a decorator.
+    The Scrubber component registry is managed using the Python <a href="https://github.com/explosion/catalogue" target="_blank">catalogue</a> library, which also allows you to register functions with a decorator.
 
     ```python
     @scrubber_functions.register("title_case")

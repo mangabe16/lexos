@@ -200,7 +200,7 @@ See the Pandas <code><a href="https://pandas.pydata.org/docs/reference/api/panda
 
     Note that the keywords described in Pandas documentation apply only to the `matplotlib` backend. For Plotly, you will beed to consult the equivalent Plotly documentation to find the appropriate keywords (`labels`, in the example above).
 
-Lexos word clouds and bubble charts are also ideal for visualising DTMs. Word clouds can be generated for the entire DTM or for individual documents. Multiple word clouds arrange for comparison are referred to as multiclouds. For information on generating these and other visualizations, see the [Visualization page](../visualization/).
+Lexos word clouds and bubble charts are also ideal for visualising DTMs. Word clouds can be generated for the entire DTM or for individual documents. Multiple word clouds arrange for comparison are referred to as multiclouds. For information on generating these and other visualizations, see the [Visualization page](visualization.md).
 
 ## Advanced Usage with `scikit-learn` Vectorizers
 

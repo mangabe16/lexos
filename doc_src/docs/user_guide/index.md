@@ -10,4 +10,4 @@ The Lexos library requires Python 3.12 or later. If you are running Lexos on you
 
 ## Installation
 
-All of Lexos' dependencies are downloaded when Lexos is installed. For installation instructions, please refer to the [Installation Guide](installation.md).
+All of Lexos' dependencies are downloaded when Lexos is installed. For installation instructions, please refer to the [Installation Guide](../installation.md).

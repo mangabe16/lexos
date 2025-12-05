@@ -23,4 +23,4 @@ The registry is implemented using the Python <a href="https://github.com/explosi
 
 ## Resources
 
-Many Scrubber functions use internal resources such as mappings of Unicode code points, regex values, or even helper functions. Inspecting the code in the [API Documentation](/api/scrubber/normalize/) can help you understand whether what Scrubber is doing under the hood is your desired behaviour or whether you need to modify Scrubber with a custom function.
+Many Scrubber functions use internal resources such as mappings of Unicode code points, regex values, or even helper functions. Inspecting the code in the [API Documentation](../../api/scrubber/normalize.md) can help you understand whether what Scrubber is doing under the hood is your desired behaviour or whether you need to modify Scrubber with a custom function.
