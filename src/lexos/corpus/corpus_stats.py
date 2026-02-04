@@ -15,8 +15,11 @@ import seaborn as sns
 from plotly.subplots import make_subplots
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy import stats
+import spacy
+from spacy.symbols import ORTH, LEMMA
 
 from lexos.dtm import DTM
+from collections import Counter
 
 
 def make_labels_unique(labels: list[str]) -> list[str]:
@@ -345,7 +348,9 @@ class CorpusStats(BaseModel):
         ).round(2)
 
         # Add hapax dislegomena (words appearing exactly twice)
-        file_stats["hapax_dislegomena"] = df.eq(2).sum(axis=1)
+        file_stats["hapax_dislegomena"] = [
+            calculate_hapax_dislegomena(raw_text)[0] for raw_text in self.dtm.docs
+        ]
 
         return file_stats
 
@@ -978,3 +983,48 @@ def get_plotly_boxplot(
         "scrollZoom": True,
     }
     figure.show(showlink=False, config=config)
+
+# Initialize the spaCy language model
+nlp = None  # Initialize as None to allow for lazy loading
+
+def load_spacy_model(model_name="en_core_web_sm"):
+    """Load the spaCy language model if not already loaded."""
+    global nlp
+    if nlp is None or not isinstance(nlp, Language):
+        try:
+            nlp = spacy.load(model_name)
+            print(f"spaCy model '{model_name}' loaded successfully.")
+        except OSError:
+            raise ValueError(f"spaCy language model '{model_name}' is not installed. Please install it using 'python -m spacy download {model_name}'")
+
+def is_spacy_model_loaded():
+    """Check if a spaCy language model is loaded."""
+    return nlp is not None and isinstance(nlp, Language)
+
+def calculate_hapax_dislegomena(data):
+    """Calculates the number of words that appear exactly twice.
+
+    Args:
+        data (str | list[str] | spacy.tokens.Doc): The input data, either raw text (str),
+        tokenized data (list of tokens), or a spaCy Doc object.
+
+    Returns:
+        tuple[int, list[str]]: A tuple containing the count of dislegomena and a list of words that appear exactly twice.
+    """
+    if isinstance(data, str):  # If the input is raw text, process it with spaCy
+        if not is_spacy_model_loaded():
+            raise ValueError("spaCy language model is not loaded. Please load a model using `load_spacy_model()`." )
+        doc = nlp(data)
+        counts = doc.count_by(LEMMA)  # Count frequencies by lemma
+        dislegomena = [doc.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 2]
+        return len(dislegomena), dislegomena
+    elif isinstance(data, list):  # If the input is tokenized data, calculate directly
+        token_counts = Counter(data)
+        dislegomena = [token for token, count in token_counts.items() if count == 2]
+        return len(dislegomena), dislegomena
+    elif isinstance(data, spacy.tokens.Doc):  # If input is already a spaCy Doc, use it directly
+        counts = data.count_by(LEMMA)
+        dislegomena = [data.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 2]
+        return len(dislegomena), dislegomena
+    else:
+        raise TypeError("Input data must be either a string (raw text), a list of tokens, or a spaCy Doc object.")
