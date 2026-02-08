@@ -19,6 +19,7 @@ import spacy
 from spacy.symbols import ORTH, LEMMA
 
 from lexos.dtm import DTM
+from lexos.util import load_spacy_model, is_spacy_model_loaded
 from collections import Counter
 
 
@@ -989,23 +990,6 @@ def get_plotly_boxplot(
         "scrollZoom": True,
     }
     figure.show(showlink=False, config=config)
-
-# Initialize the spaCy language model
-nlp = None  # Initialize as None to allow for lazy loading
-
-def load_spacy_model(model_name="en_core_web_sm"):
-    """Load the spaCy language model if not already loaded."""
-    global nlp
-    if nlp is None or not isinstance(nlp, Language):
-        try:
-            nlp = spacy.load(model_name)
-            print(f"spaCy model '{model_name}' loaded successfully.")
-        except OSError:
-            raise ValueError(f"spaCy language model '{model_name}' is not installed. Please install it using 'python -m spacy download {model_name}'")
-
-def is_spacy_model_loaded():
-    """Check if a spaCy language model is loaded."""
-    return nlp is not None and isinstance(nlp, Language)
 
 def calculate_hapax_dislegomena(data):
     """Calculates the number of words that appear exactly twice.
