@@ -334,10 +334,16 @@ class CorpusStats(BaseModel):
         file_stats.set_index("Documents", inplace=True)
 
         # Count terms appearing exactly once in each document
-        file_stats[f"hapax_legomena"] = df.eq(1).sum(axis=1)
+        #file_stats[f"hapax_legomena"] = df.eq(1).sum(axis=1)
+        file_stats["hapax_legomena"] = [
+            calculate_hapax_legomena(raw_text)[0] for raw_text in self.dtm.docs
+        ]
 
         # Calculate total tokens in each document
-        file_stats["total_tokens"] = df.sum(axis=1)
+        #file_stats["total_tokens"] = df.sum(axis=1)
+        file_stats["total_tokens"] = [
+            calculate_total_tokens(raw_text)[0] for raw_text in self.dtm.docs
+        ]
 
         # Number of distinct terms in each document
         file_stats["total_terms"] = df.ne(0).sum(axis=1)
@@ -1028,3 +1034,65 @@ def calculate_hapax_dislegomena(data):
         return len(dislegomena), dislegomena
     else:
         raise TypeError("Input data must be either a string (raw text), a list of tokens, or a spaCy Doc object.")
+    
+def calculate_hapax_legomena(data):
+    """Calculates the number of words that appear exactly once.
+
+    Args:
+        data (str | list[str] | spacy.tokens.Doc): The input data, either raw text (str),
+        tokenized data (list of tokens), or a spaCy Doc object.
+
+    Returns:
+        tuple[int, list[str]]: A tuple containing the count of legomena and a list of words that appear exactly once.
+    """
+    
+    if isinstance(data, str):  # If the input is raw text, process it with spaCy
+        if not is_spacy_model_loaded():
+            raise ValueError("spaCy language model is not loaded. Please load a model using `load_spacy_model()`." )
+        doc = nlp(data)
+        counts = doc.count_by(LEMMA)  # Count frequencies by lemma
+        legomena = [doc.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 1]
+        return len(legomena), legomena
+    elif isinstance(data, list):  # If the input is tokenized data, calculate directly
+        token_counts = Counter(data)
+        legomena = [token for token, count in token_counts.items() if count == 1]
+        return len(legomena), legomena
+    elif isinstance(data, spacy.tokens.Doc):  # If input is already a spaCy Doc, use it directly
+        counts = data.count_by(LEMMA)
+        legomena = [data.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 1]
+        return len(legomena), legomena
+    else:
+        raise TypeError("Input data must be either a string (raw text), a list of tokens, or a spaCy Doc object.")
+    
+def calculate_total_tokens(data):
+    """Calculates the total number of tokens
+
+    Args:
+        data (str | list[str] | spacy.tokens.Doc): The input data, either raw text (str),
+        tokenized data (list of tokens), or a spaCy Doc object.
+
+    Returns:
+        tuple[int, list[str]]: A tuple containing the count of tokens and a list of tokens.
+    """
+
+    if isinstance(data, str): #If the input is raw text, process it with spaCy
+        if not is_spacy_model_loaded():
+            raise ValueError("spaCy language model is not loaded. Please load a model using 'load_spacy_model()'.")
+        doc = nlp(data)
+        #counts = doc.count_by(LEMMA) # Count frequencies by lemma
+        #total_tokens = [doc.vocab.strings[hash_id] for hash_id, count in counts.items() if count >= 0]
+        total_tokens = [token.text for token in doc]
+        return len(total_tokens), total_tokens
+    elif isinstance(data,list): #IF the input is tokenized data, calculate directly
+        #token_counts = Counter(data)
+        #total_tokens = [token for token, count in token_counts.items() if count >= 0]
+        total_tokens = len(data)
+        return total_tokens, data
+    elif isinstance (data,spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly
+        #counts = data.count_by(LEMMA)
+        #total_tokens = [data.vocab.strings[hash_id] for hash_id, count in counts.items() if count >= 0]
+        total_tokens = [token.text for token in doc]
+        return len(total_tokens), total_tokens
+    else:
+        raise TypeError("Input data must be either a string (raw text), a list of tokens or a spaCy Doc object.")
+        
