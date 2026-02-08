@@ -101,6 +101,22 @@ def is_valid_colour(color: str) -> bool:
     return True
 
 
+def is_spacy_model_loaded() -> bool:
+    """Check if a spaCy language model is loaded.
+
+    Returns:
+        bool: True if a spaCy language model is loaded, False otherwise.
+
+    Raises:
+        LexosException: If the spaCy model fails to load.
+    """
+    try:
+        spacy.blank("en")  # Attempt to load a blank English model
+        return True
+    except Exception as e:
+        raise LexosException(f"Failed to load spaCy model: {e}")
+
+
 def load_spacy_model(model: Language | str) -> Language:
     """Load a spaCy language model.
 
