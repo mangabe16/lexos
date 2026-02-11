@@ -117,11 +117,11 @@ def is_spacy_model_loaded() -> bool:
         raise LexosException(f"Failed to load spaCy model: {e}")
 
 
-def load_spacy_model(model: Language | str) -> Language:
+def load_spacy_model(model: Language | str = "xx_sent_ud_sm") -> Language:
     """Load a spaCy language model.
 
     Args:
-        model (Language | str): The spaCy model to load, either as a Language object or a string representing the model name.
+        model (Language | str): The spaCy model to load, either as a Language object or a string representing the model name. Defaults to xx_sent_ud_sm.
 
     Returns:
         Language: The loaded spaCy language model.

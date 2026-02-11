@@ -33,10 +33,11 @@ from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc, Token
 
 from lexos.exceptions import LexosException
-from lexos.util import ensure_list
+from lexos.util import ensure_list, load_spacy_model, is_spacy_model_loaded
 
 try:
-    default_model = spacy.load("xx_sent_ud_sm")
+    if not is_spacy_model_loaded():
+      load_spacy_model()
 except ImportError:
     raise LexosException(
         "The default model is not available. Please run `python -m spacy download xx_sent_ud_sm` from the command line."
@@ -62,10 +63,7 @@ class Tokenizer(BaseModel):
         default=[],
         description="A list of stop words to apply to docs.",
     )
-    nlp: Optional[Language] = Field(
-        default=default_model,
-        description="The spaCy language object.",
-    )
+    nlp: Optional[Language] = None
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -77,9 +75,9 @@ class Tokenizer(BaseModel):
         """Initialise the Tokenizer class."""
         super().__init__(**data)
         try:
-            self.nlp = spacy.load(self.model)
+            self.nlp = load_spacy_model(self.model)
             self.nlp.max_length = self.max_length
-        except OSError:
+        except LexosException:
             raise LexosException(
                 f"Error loading model {self.model}. Please check the name and try again. You may need to install the model on your system."
             )
