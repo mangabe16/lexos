@@ -153,9 +153,8 @@ class CorpusStats(BaseModel):
     @cached_property
     def mean_and_spread(self) -> tuple[float, float]:
         """Get the mean and standard deviation of the total tokens in the Corpus."""
-        df = self.df.sparse.to_dense().T
-        df["Total"] = df.sum(axis=1)
-        return df["Total"].mean(), df["Total"].std()
+        doc_lengths = self.doc_stats_df["total_tokens"].values
+        return doc_lengths.mean(), doc_lengths.std()
 
     @property
     def mean(self) -> float:
@@ -321,45 +320,62 @@ class CorpusStats(BaseModel):
                 "The DataFrame is empty. Please provide a valid DataFrame."
             )
 
-        # Convert the DataFrame to dense format
-        df = self.dtm.to_df().sparse.to_dense()
+        return self._spacy_doc_stats
 
-        # Replace the unique columns with the original columns (labels)
-        df.columns = self.labels
+    @cached_property
+    def _spacy_doc_stats(self) -> pd.DataFrame:
+        """Set a Pandas dataframe containing the statistics of each record.
+        
+        This function is cached so that the statistic calculations are only done once
+        Then with each subsequent call the existing statistics will be returned without
+        redoing calculations
 
-        # Transpose the DataFrame so that documents are rows
-        df = df.T
+        Returns:
+            pd.DataFrame: A Pandas dataframe containing statistics of each record.
+        
+        """
 
-        # Create file_stats DataFrame
-        file_stats = pd.DataFrame(self.labels, columns=["Documents"])
-        file_stats.set_index("Documents", inplace=True)
+        rows = [] # Initialize row for the Pandas dataframe to store later
+        nlp = load_spacy_model()
 
-        # Count terms appearing exactly once in each document
-        file_stats["hapax_legomena"] = [
-            calculate_hapax_legomena(raw_text)[0] for raw_text in self.dtm.docs
-        ]
+        for label, raw in zip(self.labels, self.dtm.docs):
+            # Handle token list
+            if isinstance(raw, list):
+                counts = Counter(raw)
+                total_tokens = len(raw) # Number of total tokens
+                total_terms = len(counts) # Number of distinct terms
+                hapax_legomena = sum(1 for c in counts.values() if c == 1)
+                hapax_dislegomena = sum(1 for c in counts.values() if c == 2)
+            else:
+                # Only use spaCy once
+                if not is_spacy_model_loaded():
+                    raise ValueError("spaCy model not loaded; call load_spacy_model() first")
+                doc = nlp(raw)
+                counts = doc.count_by(LEMMA)
+                total_tokens = len([token for token in doc])
+                total_terms = len(counts)
+                hapax_legomena = sum(1 for v in counts.values() if v == 1)
+                hapax_dislegomena = sum(1 for v in counts.values() if v == 2)
 
-        # Calculate total tokens in each document
-        file_stats["total_tokens"] = [
-            calculate_total_tokens(raw_text)[0] for raw_text in self.dtm.docs
-        ]
+            if total_tokens > 0:
+                vocab_density = (total_terms / total_tokens * 100)
+            else:
+                vocab_density = 0
 
-        # Number of distinct terms in each document
-        file_stats["total_terms"] = [
-            calculate_total_terms(raw_text)[0] for raw_text in self.dtm.docs
-        ]
+            rows.append({
+                "Documents": label,
+                "total_tokens": int(total_tokens),
+                "total_terms": int(total_terms),
+                "hapax_legomena": int(hapax_legomena),
+                "hapax_dislegomena": int(hapax_dislegomena),
+                "vocabulary_density": round(vocab_density, 2)
+            })
 
-        # Calculate vocabulary density
-        file_stats["vocabulary_density"] = (
-            file_stats["total_terms"] / file_stats["total_tokens"] * 100
-        ).round(2)
+        df = pd.DataFrame(rows).set_index("Documents")
 
-        # Add hapax dislegomena (words appearing exactly twice)
-        file_stats["hapax_dislegomena"] = [
-            calculate_hapax_dislegomena(raw_text)[0] for raw_text in self.dtm.docs
-        ]
+        return df
+        
 
-        return file_stats
 
     def get_iqr_outliers(self) -> list[tuple[str, str]]:
         """Get the interquartile range (IQR) outliers in the Corpus.
@@ -991,114 +1007,3 @@ def get_plotly_boxplot(
     }
     figure.show(showlink=False, config=config)
 
-def calculate_hapax_dislegomena(data):
-    """Calculates the number of words that appear exactly twice.
-
-    Args:
-        data (str | list[str] | spacy.tokens.Doc): The input data, either raw text (str),
-        tokenized data (list of tokens), or a spaCy Doc object.
-
-    Returns:
-        tuple[int, list[str]]: A tuple containing the count of dislegomena and a list of words that appear exactly twice.
-    """
-    if isinstance(data, str):  # If the input is raw text, process it with spaCy
-        if not is_spacy_model_loaded():
-            raise ValueError("spaCy language model is not loaded. Please load a model using `load_spacy_model()`." )
-        doc = nlp(data)
-        counts = doc.count_by(LEMMA)  # Count frequencies by lemma
-        dislegomena = [doc.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 2]
-        return len(dislegomena), dislegomena
-    elif isinstance(data, list):  # If the input is tokenized data, calculate directly
-        token_counts = Counter(data)
-        dislegomena = [token for token, count in token_counts.items() if count == 2]
-        return len(dislegomena), dislegomena
-    elif isinstance(data, spacy.tokens.Doc):  # If input is already a spaCy Doc, use it directly
-        counts = data.count_by(LEMMA)
-        dislegomena = [data.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 2]
-        return len(dislegomena), dislegomena
-    else:
-        raise TypeError("Input data must be either a string (raw text), a list of tokens, or a spaCy Doc object.")
-    
-def calculate_hapax_legomena(data):
-    """Calculates the number of words that appear exactly once.
-
-    Args:
-        data (str | list[str] | spacy.tokens.Doc): The input data, either raw text (str),
-        tokenized data (list of tokens), or a spaCy Doc object.
-
-    Returns:
-        tuple[int, list[str]]: A tuple containing the count of legomena and a list of words that appear exactly once.
-    """
-    
-    if isinstance(data, str):  # If the input is raw text, process it with spaCy
-        if not is_spacy_model_loaded():
-            raise ValueError("spaCy language model is not loaded. Please load a model using `load_spacy_model()`." )
-        doc = nlp(data)
-        counts = doc.count_by(LEMMA)  # Count frequencies by lemma
-        legomena = [doc.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 1]
-        return len(legomena), legomena
-    elif isinstance(data, list):  # If the input is tokenized data, calculate directly
-        token_counts = Counter(data)
-        legomena = [token for token, count in token_counts.items() if count == 1]
-        return len(legomena), legomena
-    elif isinstance(data, spacy.tokens.Doc):  # If input is already a spaCy Doc, use it directly
-        counts = data.count_by(LEMMA)
-        legomena = [data.vocab.strings[hash_id] for hash_id, count in counts.items() if count == 1]
-        return len(legomena), legomena
-    else:
-        raise TypeError("Input data must be either a string (raw text), a list of tokens, or a spaCy Doc object.")
-    
-def calculate_total_tokens(data):
-    """Calculates the total number of tokens
-
-    Args:
-        data (str | list[str] | spacy.tokens.Doc): The input data, either raw text (str),
-        tokenized data (list of tokens), or a spaCy Doc object.
-
-    Returns:
-        tuple[int, list[str]]: A tuple containing the count of tokens and a list of tokens.
-    """
-
-    if isinstance(data, str): #If the input is raw text, process it with spaCy
-        if not is_spacy_model_loaded():
-            raise ValueError("spaCy language model is not loaded. Please load a model using 'load_spacy_model()'.")
-        doc = nlp(data)
-        total_tokens = [token.text for token in doc]
-        return len(total_tokens), total_tokens
-    elif isinstance(data,list): #If the input is tokenized data, calculate directly
-        total_tokens = len(data)
-        return total_tokens, data
-    elif isinstance (data,spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly
-        total_tokens = [token.text for token in doc]
-        return len(total_tokens), total_tokens
-    else:
-        raise TypeError("Input data must be either a string (raw text), a list of tokens or a spaCy Doc object.")
-        
-def calculate_total_terms(data):
-    """Calculates the total number of distinct terms
-
-    Args:
-        data (str | list[str] | spacy.tokens.Doc): The input data, either raw text (str),
-        tokenized data (list of tokens), or a spaCy Doc object.
-
-    Returns:
-        tuple[int, list[str]]: A tuple containing the count of terms and a list of terms.
-    """
-
-    if isinstance(data, str): # If the input is raw text, process it with spaCy
-        if not is_spacy_model_loaded():
-            raise ValueError("spaCy language model is not loaded. Please load a model using 'load_spacy_model()'.")
-        doc = nlp(data)
-        counts = doc.count_by(LEMMA)
-        total_terms = [doc.vocab.strings[hash_id] for hash_id, count in counts.items() if count >= 1]
-        return len(total_terms), total_terms
-    elif isinstance(data,list): #If the input is tokenized data, calculate directly
-        token_counts = Counter(data)
-        total_terms = [token for token, count in token_counts.items() if count >= 1]
-        return len(total_terms), total_terms
-    elif isinstance(data, spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly
-        counts = data.count_by(LEMMA)
-        total_terms = [data.vocab.strings[hash_id] for hash_id, count in counts.items() if count >= 1]
-        return len(total_terms), total_terms
-    else:
-        raise TypeError("Input data must be either a string (raw text), a list of tokens or a spaCy Doc object.")
