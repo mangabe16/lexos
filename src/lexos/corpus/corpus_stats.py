@@ -21,6 +21,7 @@ from spacy.symbols import ORTH, LEMMA
 from lexos.dtm import DTM
 from lexos.util import load_spacy_model, is_spacy_model_loaded
 from collections import Counter
+from lexos.exceptions import LexosException
 
 
 def make_labels_unique(labels: list[str]) -> list[str]:
@@ -336,11 +337,16 @@ class CorpusStats(BaseModel):
         """
 
         rows = [] # Initialize row for the Pandas dataframe to store later
-        nlp = load_spacy_model()
+
+        try:
+            nlp = load_spacy_model()
+        except LexosException:
+            raise LexosException(
+                f"Error loading model {self.model}. Please check the name and try again. You may need to install the model on your system."
+            )
+        
         for doc_id, label, token_data in self.docs:
             if isinstance(token_data, str): # If the input is raw text, process it with spaCy
-                if not is_spacy_model_loaded():
-                    raise ValueError("spaCy language model is not loaded. Please load a model using 'load_spacy_model()'.")
                 
                 doc = nlp(token_data)
                 counts = doc.count_by(LEMMA)
