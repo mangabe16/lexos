@@ -93,11 +93,10 @@ def predict_labels(clf, new_feature_matrix):
 
 # Function to fit a classifier on a pre-split feature matrix
 def fit_classifier(feature_matrix, target_labels, model: str = "svc",normalize=None, **kwargs):
-    """
-    Fit a classifier on a pre-split feature matrix (no internal train/test split).
+    """Fit a classifier on a pre-split feature matrix (no internal train/test split).
+
     Returns the fitted sklearn estimator.
     """
-    
     if normalize: # if user requests normalization
         scaler = normalize_features(normalize)
         features_train = scaler.fit_transform(features_train)

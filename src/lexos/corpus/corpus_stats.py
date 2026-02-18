@@ -332,9 +332,7 @@ class CorpusStats(BaseModel):
 
         Returns:
             pd.DataFrame: A Pandas dataframe containing statistics of each record.
-        
         """
-
         rows = [] # Initialize row for the Pandas dataframe to store later
         nlp = load_spacy_model()
 
