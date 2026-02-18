@@ -337,28 +337,38 @@ class CorpusStats(BaseModel):
 
         rows = [] # Initialize row for the Pandas dataframe to store later
         nlp = load_spacy_model()
-
-        for label, raw in zip(self.labels, self.dtm.docs):
-            # Handle token list
-            if isinstance(raw, list):
-                counts = Counter(raw)
-                total_tokens = len(raw) # Number of total tokens
-                total_terms = len(counts) # Number of distinct terms
-                hapax_legomena = sum(1 for c in counts.values() if c == 1)
-                hapax_dislegomena = sum(1 for c in counts.values() if c == 2)
-            else:
-                # Only use spaCy once
+        for doc_id, label, token_data in self.docs:
+            if isinstance(token_data, str): # If the input is raw text, process it with spaCy
                 if not is_spacy_model_loaded():
-                    raise ValueError("spaCy model not loaded; call load_spacy_model() first")
-                doc = nlp(raw)
+                    raise ValueError("spaCy language model is not loaded. Please load a model using 'load_spacy_model()'.")
+                
+                doc = nlp(token_data)
                 counts = doc.count_by(LEMMA)
                 total_tokens = len([token for token in doc])
                 total_terms = len(counts)
                 hapax_legomena = sum(1 for v in counts.values() if v == 1)
                 hapax_dislegomena = sum(1 for v in counts.values() if v == 2)
 
+            elif isinstance(token_data, list): #If the input is tokenized data, calculate directly
+                token_counts = Counter(token_data)
+
+                total_tokens = len(token_data)
+                total_terms = len(token_counts)
+                hapax_legomena = sum(1 for v in token_counts.values() if v == 1)
+                hapax_dislegomena = sum(1 for v in token_counts.values() if v == 2)
+                
+            elif isinstance(token_data, spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly
+                counts = token_data.count_by(LEMMA)
+                total_tokens = len([token for token in token_data])
+                total_terms = len(counts)
+                hapax_legomena = sum(1 for v in counts.values() if v == 1)
+                hapax_dislegomena = sum(1 for v in counts.values() if v == 2)
+
+            else:
+                raise TypeError("Input data must be either a string (raw text), a list of tokens or a spaCy Doc object.")
+
             if total_tokens > 0:
-                vocab_density = (total_terms / total_tokens * 100)
+                    vocab_density = (total_terms / total_tokens * 100)
             else:
                 vocab_density = 0
 
