@@ -10,6 +10,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.utils import resample
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, Normalizer
@@ -18,7 +19,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, No
 
 # Function to train and evaluate a classifier
 def train_classifier(
-    feature_matrix, target_labels, model: str = "svc", test_size: float = 0.4, random_state=None, normalize=None
+    feature_matrix, target_labels, model: str = "svc", test_size: float = 0.4, random_state=None, normalize=None, bootstrap = False
 ):
     """Train the classifier.
 
@@ -31,6 +32,7 @@ def train_classifier(
         test_size: fraction of data to reserve for testing
         random_state: seed for reproducibility
         normalize: choice to normalize features
+        bootstrap: whether to apply bootstrapping (resampling with replacement) to the training data
 
     Returns:
         clf: trained classifier model
@@ -44,6 +46,11 @@ def train_classifier(
         random_state=random_state,
         stratify=target_labels if len(set(target_labels)) > 1 else None,
     )
+
+    if bootstrap:
+        features_train, labels_train = resample( # resample the training data with replacement
+            features_train, labels_train, random_state=random_state
+        )
 
     if normalize: # if user requests normalization
         scaler = normalize_features(normalize)
@@ -99,8 +106,8 @@ def fit_classifier(feature_matrix, target_labels, model: str = "svc",normalize=N
     """
     if normalize: # if user requests normalization
         scaler = normalize_features(normalize)
-        features_train = scaler.fit_transform(features_train)
-        features_test = scaler.transform(features_test)
+        feature_matrix = scaler.fit_transform(feature_matrix)
+
 
     registry = {
         "svc": SVC,
