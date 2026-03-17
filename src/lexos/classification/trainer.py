@@ -4,19 +4,22 @@ Last Updated: June 30, 2025
 Last Tested: TBD.
 """
 
-from sklearn.ensemble import RandomForestClassifier  # type:ignore
-from sklearn.linear_model import LogisticRegression  # type:ignore
-from sklearn.metrics import classification_report  # type:ignore
-from sklearn.model_selection import train_test_split  # type:ignore
-from sklearn.naive_bayes import MultinomialNB  # type:ignore
-from sklearn.neighbors import KNeighborsClassifier  # type:ignore
-from sklearn.svm import SVC  # type:ignore
-from sklearn.tree import DecisionTreeClassifier  # type:ignore
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.utils import resample
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, Normalizer
+
 
 
 # Function to train and evaluate a classifier
 def train_classifier(
-    feature_matrix, target_labels, model: str = "svc", test_size: float = 0.4, random_state=None
+    feature_matrix, target_labels, model: str = "svc", test_size: float = 0.4, random_state=None, normalize=None, bootstrap = False
 ):
     """Train the classifier.
 
@@ -28,6 +31,8 @@ def train_classifier(
         model: classifier to train. Supported: 'svc', 'logistic', 'decision_tree', 'random_forest', 'knn'.
         test_size: fraction of data to reserve for testing
         random_state: seed for reproducibility
+        normalize: choice to normalize features
+        bootstrap: whether to apply bootstrapping (resampling with replacement) to the training data
 
     Returns:
         clf: trained classifier model
@@ -41,6 +46,16 @@ def train_classifier(
         random_state=random_state,
         stratify=target_labels if len(set(target_labels)) > 1 else None,
     )
+
+    if bootstrap:
+        features_train, labels_train = resample( # resample the training data with replacement
+            features_train, labels_train, random_state=random_state
+        )
+
+    if normalize: # if user requests normalization
+        scaler = normalize_features(normalize)
+        features_train = scaler.fit_transform(features_train)
+        features_test = scaler.transform(features_test)
 
     # Initialize the chosen classifier
     if model == "svc":
@@ -84,12 +99,16 @@ def predict_labels(clf, new_feature_matrix):
 
 
 # Function to fit a classifier on a pre-split feature matrix
-def fit_classifier(feature_matrix, target_labels, model: str = "svc", **kwargs):
-    """
-    Fit a classifier on a pre-split feature matrix (no internal train/test split).
+def fit_classifier(feature_matrix, target_labels, model: str = "svc",normalize=None, **kwargs):
+    """Fit a classifier on a pre-split feature matrix (no internal train/test split).
+
     Returns the fitted sklearn estimator.
     """
-    
+    if normalize: # if user requests normalization
+        scaler = normalize_features(normalize)
+        feature_matrix = scaler.fit_transform(feature_matrix)
+
+
     registry = {
         "svc": SVC,
         "decision_tree": DecisionTreeClassifier,
@@ -104,3 +123,24 @@ def fit_classifier(feature_matrix, target_labels, model: str = "svc", **kwargs):
     clf = Estimator(**kwargs)
     clf.fit(feature_matrix, target_labels)
     return clf
+
+def normalize_features(normalize):
+    """Return the appropriate scaler based on the normalization method.
+
+    Args:
+        normalize: The normalization method ('standard', 'minmax', 'robust', 'l2').
+
+    Returns:
+        scaler: An instance of the selected scaler.
+    """
+    if normalize == "standard":
+        scaler = StandardScaler()
+    elif normalize == "minmax":
+        scaler = MinMaxScaler()
+    elif normalize == "robust":
+        scaler = RobustScaler()
+    elif normalize == "l2":
+        scaler = Normalizer(norm="l2")
+    else:
+        raise ValueError(f"Unsupported normalization method: {normalize}")
+    return scaler

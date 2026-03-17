@@ -333,9 +333,7 @@ class CorpusStats(BaseModel):
 
         Returns:
             pd.DataFrame: A Pandas dataframe containing statistics of each record.
-        
         """
-
         rows = [] # Initialize row for the Pandas dataframe to store later
 
         try:
@@ -348,7 +346,6 @@ class CorpusStats(BaseModel):
         for doc_id, label, token_data in self.docs:
             if isinstance(token_data, str): # If the input is raw text, process it with spaCy
                 
-                # Lexical Data
                 doc = nlp(token_data)
                 counts = doc.count_by(LEMMA)
                 total_tokens = len([token for token in doc])
@@ -356,20 +353,7 @@ class CorpusStats(BaseModel):
                 hapax_legomena = sum(1 for v in counts.values() if v == 1)
                 hapax_dislegomena = sum(1 for v in counts.values() if v == 2)
 
-                # Syntactical Data
-                sentence_count = len(list(doc.sents))
-                if (sentence_count > 0):
-                    average_sentence_length = len(doc)/sentence_count
-                else:
-                    average_sentence_length = 0
-                
-
-
             elif isinstance(token_data, list): #If the input is tokenized data, calculate directly
-                # Add spaCy doc to see if tokenized data holds punc marks with ispunc()
-                
-                # This works for lexical data, but for syntactical data, I'm not sure how to sentence count
-                # if there's no punctuation...
                 token_counts = Counter(token_data)
 
                 total_tokens = len(token_data)

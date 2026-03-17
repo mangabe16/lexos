@@ -241,6 +241,47 @@ class DTM(BaseModel):
         except Exception as e:
             raise LexosException(f"Error building DTM: {e}")
 
+    def fit_transform(
+        self,
+        docs: list[list[str] | Doc],
+        labels: list[str],
+        **kwargs: dict[str, str | int | float | bool]
+    ) -> sp.spmatrix:
+        """
+        Fit the vectorizer to the documents and transform them into a document-term matrix.
+
+        Args:
+            docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
+            labels (list[str]): A list of labels for the documents.
+            **kwargs (dict): Additional keyword arguments to pass to the vectorizer.
+
+        Returns:
+            sp.spmatrix: The resulting document-term matrix.
+        """
+        # Validate input
+        if not docs or not labels:
+            raise LexosException("Both docs and labels must be provided.")
+        if len(docs) != len(labels):
+            raise LexosException("The number of docs must match the number of labels.")
+
+        # Update instance attributes
+        self.docs = [
+            [token.text for token in doc] if isinstance(doc, Doc) else doc
+            for doc in docs
+        ]
+        self.labels = labels
+
+        # Update the vectorizer with additional parameters
+        self._update_vectorizer(**kwargs)
+
+        # Fit the vectorizer and transform the documents
+        try:
+            self.doc_term_matrix = self.vectorizer.fit_transform(self.docs)
+        except Exception as e:
+            raise LexosException(f"Error building DTM: {e}")
+
+        return self.doc_term_matrix
+
     def _get_term_percentages(
         self,
         df: pd.DataFrame,
