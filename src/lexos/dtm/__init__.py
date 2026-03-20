@@ -282,6 +282,40 @@ class DTM(BaseModel):
 
         return self.doc_term_matrix
 
+    def transform(
+        self,
+        docs: list[list[str] | Doc],
+        **kwargs: dict[str, str | int | float | bool]
+    ) -> sp.spmatrix:
+        """
+        Transform new documents indo a document-term matrix using the fitted vectorizer.
+        
+        Args:
+            docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
+        **kwargs (dict): Additional keyword arguments to pass to the vectorizer.
+        Returns:
+            sp.spmatrix: The resulting document-term matrix.
+        """
+        # validate input
+        if not docs:
+            raise LexosException("You must provide a list of documents")
+
+        # ensure the vectorizer is already fitted
+        if not hasattr(self.vectorizer, "transform"):
+            raise LexosException("The vectorizer must be fitted before transforming data.")
+        
+        # coerce the docs to a list of token lists
+        docs = [
+            [token.text for token in doc] if isinstance(doc, Doc) else doc
+            for doc in docs
+        ]
+
+        # transform the documents
+        try:
+            transformed_matrix = self.vectorizer.transform(docs)
+        except Exception as e:
+            raise LexosException(f"Error transforming documents: {e}")
+        return transformed_matrix
     def _get_term_percentages(
         self,
         df: pd.DataFrame,
