@@ -389,7 +389,11 @@ class CorpusStats(BaseModel):
             # Lexical Data
             counts = token_data.count_by(LEMMA)
             total_tokens = len(tokens)
+            unique_words = set(tokens)
+            unique_word_count = len(unique_words)
+            char_count = len(doc.text)
             
+            # If data is a list of tokens
             if isinstance(token_data, list):
                 total_terms = len(set(tokens))
                 hapax_legomena = sum(1 for token in Counter(tokens).value() if token == 1)
@@ -400,6 +404,10 @@ class CorpusStats(BaseModel):
                 hapax_legomena = sum(1 for token in counts.values() if token == 1)
                 hapax_dislegomena = sum(1 for token in counts.values() if token == 2)
             
+            avg_word_length = (char_count / total_tokens)
+            ttr = (unique_word_count / total_tokens)
+            hapax_legomenon_rate = (hapax_legomena / total_tokens)
+
 
             # Syntatic Data
             sentence_count = len(list(token_data.sents)) if doc else 1
@@ -429,9 +437,14 @@ class CorpusStats(BaseModel):
             rows.append({
                 "Documents": label,
                 "total_tokens": int(total_tokens),
+                "unique_word_count": int(unique_word_count),
+                "character_count": int(char_count),
                 "total_terms": int(total_terms),
+                "average_word_length": int (avg_word_length),
+                "ttr": int (ttr),
                 "hapax_legomena": int(hapax_legomena),
                 "hapax_dislegomena": int(hapax_dislegomena),
+                "hapax_legomenon_rate": int (hapax_legomenon_rate),
                 "stop_word_count": int(stop_word_count),
                 "question_count": int(question_count),
                 "exclamation_count": int(exclamation_count),
