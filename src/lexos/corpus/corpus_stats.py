@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy import stats
 import spacy
 from spacy.symbols import ORTH, LEMMA
+from spacytextblob.spacytextblob import SpacyTextBlob
 
 from lexos.dtm import DTM
 from lexos.util import load_spacy_model, is_spacy_model_loaded
@@ -101,7 +102,7 @@ class CorpusStats(BaseModel):
       - stats.plot(column="total_tokens", type="plotly_boxplot" title="Corpus Boxplot") # Plot the boxplot of total tokens with Plotly.
     """
 
-    docs: list[tuple[str, str, list[str]]]
+    docs: list[tuple[str, str, str | spacy.tokens.Doc]]
     min_df: int | None = None
     max_df: int | None = None
     max_n_terms: int | None = None
@@ -340,41 +341,90 @@ class CorpusStats(BaseModel):
             nlp = load_spacy_model()
         except LexosException:
             raise LexosException(
-                f"Error loading model {self.model}. Please check the name and try again. You may need to install the model on your system."
+                f"Error loading model. Please check the name and try again. You may need to install the model on your system."
+            )
+    
+    @cached_property
+    def _spacy_doc_stats(self) -> pd.DataFrame:
+        """Set a Pandas dataframe containing the statistics of each record.
+        
+        This function is cached so that the statistic calculations are only done once
+        Then with each subsequent call the existing statistics will be returned without
+        redoing calculations
+
+        Returns:
+            pd.DataFrame: A Pandas dataframe containing statistics of each record.
+        """
+        rows = [] # Initialize row for the Pandas dataframe to store later
+
+        try:
+            nlp = load_spacy_model()
+        except LexosException:
+            raise LexosException(
+                f"Error loading model. Please check the name and try again. You may need to install the model on your system."
             )
         
+        
+        nlp.add_pipe("spacytextblob") #adding sentiment analysis into spaCy pipeline using textBlob
+
         for doc_id, label, token_data in self.docs:
             if isinstance(token_data, str): # If the input is raw text, process it with spaCy
-                
                 doc = nlp(token_data)
-                counts = doc.count_by(LEMMA)
-                total_tokens = len([token for token in doc])
-                total_terms = len(counts)
-                hapax_legomena = sum(1 for v in counts.values() if v == 1)
-                hapax_dislegomena = sum(1 for v in counts.values() if v == 2)
-
-            elif isinstance(token_data, list): #If the input is tokenized data, calculate directly
-                token_counts = Counter(token_data)
-
-                total_tokens = len(token_data)
-                total_terms = len(token_counts)
-                hapax_legomena = sum(1 for v in token_counts.values() if v == 1)
-                hapax_dislegomena = sum(1 for v in token_counts.values() if v == 2)
+                tokens = [token.text for token in doc]            
                 
-            elif isinstance(token_data, spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly
-                counts = token_data.count_by(LEMMA)
-                total_tokens = len([token for token in token_data])
-                total_terms = len(counts)
-                hapax_legomena = sum(1 for v in counts.values() if v == 1)
-                hapax_dislegomena = sum(1 for v in counts.values() if v == 2)
+            elif isinstance(token_data, spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly   
+                doc = token_data
+                tokens = [token.text for token in doc]
+
+            elif isinstance(token_data, list):  # If input is a list of tokens
+
+                # Rebuilding pre-tokenized data into a string to be processed with spaCy
+                reconstructed_text = " ".join(token_data)
+                doc = nlp(reconstructed_text)
+                tokens = token_data
 
             else:
                 raise TypeError("Input data must be either a string (raw text), a list of tokens or a spaCy Doc object.")
 
-            if total_tokens > 0:
-                    vocab_density = (total_terms / total_tokens * 100)
+            # Lexical Data
+            counts = token_data.count_by(LEMMA)
+            total_tokens = len(tokens)
+            
+            if isinstance(token_data, list):
+                total_terms = len(set(tokens))
+                hapax_legomena = sum(1 for token in Counter(tokens).value() if token == 1)
+                hapax_dislegomena = sum(1 for token in Counter(tokens).values() if token == 2)
+
             else:
-                vocab_density = 0
+                total_terms = len(counts)
+                hapax_legomena = sum(1 for token in counts.values() if token == 1)
+                hapax_dislegomena = sum(1 for token in counts.values() if token == 2)
+            
+
+            # Syntatic Data
+            sentence_count = len(list(token_data.sents)) if doc else 1
+            avg_sentence_length = (total_tokens/sentence_count) if sentence_count > 1 else 1
+
+            punc_count = sum(1 for token in token_data if token.is_punct)
+            stop_word_count = sum(1 for token in token_data if token.is_stop)
+            question_count = sum(1 for token in token_data if token.text == "?") # Not a permanent solution...
+            exclamation_count = sum(1 for token in token_data if token.text == "!") # Also not very elegant...
+
+            # Readability Data
+            flesch_reading_ease = (206.835 - 1.015 * (avg_sentence_length))
+
+            if total_tokens > 0:
+                    vocab_density = (total_terms / total_tokens * 100) if sentence_count > 0 else 0
+
+
+            # Using TextBlob for sentiment analysis as a pipeline off of spaCy and not independently
+            # Needs to be tested for use in languages other than English
+
+            # Sentiment Data
+            polarity = doc._.blob.polarity
+            subjectivity = doc._.blob.subjectivity
+            emotion_word_count = len(doc._.blob.sentiment_assessments[0])
+
 
             rows.append({
                 "Documents": label,
@@ -382,14 +432,29 @@ class CorpusStats(BaseModel):
                 "total_terms": int(total_terms),
                 "hapax_legomena": int(hapax_legomena),
                 "hapax_dislegomena": int(hapax_dislegomena),
-                "vocabulary_density": round(vocab_density, 2)
+                "stop_word_count": int(stop_word_count),
+                "question_count": int(question_count),
+                "exclamation_count": int(exclamation_count),
+                "vocabulary_density": round(vocab_density, 2),
+                "polarity": round(polarity, 2),
+                "subjectivity": round(subjectivity, 2),
+                "emotion_word_count": int(emotion_word_count),
             })
+
+            if not (isinstance(token_data, list)): # If input is NOT a list of tokens
+                rows.append({
+                    "punc_count": int(punc_count),
+                    "sentence_count": int(sentence_count),
+                    "average_sentence_length": int(avg_sentence_length),
+                    "flesch_reading_ease": int(flesch_reading_ease)
+                })
 
         df = pd.DataFrame(rows).set_index("Documents")
 
         return df
         
 
+    
 
     def get_iqr_outliers(self) -> list[tuple[str, str]]:
         """Get the interquartile range (IQR) outliers in the Corpus.
