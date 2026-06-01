@@ -427,7 +427,7 @@ class CorpusStats(BaseModel):
             # Sentiment Data
             polarity = doc._.blob.polarity
             subjectivity = doc._.blob.subjectivity
-            emotion_word_count = len(doc._.blob.sentiment_assessments[0])
+            emotion_word_count = len(doc._.blob.sentiment_assessments[2])
 
 
             rows.append({
