@@ -323,26 +323,6 @@ class CorpusStats(BaseModel):
             )
 
         return self._spacy_doc_stats
-
-    @cached_property
-    def _spacy_doc_stats(self) -> pd.DataFrame:
-        """Set a Pandas dataframe containing the statistics of each record.
-        
-        This function is cached so that the statistic calculations are only done once
-        Then with each subsequent call the existing statistics will be returned without
-        redoing calculations
-
-        Returns:
-            pd.DataFrame: A Pandas dataframe containing statistics of each record.
-        """
-        rows = [] # Initialize row for the Pandas dataframe to store later
-
-        try:
-            nlp = load_spacy_model()
-        except LexosException:
-            raise LexosException(
-                f"Error loading model. Please check the name and try again. You may need to install the model on your system."
-            )
     
     @cached_property
     def _spacy_doc_stats(self) -> pd.DataFrame:
@@ -377,7 +357,6 @@ class CorpusStats(BaseModel):
                 tokens = [token.text for token in doc]
 
             elif isinstance(token_data, list):  # If input is a list of tokens
-
                 # Rebuilding pre-tokenized data into a string to be processed with spaCy
                 reconstructed_text = " ".join(token_data)
                 doc = nlp(reconstructed_text)
@@ -387,34 +366,59 @@ class CorpusStats(BaseModel):
                 raise TypeError("Input data must be either a string (raw text), a list of tokens or a spaCy Doc object.")
 
             # Lexical Data
-            counts = token_data.count_by(LEMMA)
             total_tokens = len(tokens)
+            unique_words = set(tokens)
+            unique_word_count = len(unique_words)
+            char_count = len(doc.text)
             
+            # If data is a list of tokens
             if isinstance(token_data, list):
                 total_terms = len(set(tokens))
-                hapax_legomena = sum(1 for token in Counter(tokens).value() if token == 1)
-                hapax_dislegomena = sum(1 for token in Counter(tokens).values() if token == 2)
+                tokens_freq_list = list(Counter(tokens).values())
 
             else:
+                counts = doc.count_by(LEMMA)
                 total_terms = len(counts)
-                hapax_legomena = sum(1 for token in counts.values() if token == 1)
-                hapax_dislegomena = sum(1 for token in counts.values() if token == 2)
+                tokens_freq_list = list(counts.values())
             
+            hapax_legomena = sum(1 for token in tokens_freq_list if token == 1)
+            hapax_dislegomena = sum(1 for token in tokens_freq_list if token == 2)
+
+            stop_word_count = sum(1 for token in doc if token.is_stop_)
+            adverb_count = sum(1 for token in doc if token.pos_ == "ADV")
+            noun_count = sum(1 for token in doc if token.pos_ == "NOUN")
+            verb_count = sum(1 for token in doc if token.pos_ == "VERB")
+            num_count = sum(1 for token in doc if token.pos_ == "NUM")
+            adj_count = sum(1 for token in doc if token.pos_ == "ADJ") # Adjective
+            adp_count = sum(1 for token in doc if token.pos_ == "ADP") # Adposition (in, to, during)
+            aux_count = sum(1 for token in doc if token.pos_ == "AUX") # Auxiliary verb (is, has, will)
+            cconj_count = sum(1 for token in doc if token.pos_ == "CCONJ") # Coordinating conjunction (and, or, but)
+            det_count = sum(1 for token in doc if token.pos_ == "DET") # Determiner
+            intj_count = sum(1 for token in doc if token.pos_ == "INTJ") # Interjection
+            part_count = sum(1 for token in doc if token.pos_ == "PART") # Particles ('s, not, up -- like in "give up")
+            pron_count = sum(1 for token in doc if token.pos_ == "PRON") # Pronoun
+            propn_count = sum(1 for token in doc if token.pos_ == "PROPN") # Proper noun
+            sconj_count = sum(1 for token in doc if token.pos_ == "SCONJ") # Subordinating conjunction (if, while, that)
+            sym_count = sum(1 for token in doc if token.pos_ == "SYM") # Symbol
+
+
+            avg_word_length = (char_count / total_tokens)
+            ttr = (unique_word_count / total_tokens)
+            hapax_legomenon_rate = (hapax_legomena / total_tokens)
+
 
             # Syntatic Data
-            sentence_count = len(list(token_data.sents)) if doc else 1
-            avg_sentence_length = (total_tokens/sentence_count) if sentence_count > 1 else 1
+            sentence_count = len(list(doc.sents)) if doc else 1
+            avg_sentence_length = (total_tokens/sentence_count) if sentence_count > 0 else 0
 
-            punc_count = sum(1 for token in token_data if token.is_punct)
-            stop_word_count = sum(1 for token in token_data if token.is_stop)
-            question_count = sum(1 for token in token_data if token.text == "?") # Not a permanent solution...
-            exclamation_count = sum(1 for token in token_data if token.text == "!") # Also not very elegant...
+            punc_count = sum(1 for token in doc if token.is_punct)
+            question_count = sum(1 for token in doc if token.text == "?") # Not a permanent solution...
+            exclamation_count = sum(1 for token in doc if token.text == "!") # Also not very elegant...
 
             # Readability Data
             flesch_reading_ease = (206.835 - 1.015 * (avg_sentence_length))
 
-            if total_tokens > 0:
-                    vocab_density = (total_terms / total_tokens * 100) if sentence_count > 0 else 0
+            vocab_density = (total_terms / total_tokens * 100) if total_tokens > 0 else 0
 
 
             # Using TextBlob for sentiment analysis as a pipeline off of spaCy and not independently
@@ -429,25 +433,41 @@ class CorpusStats(BaseModel):
             rows.append({
                 "Documents": label,
                 "total_tokens": int(total_tokens),
+                "unique_word_count": int(unique_word_count),
+                "character_count": int(char_count),
                 "total_terms": int(total_terms),
+                "average_word_length": round(avg_word_length, 2),
+                "ttr": round(ttr, 2),
                 "hapax_legomena": int(hapax_legomena),
                 "hapax_dislegomena": int(hapax_dislegomena),
-                "stop_word_count": int(stop_word_count),
+                "hapax_legomenon_rate": round(hapax_legomenon_rate, 2),
                 "question_count": int(question_count),
                 "exclamation_count": int(exclamation_count),
                 "vocabulary_density": round(vocab_density, 2),
                 "polarity": round(polarity, 2),
                 "subjectivity": round(subjectivity, 2),
                 "emotion_word_count": int(emotion_word_count),
+                "stop_word_count": int(stop_word_count),
+                "adverb_count": int(adverb_count),
+                "average_sentence_length": round(avg_sentence_length, 2),
+                "flesch_reading_ease": round(flesch_reading_ease, 2),
+                "sentence_count": int(sentence_count),
+                "punc_count": int(punc_count),
+                "noun_count": int(noun_count),
+                "verb_count": int(verb_count),
+                "num_count": int(num_count),
+                "adj_count": int(adj_count),
+                "adp_count": int(adp_count),
+                "aux_count": int(aux_count),
+                "cconj_count": int(cconj_count),
+                "det_count": int(det_count),
+                "intj_count": int(intj_count),
+                "part_count": int(part_count),
+                "pron_count": int(pron_count),
+                "propn_count": int(propn_count),
+                "sconj_count": int(sconj_count),
+                "sym_count": int(sym_count),
             })
-
-            if not (isinstance(token_data, list)): # If input is NOT a list of tokens
-                rows.append({
-                    "punc_count": int(punc_count),
-                    "sentence_count": int(sentence_count),
-                    "average_sentence_length": int(avg_sentence_length),
-                    "flesch_reading_ease": int(flesch_reading_ease)
-                })
 
         df = pd.DataFrame(rows).set_index("Documents")
 
