@@ -384,7 +384,7 @@ class CorpusStats(BaseModel):
             hapax_legomena = sum(1 for token in tokens_freq_list if token == 1)
             hapax_dislegomena = sum(1 for token in tokens_freq_list if token == 2)
 
-            stop_word_count = sum(1 for token in doc if token.is_stop_)
+            stop_word_count = sum(1 for token in doc if token.is_stop)
             adverb_count = sum(1 for token in doc if token.pos_ == "ADV")
             noun_count = sum(1 for token in doc if token.pos_ == "NOUN")
             verb_count = sum(1 for token in doc if token.pos_ == "VERB")
@@ -427,7 +427,7 @@ class CorpusStats(BaseModel):
             # Sentiment Data
             polarity = doc._.blob.polarity
             subjectivity = doc._.blob.subjectivity
-            emotion_word_count = len(doc._.blob.sentiment_assessments[0])
+            emotion_word_count = len(doc._.blob.sentiment_assessments[2])
 
 
             rows.append({

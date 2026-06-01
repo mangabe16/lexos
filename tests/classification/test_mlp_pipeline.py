@@ -12,6 +12,9 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+
 from lexos.classification import mlp_pipeline
 from lexos.classification.mlp_pipeline import (
 	MLPPipelineConfig,
@@ -149,14 +152,16 @@ def test_run_pipeline_returns_expected_structures_without_smote():
 		},
 	)
 
-	results = run_mlp_authorship_pipeline(
+	with warnings.catch_warnings():
+		warnings.simplefilter("ignore", ConvergenceWarning)
+		results = run_mlp_authorship_pipeline(
 		train_data=train_data,
 		train_labels=train_labels,
 		test_data=unknown_data,
 		test_ids=unknown_ids,
 		config=cfg,
 	)
-
+	
 	assert isinstance(results, MLPPipelineResult)
 
 	assert set(results.holdout_metrics.keys()) == {"accuracy", "balanced_accuracy", "macro_f1"}
