@@ -10,6 +10,7 @@ from typing import Any, Iterable, Sequence
 
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
@@ -40,6 +41,8 @@ class MLPPipelineConfig:
     test_size: float = 0.2
     cv_splits: int = 5
     include_bigrams: bool = True
+    use_corpus_stats_features: bool = False
+    corpus_stats_feature_columns: tuple[str, ...] | None = None
     use_smote: bool = True
     mlp_kwargs: dict[str, Any] = field(
         default_factory=lambda: {
@@ -132,6 +135,76 @@ def _apply_smote(
     return smote.fit_resample(dense_matrix, labels)
 
 
+def _build_corpus_stats_features(
+    token_lists: Sequence[Sequence[str]],
+    doc_ids: Sequence[str],
+    config: MLPPipelineConfig,
+) -> pd.DataFrame:
+    """Build an aligned CorpusStats feature frame for a batch of documents."""
+    try:
+        from lexos.corpus.corpus_stats import CorpusStats
+    except ImportError as exc:
+        raise ImportError(
+            "CorpusStats features were requested, but optional dependencies are missing. "
+            "Install spacytextblob (and the corpus stats dependencies) or set "
+            "use_corpus_stats_features=False."
+        ) from exc
+
+    docs_for_corpus: list[tuple[str, str, str]] = []
+    for doc_id, tokens in zip(doc_ids, token_lists):
+        if isinstance(tokens, str):
+            doc_input = tokens
+        else:
+            # tokens is a sequence of token strings; join into text
+            doc_input = " ".join(tokens)
+        docs_for_corpus.append((doc_id, doc_id, doc_input))
+
+    corpus = CorpusStats(
+        docs=docs_for_corpus,
+        min_df=config.min_df,
+    )
+
+    stats_df = corpus.doc_stats_df.reindex(doc_ids)
+    if stats_df.isnull().all(axis=1).any():
+        missing_docs = stats_df.index[stats_df.isnull().all(axis=1)].tolist()
+        raise ValueError(f"CorpusStats could not align features for: {missing_docs}")
+
+    if config.corpus_stats_feature_columns is None:
+        selected = stats_df.select_dtypes(include=[np.number]).copy()
+    else:
+        missing_columns = [
+            column
+            for column in config.corpus_stats_feature_columns
+            if column not in stats_df.columns
+        ]
+        if missing_columns:
+            raise ValueError(
+                "Unknown CorpusStats feature column(s): "
+                + ", ".join(missing_columns)
+            )
+        selected = stats_df.loc[:, list(config.corpus_stats_feature_columns)].copy()
+
+    return selected.fillna(0.0)
+
+
+def _build_feature_matrix(
+    token_lists: Sequence[Sequence[str]],
+    doc_labels: Sequence[str],
+    config: MLPPipelineConfig,
+) -> tuple[Any, DTM, pd.DataFrame | None]:
+    """Build the model feature matrix and optional CorpusStats features."""
+    dtm = DTM()
+    x_dtm = dtm.fit_transform(token_lists, labels=list(doc_labels), min_df=config.min_df)
+
+    if not config.use_corpus_stats_features:
+        return x_dtm, dtm, None
+
+    corpus_stats_features = _build_corpus_stats_features(token_lists, doc_labels, config)
+    x_meta = sp.csr_matrix(corpus_stats_features.to_numpy(dtype=float, copy=True))
+    x_features = sp.hstack([x_dtm, x_meta], format="csr")
+    return x_features, dtm, corpus_stats_features
+
+
 def run_mlp_authorship_pipeline(
     train_data: Sequence[str | Sequence[str]],
     train_labels: Sequence[str],
@@ -143,7 +216,8 @@ def run_mlp_authorship_pipeline(
 
     The workflow follows this sequence:
     1. Tokenize training items into alphabetic unigrams plus optional bigrams.
-    2. Holdout split training docs, then fit DTM/scaler on train only.
+    2. Optionally build CorpusStats features and append them to the DTM.
+    3. Holdout split training docs, then fit features/scaler on train only.
     4. Train and evaluate an MLP on holdout data.
     5. Run leakage-safe stratified cross-validation over all labeled docs.
     6. Refit on all labeled docs and infer labels for test_data, if provided.
@@ -193,9 +267,14 @@ def run_mlp_authorship_pipeline(
     y_train = y[train_idx]
     y_test = y[test_idx]
 
-    dtm_holdout = DTM()
-    x_train = dtm_holdout.fit_transform(token_train, labels=doc_labels_train, min_df=cfg.min_df)
+    x_train, dtm_holdout, _ = _build_feature_matrix(token_train, doc_labels_train, cfg)
     x_test = dtm_holdout.transform(token_test)
+    if cfg.use_corpus_stats_features:
+        holdout_test_features = _build_corpus_stats_features(token_test, [f"holdout_test_{i}" for i in range(len(token_test))], cfg)
+        x_test = sp.hstack(
+            [x_test, sp.csr_matrix(holdout_test_features.to_numpy(dtype=float, copy=True))],
+            format="csr",
+        )
 
     scaler_holdout = StandardScaler(with_mean=False)
     x_train_scaled = scaler_holdout.fit_transform(x_train)
@@ -238,9 +317,18 @@ def run_mlp_authorship_pipeline(
         y_tr = y[tr_idx]
         y_va = y[va_idx]
 
-        dtm_fold = DTM()
-        x_tr = dtm_fold.fit_transform(fold_train_tokens, labels=fold_train_doc_labels, min_df=cfg.min_df)
+        x_tr, dtm_fold, _ = _build_feature_matrix(fold_train_tokens, fold_train_doc_labels, cfg)
         x_va = dtm_fold.transform(fold_valid_tokens)
+        if cfg.use_corpus_stats_features:
+            fold_valid_features = _build_corpus_stats_features(
+                fold_valid_tokens,
+                [f"fold_{fold}_valid_{i}" for i in range(len(fold_valid_tokens))],
+                cfg,
+            )
+            x_va = sp.hstack(
+                [x_va, sp.csr_matrix(fold_valid_features.to_numpy(dtype=float, copy=True))],
+                format="csr",
+            )
 
         scaler_fold = StandardScaler(with_mean=False)
         x_tr_scaled = scaler_fold.fit_transform(x_tr)
@@ -272,8 +360,7 @@ def run_mlp_authorship_pipeline(
         "macro_f1": float(cv_fold_metrics["macro_f1"].mean()),
     }
 
-    dtm_final = DTM()
-    x_full = dtm_final.fit_transform(all_token_lists, labels=all_doc_labels, min_df=cfg.min_df)
+    x_full, dtm_final, _ = _build_feature_matrix(all_token_lists, all_doc_labels, cfg)
 
     scaler_final = StandardScaler(with_mean=False)
     x_full_scaled = scaler_final.fit_transform(x_full)
@@ -289,6 +376,13 @@ def run_mlp_authorship_pipeline(
 
     if test_token_lists is not None:
         x_test_infer = dtm_final.transform(test_token_lists)
+        if cfg.use_corpus_stats_features:
+            test_feature_ids = list(test_ids) if test_ids is not None else [f"test_doc_{i}" for i in range(len(test_token_lists))]
+            test_stats_features = _build_corpus_stats_features(test_token_lists, test_feature_ids, cfg)
+            x_test_infer = sp.hstack(
+                [x_test_infer, sp.csr_matrix(test_stats_features.to_numpy(dtype=float, copy=True))],
+                format="csr",
+            )
         x_test_infer_scaled = scaler_final.transform(x_test_infer)
         test_pred = final_model.predict(_to_dense(x_test_infer_scaled))
 
