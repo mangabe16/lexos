@@ -1,7 +1,8 @@
 """test_mlp_pipeline.py.
 
-Coverage: 0%
+Coverage:96%
 Last update: 04/21
+Last test: 05/27
 """
 
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+import scipy.sparse as sp
 
 from lexos.classification import mlp_pipeline
 from lexos.classification.mlp_pipeline import (
@@ -89,16 +91,16 @@ def test_to_dense_uses_toarray_when_available():
 	assert dense.shape == (2, 2)
 	assert np.array_equal(dense, np.array([[1, 2], [3, 4]]))
 
-
+# needs refactoring to cover line 99
 def test_apply_smote_returns_dense_when_disabled():
 	"""Return dense features and unchanged labels when SMOTE is disabled."""
-	x = np.array([[0.0, 1.0], [1.0, 0.0]])
+	x = sp.csr_matrix([[0.0, 1.0], [1.0, 0.0]])
 	y = np.array(["A", "B"])
 
 	x_out, y_out = _apply_smote(x, y, seed=7, enabled=False)
 
 	assert isinstance(x_out, np.ndarray)
-	assert np.array_equal(x_out, x)
+	assert np.array_equal(x_out, x.toarray())
 	assert np.array_equal(y_out, y)
 
 
