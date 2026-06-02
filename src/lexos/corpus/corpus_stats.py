@@ -381,25 +381,49 @@ class CorpusStats(BaseModel):
                 total_terms = len(counts)
                 tokens_freq_list = list(counts.values())
             
-            hapax_legomena = sum(1 for token in tokens_freq_list if token == 1)
-            hapax_dislegomena = sum(1 for token in tokens_freq_list if token == 2)
-
-            stop_word_count = sum(1 for token in doc if token.is_stop)
-            adverb_count = sum(1 for token in doc if token.pos_ == "ADV")
-            noun_count = sum(1 for token in doc if token.pos_ == "NOUN")
-            verb_count = sum(1 for token in doc if token.pos_ == "VERB")
-            num_count = sum(1 for token in doc if token.pos_ == "NUM")
-            adj_count = sum(1 for token in doc if token.pos_ == "ADJ") # Adjective
-            adp_count = sum(1 for token in doc if token.pos_ == "ADP") # Adposition (in, to, during)
-            aux_count = sum(1 for token in doc if token.pos_ == "AUX") # Auxiliary verb (is, has, will)
-            cconj_count = sum(1 for token in doc if token.pos_ == "CCONJ") # Coordinating conjunction (and, or, but)
-            det_count = sum(1 for token in doc if token.pos_ == "DET") # Determiner
-            intj_count = sum(1 for token in doc if token.pos_ == "INTJ") # Interjection
-            part_count = sum(1 for token in doc if token.pos_ == "PART") # Particles ('s, not, up -- like in "give up")
-            pron_count = sum(1 for token in doc if token.pos_ == "PRON") # Pronoun
-            propn_count = sum(1 for token in doc if token.pos_ == "PROPN") # Proper noun
-            sconj_count = sum(1 for token in doc if token.pos_ == "SCONJ") # Subordinating conjunction (if, while, that)
-            sym_count = sum(1 for token in doc if token.pos_ == "SYM") # Symbol
+            for token in doc:
+                if token.is_stop:
+                    stop_word_count += 1
+                if token.is_punct:
+                    punc_count += 1
+                
+                # Parts of Speech
+                if token.pos_ == "ADV":
+                    adverb_count += 1
+                if token.pos_ == "NOUN":
+                    noun_count += 1
+                if token.pos_ == "VERB":
+                    verb_count += 1
+                if token.pos_ == "NUM":
+                    num_count += 1
+                if token.pos_ == "ADJ": # Adjective
+                    adj_count += 1
+                if token.pos_ == "ADP": # Adposition (in, to, during)
+                    adp_count += 1
+                if token.pos_ == "AUX": # Auxiliary verb (is, has, will)
+                    aux_count += 1
+                if token.pos_ == "CCONJ": # Coordinating conjunction (and, or, but)
+                    cconj_count += 1
+                if token.pos_ == "DET": # Determiner
+                    det_count += 1
+                if token.pos_ == "INTJ": # Interjection
+                    intj_count += 1
+                if token.pos_ == "PART": # Particles ('s, not, up -- like in "give up")
+                    part_count += 1
+                if token.pos_ == "PRON": # Pronoun
+                    pron_count += 1
+                if token.pos_ == "PROPN": # Proper noun
+                    propn_count += 1
+                if token.pos_ == "SCONJ": # Subordinating conjunction (if, while, that)
+                    sconj_count += 1
+                if token.pos_ == "SYM": # Symbol
+                    sym_count += 1 
+            
+            for token in tokens_freq_list:
+                if token == 1:
+                    hapax_legomena += 1
+                if token == 2:
+                    hapax_dislegomena += 1
 
 
             avg_word_length = (char_count / total_tokens)
@@ -417,9 +441,7 @@ class CorpusStats(BaseModel):
 
             # Readability Data
             flesch_reading_ease = (206.835 - 1.015 * (avg_sentence_length))
-
             vocab_density = (total_terms / total_tokens * 100) if total_tokens > 0 else 0
-
 
             # Using TextBlob for sentiment analysis as a pipeline off of spaCy and not independently
             # Needs to be tested for use in languages other than English
