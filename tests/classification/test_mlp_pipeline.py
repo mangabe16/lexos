@@ -1,8 +1,8 @@
 """test_mlp_pipeline.py.
 
 Coverage:96%
-Last update: 04/21
-Last test: 05/27
+Last update: 06/09/2026
+Last test: 06/09/2026
 """
 
 from pathlib import Path
@@ -15,7 +15,7 @@ import scipy.sparse as sp
 import warnings
 from sklearn.exceptions import ConvergenceWarning
 
-from lexos.classification import mlp_pipeline
+import lexos.classification.mlp_pipeline as mlp_pipeline
 from lexos.classification.mlp_pipeline import (
 	MLPPipelineConfig,
 	MLPPipelineResult,
@@ -94,7 +94,7 @@ def test_to_dense_uses_toarray_when_available():
 	assert dense.shape == (2, 2)
 	assert np.array_equal(dense, np.array([[1, 2], [3, 4]]))
 
-# needs refactoring to cover line 99
+# needs refactoring to cover line 102
 def test_apply_smote_returns_dense_when_disabled():
 	"""Return dense features and unchanged labels when SMOTE is disabled."""
 	x = sp.csr_matrix([[0.0, 1.0], [1.0, 0.0]])
