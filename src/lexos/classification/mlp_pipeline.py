@@ -19,6 +19,7 @@ from sklearn.metrics import (
     f1_score,
 )
 from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 
 try:
@@ -26,7 +27,6 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     SMOTE = None
 
-from lexos.classification.trainer import fit_classifier
 from lexos.dtm import DTM
 from lexos.tokenizer import WhitespaceTokenizer
 from lexos.tokenizer.ngrams import Ngrams
@@ -205,6 +205,13 @@ def _build_feature_matrix(
     return x_features, dtm, corpus_stats_features
 
 
+def _build_mlp_classifier(config: MLPPipelineConfig) -> MLPClassifier:
+    """Create an `MLPClassifier` from pipeline configuration."""
+    mlp_kwargs = dict(config.mlp_kwargs)
+    mlp_kwargs.setdefault("random_state", config.seed)
+    return MLPClassifier(**mlp_kwargs)
+
+
 def run_mlp_authorship_pipeline(
     train_data: Sequence[str | Sequence[str]],
     train_labels: Sequence[str],
@@ -281,13 +288,8 @@ def run_mlp_authorship_pipeline(
     x_test_scaled = scaler_holdout.transform(x_test)
 
     x_train_model, y_train_model = _apply_smote(x_train_scaled, y_train, cfg.seed, cfg.use_smote)
-    holdout_model = fit_classifier(
-        feature_matrix=x_train_model,
-        target_labels=y_train_model,
-        model="mlp",
-        random_state=cfg.seed,
-        **cfg.mlp_kwargs,
-    )
+    holdout_model = _build_mlp_classifier(cfg)
+    holdout_model.fit(x_train_model, y_train_model)
 
     y_pred = holdout_model.predict(_to_dense(x_test_scaled))
     holdout_metrics = {
@@ -335,13 +337,8 @@ def run_mlp_authorship_pipeline(
         x_va_scaled = scaler_fold.transform(x_va)
 
         x_tr_model, y_tr_model = _apply_smote(x_tr_scaled, y_tr, cfg.seed, cfg.use_smote)
-        fold_model = fit_classifier(
-            feature_matrix=x_tr_model,
-            target_labels=y_tr_model,
-            model="mlp",
-            random_state=cfg.seed,
-            **cfg.mlp_kwargs,
-        )
+        fold_model = _build_mlp_classifier(cfg)
+        fold_model.fit(x_tr_model, y_tr_model)
 
         fold_pred = fold_model.predict(_to_dense(x_va_scaled))
         cv_rows.append(
@@ -366,13 +363,8 @@ def run_mlp_authorship_pipeline(
     x_full_scaled = scaler_final.fit_transform(x_full)
 
     x_full_model, y_full_model = _apply_smote(x_full_scaled, y, cfg.seed, cfg.use_smote)
-    final_model = fit_classifier(
-        feature_matrix=x_full_model,
-        target_labels=y_full_model,
-        model="mlp",
-        random_state=cfg.seed,
-        **cfg.mlp_kwargs,
-    )
+    final_model = _build_mlp_classifier(cfg)
+    final_model.fit(x_full_model, y_full_model)
 
     if test_token_lists is not None:
         x_test_infer = dtm_final.transform(test_token_lists)
