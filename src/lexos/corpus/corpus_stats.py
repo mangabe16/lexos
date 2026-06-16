@@ -23,6 +23,7 @@ from lexos.dtm import DTM
 from lexos.util import load_spacy_model, is_spacy_model_loaded
 from collections import Counter
 from lexos.exceptions import LexosException
+from lexos.filter.filters import IsStopwordFilter
 
 
 def make_labels_unique(labels: list[str]) -> list[str]:
@@ -324,13 +325,17 @@ class CorpusStats(BaseModel):
 
         return self._spacy_doc_stats
     
+    def _count_stopwords(self, doc: spacy.tokens.Doc) -> int:
+        """
+        
+        """
+        stopword_filter = IsStopwordFilter()
+        stopword_filter(doc = doc)
+        return len(stopword_filter.matched_token_ids or set())
+
     @cached_property
     def _spacy_doc_stats(self) -> pd.DataFrame:
         """Set a Pandas dataframe containing the statistics of each record.
-        
-        This function is cached so that the statistic calculations are only done once
-        Then with each subsequent call the existing statistics will be returned without
-        redoing calculations
 
         Returns:
             pd.DataFrame: A Pandas dataframe containing statistics of each record.
@@ -381,50 +386,57 @@ class CorpusStats(BaseModel):
                 total_terms = len(counts)
                 tokens_freq_list = list(counts.values())
             
+            stopword_count = self._count_stopwords(doc)
+
+            """Variety of Vocabulary Metric"""
+            guiraud_index = unique_word_count / math.sqrt(total_terms)
+
+            freq_of_freq = Counter(tokens_freq_list)
+            """Metric"""
+            yule_k = 100000 * (sum(f**2 * count for f, count in freq_of_freq.items()) - total_terms) / (total_terms**2)
+
+
+            """POS Counts"""
+            participle_count = 0
+            punc_count = 0
+
+            pos_counts = Counter(token.pos_ for token in doc if not token.is_space)
+            noun_count = pos_counts["PUNCT"]
+            verb_count = pos_counts["VERB"]
+            adverb_count = pos_counts["ADV"]
+            num_count = pos_counts["NUM"]
+            adj_count = pos_counts["ADJ"] # Adjective
+            adp_count = pos_counts["ADP"] # Adposition (in, to, during)
+            aux_count = pos_counts["AUX"] # Auxiliary verb (is, has will)
+            cconj_count = pos_counts["CCONJ"] # Coordinating Conjunction
+            det_count = pos_counts["DET"] # Determiner
+            intj_count = pos_counts["INTJ"] # Interjection
+            part_count = pos_counts["PART"] # Particles ('s, not, up -- like in "give up")
+            pron_count = pos_counts["PRON"] # Pronouns
+            propn_count = pos_counts["PROPN"] # Proper Noun
+            sconj_count = pos_counts["SCONJ"] # Subordinating conjunction (if, while, that)
+            sym_count = pos_counts["SYM"] # Symbols
+
+
             for token in doc:
-                if token.is_stop:
-                    stop_word_count += 1
                 if token.is_punct:
                     punc_count += 1
-                
-                # Parts of Speech
-                if token.pos_ == "ADV":
-                    adverb_count += 1
-                if token.pos_ == "NOUN":
-                    noun_count += 1
-                if token.pos_ == "VERB":
-                    verb_count += 1
-                if token.pos_ == "NUM":
-                    num_count += 1
-                if token.pos_ == "ADJ": # Adjective
-                    adj_count += 1
-                if token.pos_ == "ADP": # Adposition (in, to, during)
-                    adp_count += 1
-                if token.pos_ == "AUX": # Auxiliary verb (is, has, will)
-                    aux_count += 1
-                if token.pos_ == "CCONJ": # Coordinating conjunction (and, or, but)
-                    cconj_count += 1
-                if token.pos_ == "DET": # Determiner
-                    det_count += 1
-                if token.pos_ == "INTJ": # Interjection
-                    intj_count += 1
-                if token.pos_ == "PART": # Particles ('s, not, up -- like in "give up")
-                    part_count += 1
-                if token.pos_ == "PRON": # Pronoun
-                    pron_count += 1
-                if token.pos_ == "PROPN": # Proper noun
-                    propn_count += 1
-                if token.pos_ == "SCONJ": # Subordinating conjunction (if, while, that)
-                    sconj_count += 1
-                if token.pos_ == "SYM": # Symbol
-                    sym_count += 1 
+                if token.tag_ == "VBG" or token.tag_ == "VBN":
+                    participle_count += 1
             
+            hapax_legomena = 0
+            hapax_dislegomena = 0
             for token in tokens_freq_list:
                 if token == 1:
                     hapax_legomena += 1
                 if token == 2:
                     hapax_dislegomena += 1
 
+            """Measure of how noun-heavy/ dense with information a doc is"""
+            nominal_ratio = (noun_count + adp_count + participle_count) / (pron_count + adverb_count + verb_count) if (pron_count + adverb_count + verb_count) > 0 else 0
+            
+            """Nominal Ratio calculated with less complex parts of speech (nouns and verbs)"""
+            simple_nominal_ratio = noun_count / verb_count if verb_count > 0 else 0
 
             avg_word_length = (char_count / total_tokens)
             ttr = (unique_word_count / total_tokens)
@@ -443,8 +455,6 @@ class CorpusStats(BaseModel):
             flesch_reading_ease = (206.835 - 1.015 * (avg_sentence_length))
             vocab_density = (total_terms / total_tokens * 100) if total_tokens > 0 else 0
 
-            # Using TextBlob for sentiment analysis as a pipeline off of spaCy and not independently
-            # Needs to be tested for use in languages other than English
 
             # Sentiment Data
             polarity = doc._.blob.polarity
@@ -460,6 +470,10 @@ class CorpusStats(BaseModel):
                 "total_terms": int(total_terms),
                 "average_word_length": round(avg_word_length, 2),
                 "ttr": round(ttr, 2),
+                "nominal_ratio": round(nominal_ratio, 2),
+                "simple_nominal_ratio": round(simple_nominal_ratio, 2),
+                "guiraud_index": round(guiraud_index, 2),
+                "yule_k": round(yule_k, 2),
                 "hapax_legomena": int(hapax_legomena),
                 "hapax_dislegomena": int(hapax_dislegomena),
                 "hapax_legomenon_rate": round(hapax_legomenon_rate, 2),
@@ -469,7 +483,7 @@ class CorpusStats(BaseModel):
                 "polarity": round(polarity, 2),
                 "subjectivity": round(subjectivity, 2),
                 "emotion_word_count": int(emotion_word_count),
-                "stop_word_count": int(stop_word_count),
+                "stop_word_count": int(stopword_count),
                 "adverb_count": int(adverb_count),
                 "average_sentence_length": round(avg_sentence_length, 2),
                 "flesch_reading_ease": round(flesch_reading_ease, 2),
@@ -489,6 +503,7 @@ class CorpusStats(BaseModel):
                 "propn_count": int(propn_count),
                 "sconj_count": int(sconj_count),
                 "sym_count": int(sym_count),
+                "participle_count": int(participle_count),
             })
 
         df = pd.DataFrame(rows).set_index("Documents")
