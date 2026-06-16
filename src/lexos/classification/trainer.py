@@ -1,7 +1,7 @@
 """trainer.py.
 
-Last Updated: June 30, 2025
-Last Tested: TBD.
+Last Updated: June 09, 2026
+Last Tested: June 09.
 """
 
 import numpy as np
@@ -9,18 +9,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.utils import resample
-from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, Normalizer
 
 
-
-# Function to train and evaluate a classifier
 def train_classifier(
     feature_matrix, target_labels, model: str = "svc", test_size: float = 0.4, random_state=None, normalize=None, bootstrap = False
 ):
@@ -32,7 +28,7 @@ def train_classifier(
         feature_matrix: document-term matrix (input features)
         target_labels: list of labels (target values)
         model: classifier to train. Supported: 'svc', 'logistic', 'decision_tree',
-            'random_forest', 'knn', 'naive_bayes', 'mlp'.
+            'random_forest', 'knn', 'naive_bayes'.
         test_size: fraction of data to reserve for testing
         random_state: seed for reproducibility
         normalize: choice to normalize features
@@ -74,17 +70,6 @@ def train_classifier(
         clf = KNeighborsClassifier()
     elif model == "naive_bayes":
         clf = MultinomialNB()
-    elif model == "mlp":
-        clf = MLPClassifier(
-            hidden_layer_sizes=(128, 64),
-            activation="relu",
-            solver="adam",
-            alpha=1e-4,
-            learning_rate_init=1e-3,
-            max_iter=600,
-            early_stopping=False,
-            random_state=random_state,
-        )
     else:
         raise ValueError(f"Unsupported model: {model}")
 
@@ -123,39 +108,20 @@ def fit_classifier(feature_matrix, target_labels, model: str = "svc", normalize=
         scaler = normalize_features(normalize)
         feature_matrix = scaler.fit_transform(feature_matrix)
 
-    sample_weight = kwargs.pop("sample_weight", None)
-
-
     registry = {
         "svc": SVC,
         "decision_tree": DecisionTreeClassifier,
         "logistic_regression": LogisticRegression,
         "random_forest": RandomForestClassifier,
         "naive_bayes": MultinomialNB,
-        "mlp": MLPClassifier,
     }
     key = model.lower()
     if key not in registry:
         raise ValueError(f"Unknown model '{model}'. Choose from {sorted(registry.keys())}.")
     Estimator = registry[key]
 
-    if key == "mlp":
-        effective_class_weight = kwargs.pop("class_weight", class_weight)
-        if effective_class_weight is not None:
-            class_sample_weight = compute_sample_weight(
-                class_weight=effective_class_weight,
-                y=target_labels,
-            )
-            if sample_weight is None:
-                sample_weight = class_sample_weight
-            else:
-                sample_weight = np.asarray(sample_weight) * class_sample_weight
-
     clf = Estimator(**kwargs)
-    fit_kwargs = {}
-    if key == "mlp" and sample_weight is not None:
-        fit_kwargs["sample_weight"] = sample_weight
-    clf.fit(feature_matrix, target_labels, **fit_kwargs)
+    clf.fit(feature_matrix, target_labels)
     return clf
 
 def normalize_features(normalize):
