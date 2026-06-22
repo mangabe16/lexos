@@ -7,6 +7,8 @@ modular training configurations and unified lifecycle evaluation.
 Last Updated: June 22, 2026
 """
 
+import copy
+import random
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Sequence
 import numpy as np
@@ -165,7 +167,6 @@ class Classifier(BaseModel):
         Returns:
             A list of string feature names discovered within the document matrix.
         """
-        # Minor local imports to ensure clean initialization boundaries
         from lexos.classification.mlp_pipeline import _tokenize_items
 
         token_lists = _tokenize_items(self.train_data, include_bigrams=True)
@@ -220,6 +221,72 @@ class Classifier(BaseModel):
             "cv_mean_metrics", {}
         )
         self._report = results.get("holdout_report", pd.DataFrame())
+
+    def feature_importance_sweep(self) -> pd.DataFrame:
+        """Natively retrains models by progressively pruning features based on the pipeline configuration.
+
+        Handles cloning configurations and iterative drops automatically to insulate client environments.
+
+        Returns:
+            pd.DataFrame: A comprehensive table tracking performance metrics per feature removal step.
+        """
+        if self.features == "all" or self.features is None:
+            self.features = self.build_corpus_stat_features()
+
+        active_features = list(self.features)
+        removal_order = list(self.features)
+
+        strategy_removal = getattr(self.pipeline, "feature_removal", None)
+        if strategy_removal == "random":
+            seed = getattr(self.pipeline, "seed", 42)
+            random.Random(seed).shuffle(removal_order)
+
+        experiment_rows = []
+
+        # 1. Train and parse baseline configurations
+        self.fit()
+        base_row = {
+            "configuration": "baseline",
+            "removed_feature": "baseline",
+            "features_remaining": len(active_features),
+            "holdout_accuracy": self.metrics.get("accuracy", 0.0),
+            "holdout_balanced_accuracy": self.metrics.get("balanced_accuracy", 0.0),
+            "holdout_macro_f1": self.metrics.get("macro_f1", 0.0),
+            "cv_accuracy": self.metrics.get("accuracy", 0.0),
+            "cv_balanced_accuracy": self.metrics.get("balanced_accuracy", 0.0),
+            "cv_macro_f1": self.metrics.get("macro_f1", 0.0),
+        }
+        experiment_rows.append(base_row)
+
+        # 2. Progressively drop features one by one
+        for step, feature_to_drop in enumerate(removal_order, start=1):
+            active_features = [f for f in active_features if f != feature_to_drop]
+
+            cloned_strategy = copy.deepcopy(self.pipeline)
+
+            sub_classifier = Classifier(
+                train_data=self.train_data,
+                labels=self.labels,
+                pipeline=cloned_strategy,
+                features=active_features,
+            )
+            sub_classifier.fit()
+
+            sub_metrics = sub_classifier.metrics
+            row = {
+                "configuration": f"remove_{step:02d}",
+                "removed_feature": feature_to_drop,
+                "features_remaining": len(active_features),
+                "holdout_accuracy": sub_metrics.get("accuracy", 0.0),
+                "holdout_balanced_accuracy": sub_metrics.get("balanced_accuracy", 0.0),
+                "holdout_macro_f1": sub_metrics.get("macro_f1", 0.0),
+                "cv_accuracy": sub_metrics.get("accuracy", 0.0),
+                "cv_balanced_accuracy": sub_metrics.get("balanced_accuracy", 0.0),
+                "cv_macro_f1": sub_metrics.get("macro_f1", 0.0),
+            }
+            experiment_rows.append(row)
+
+        return pd.DataFrame(experiment_rows)
 
     def split(
         self, test_size: float = 0.2, random_state: Optional[int] = None
