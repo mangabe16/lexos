@@ -53,11 +53,9 @@ class Pipeline(BaseModel, ABC):
 
 
 class SklearnClassifierPipeline(Pipeline):
-    """A concrete pipeline strategy handling traditional scikit-learn estimators.
+    """A concrete pipeline strategy handling traditional scikit-learn estimators."""
 
-    Ported from the legacy functional implementation to adapt smoothly to
-    the new object-oriented framework.
-    """
+    # Ported from the legacy functional implementation to adapt smoothly to the new object-oriented framework.
 
     model_name: str = Field(
         default="svc", description="The lowercase scikit-learn key name"
@@ -237,6 +235,7 @@ class Classifier(BaseModel):
         removal_order = list(self.features)
 
         strategy_removal = getattr(self.pipeline, "feature_removal", None)
+        # TODO: add more removal strategies
         if strategy_removal == "random":
             seed = getattr(self.pipeline, "seed", 42)
             random.Random(seed).shuffle(removal_order)
