@@ -54,8 +54,10 @@ def test_predict_labels_after_fit():
     `predict_labels` returns one prediction per input row.
     """
     X, y = make_separable_data(seed=1)
-    clf = fit_classifier(X, y, model="logistic_regression", max_iter=200, random_state=0)
-    X_new = np.array([[ -1.0, -1.0 ], [1.0, 1.0]])
+    clf = fit_classifier(
+        X, y, model="logistic_regression", max_iter=200, random_state=0
+    )
+    X_new = np.array([[-1.0, -1.0], [1.0, 1.0]])
     preds = predict_labels(clf, X_new)
     assert preds.shape[0] == X_new.shape[0]
 
@@ -87,15 +89,30 @@ def test_train_and_fit_model_coverage():
     X, y = make_separable_data()
 
     # Models accepted by train_classifier
-    for model in ["svc", "logistic", "decision_tree", "random_forest", "knn", "naive_bayes"]:
+    for model in [
+        "svc",
+        "logistic",
+        "decision_tree",
+        "random_forest",
+        "knn",
+        "naive_bayes",
+    ]:
         # MultinomialNB requires non-negative input; ensure that for the test
         X_use, y_use = (np.abs(X), y) if model == "naive_bayes" else (X, y)
-        clf, report = train_classifier(X_use, y_use, model=model, test_size=0.4, random_state=0)
+        clf, report = train_classifier(
+            X_use, y_use, model=model, test_size=0.4, random_state=0
+        )
         assert hasattr(clf, "predict")
         assert isinstance(report, str)
 
     # Models accepted by fit_classifier
-    for model in ["svc", "logistic_regression", "decision_tree", "random_forest", "naive_bayes"]:
+    for model in [
+        "svc",
+        "logistic_regression",
+        "decision_tree",
+        "random_forest",
+        "naive_bayes",
+    ]:
         X_use, y_use = (np.abs(X), y) if model == "naive_bayes" else (X, y)
         clf = fit_classifier(X_use, y_use, model=model)
         assert hasattr(clf, "predict")
@@ -119,12 +136,11 @@ def test_train_classifier_single_class_stratify():
 
 
 def test_bootstrap_uses_resample(monkeypatch):
-    """Verify that passing `bootstrap=True` triggers the module's resample() call.
-    """
+    """Verify that passing `bootstrap=True` triggers the module's resample() call."""
     called = {}
 
     def fake_resample(features, labels, random_state=None):
-        called['ok'] = True
+        called["ok"] = True
         # Return a resampled array that preserves class variety for training.
         # For deterministic behavior return the original array (no-op resample).
         return features.copy(), np.asarray(labels).copy()
@@ -133,8 +149,10 @@ def test_bootstrap_uses_resample(monkeypatch):
 
     X = np.random.RandomState(1).randn(4, 2)
     y = np.array([0, 0, 1, 1])
-    clf, report = train_classifier(X, y, model="svc", test_size=0.5, random_state=0, bootstrap=True)
-    assert called.get('ok', False) is True
+    clf, report = train_classifier(
+        X, y, model="svc", test_size=0.5, random_state=0, bootstrap=True
+    )
+    assert called.get("ok", False) is True
     assert hasattr(clf, "predict")
 
 
@@ -147,14 +165,14 @@ def test_train_classifier_test_size_used(monkeypatch):
     orig = trainer_mod.train_test_split
 
     def wrapper(*args, **kwargs):
-        captured['kwargs'] = kwargs.copy()
+        captured["kwargs"] = kwargs.copy()
         return orig(*args, **kwargs)
 
     monkeypatch.setattr(trainer_mod, "train_test_split", wrapper)
 
     X, y = make_separable_data()
     _clf, _report = train_classifier(X, y, model="svc", test_size=0.33, random_state=0)
-    assert pytest.approx(captured['kwargs']['test_size'], rel=1e-3) == 0.33
+    assert pytest.approx(captured["kwargs"]["test_size"], rel=1e-3) == 0.33
 
 
 def test_fit_unknown_model_raises():
@@ -177,5 +195,13 @@ def test_predict_labels_unfitted_raises():
 def test_train_classifier_normalize_and_bootstrap_combined():
     """Integration smoke test: `normalize` + `bootstrap` together should run end-to-end."""
     X, y = make_separable_data()
-    clf, report = train_classifier(X, y, model="svc", test_size=0.4, random_state=0, normalize="standard", bootstrap=True)
+    clf, report = train_classifier(
+        X,
+        y,
+        model="svc",
+        test_size=0.4,
+        random_state=0,
+        normalize="standard",
+        bootstrap=True,
+    )
     assert hasattr(clf, "predict")

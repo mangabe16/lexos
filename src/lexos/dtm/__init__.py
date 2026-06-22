@@ -72,20 +72,17 @@ class DTM(BaseModel):
     """Class for a document-term matrix."""
 
     docs: Optional[list[list[str] | Doc]] = Field(
-        default=None,
-        description="A list of spaCy docs or a list of token lists."
+        default=None, description="A list of spaCy docs or a list of token lists."
     )
     labels: Optional[list[str]] = Field(
-        default=None,
-        description="A list of labels for the documents."
+        default=None, description="A list of labels for the documents."
     )
     vectorizer: Optional[Callable] = Field(
         default=TextacyVectorizer,
-        description="A callable Vectorizer. Must have a fit_transform() method."
+        description="A callable Vectorizer. Must have a fit_transform() method.",
     )
     alg: Optional[ns] = Field(
-        default=ns.LOCALE,
-        description="The sorting algorithm to use."
+        default=ns.LOCALE, description="The sorting algorithm to use."
     )
     doc_term_matrix: Optional[sp.spmatrix] = Field(
         default=None, description="The document-term matrix."
@@ -245,10 +242,9 @@ class DTM(BaseModel):
         self,
         docs: list[list[str] | Doc],
         labels: list[str],
-        **kwargs: dict[str, str | int | float | bool]
+        **kwargs: dict[str, str | int | float | bool],
     ) -> sp.spmatrix:
-        """
-        Fit the vectorizer to the documents and transform them into a document-term matrix.
+        """Fit the vectorizer to the documents and transform them into a document-term matrix.
 
         Args:
             docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
@@ -283,16 +279,14 @@ class DTM(BaseModel):
         return self.doc_term_matrix
 
     def transform(
-        self,
-        docs: list[list[str] | Doc],
-        **kwargs: dict[str, str | int | float | bool]
+        self, docs: list[list[str] | Doc], **kwargs: dict[str, str | int | float | bool]
     ) -> sp.spmatrix:
-        """
-        Transform new documents indo a document-term matrix using the fitted vectorizer.
-        
+        """Transform new documents indo a document-term matrix using the fitted vectorizer.
+
         Args:
             docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
         **kwargs (dict): Additional keyword arguments to pass to the vectorizer.
+
         Returns:
             sp.spmatrix: The resulting document-term matrix.
         """
@@ -302,8 +296,10 @@ class DTM(BaseModel):
 
         # ensure the vectorizer is already fitted
         if not hasattr(self.vectorizer, "transform"):
-            raise LexosException("The vectorizer must be fitted before transforming data.")
-        
+            raise LexosException(
+                "The vectorizer must be fitted before transforming data."
+            )
+
         # coerce the docs to a list of token lists
         docs = [
             [token.text for token in doc] if isinstance(doc, Doc) else doc
@@ -316,6 +312,7 @@ class DTM(BaseModel):
         except Exception as e:
             raise LexosException(f"Error transforming documents: {e}")
         return transformed_matrix
+
     def _get_term_percentages(
         self,
         df: pd.DataFrame,

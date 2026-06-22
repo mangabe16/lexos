@@ -37,7 +37,7 @@ from lexos.util import ensure_list, load_spacy_model, is_spacy_model_loaded
 
 try:
     if not is_spacy_model_loaded():
-      load_spacy_model()
+        load_spacy_model()
 except ImportError:
     raise LexosException(
         "The default model is not available. Please run `python -m spacy download xx_sent_ud_sm` from the command line."

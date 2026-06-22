@@ -1,6 +1,6 @@
 """__init__.py.
 
-Unified exposed module interface exposing the refactored, 
+Unified exposed module interface exposing the refactored,
 object-oriented Lexos Classification infrastructure.
 
 Last Updated: June 22, 2026

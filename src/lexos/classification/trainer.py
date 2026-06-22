@@ -20,16 +20,20 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, Normalizer
 
+
 class Pipeline(BaseModel, ABC):
     """Abstract base class representing a model training strategy.
-    
+
     Subclasses must implement specific feature extraction, tokenization,
     and model fitting execution loops.
     """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @abstractmethod
-    def execute_training(self, train_data: Sequence[Any], labels: Sequence[str]) -> dict[str, Any]:
+    def execute_training(
+        self, train_data: Sequence[Any], labels: Sequence[str]
+    ) -> dict[str, Any]:
         """Execute feature extraction and model fitting routines.
 
         Args:
@@ -44,13 +48,20 @@ class Pipeline(BaseModel, ABC):
 
 class SklearnClassifierPipeline(Pipeline):
     """A concrete pipeline strategy handling traditional scikit-learn estimators.
-    
+
     Ported from the legacy functional implementation to adapt smoothly to
     the new object-oriented framework.
     """
-    model_name: str = Field(default="svc", description="The lowercase scikit-learn key name")
-    normalize: Optional[str] = Field(default=None, description="Normalization technique ('standard', 'minmax', etc.)")
-    model_kwargs: dict[str, Any] = Field(default_factory=dict, description="Arbitrary estimator hyperparameters")
+
+    model_name: str = Field(
+        default="svc", description="The lowercase scikit-learn key name"
+    )
+    normalize: Optional[str] = Field(
+        default=None, description="Normalization technique ('standard', 'minmax', etc.)"
+    )
+    model_kwargs: dict[str, Any] = Field(
+        default_factory=dict, description="Arbitrary estimator hyperparameters"
+    )
 
     def _get_scaler(self) -> Any:
         """Instantiate the requested feature normalization model."""
@@ -58,7 +69,7 @@ class SklearnClassifierPipeline(Pipeline):
             "standard": StandardScaler,
             "minmax": MinMaxScaler,
             "robust": RobustScaler,
-            "l2": lambda: Normalizer(norm="l2")
+            "l2": lambda: Normalizer(norm="l2"),
         }
         if self.normalize not in mapping:
             raise ValueError(f"Unsupported normalization method: {self.normalize}")
@@ -79,7 +90,9 @@ class SklearnClassifierPipeline(Pipeline):
             raise ValueError(f"Unknown model architecture variant: '{self.model_name}'")
         return registry[key]()
 
-    def execute_training(self, train_data: Sequence[Any], labels: Sequence[str]) -> dict[str, Any]:
+    def execute_training(
+        self, train_data: Sequence[Any], labels: Sequence[str]
+    ) -> dict[str, Any]:
         """Transforms features, normalizes distributions, and fits the estimator."""
         # Note: Traditional pipelines assume pre-extracted vector features passed as train_data.
         # Future development rule: Integrate a modular DTM feature transformer step directly here.
@@ -97,23 +110,28 @@ class SklearnClassifierPipeline(Pipeline):
         return {
             "final_model": estimator,
             "final_scaler": scaler,
-            "holdout_metrics": {}, 
+            "holdout_metrics": {},
             "holdout_report": pd.DataFrame(),
             "holdout_confusion_matrix": pd.DataFrame(),
             "cv_fold_metrics": pd.DataFrame(),
-            "cv_mean_metrics": {}
+            "cv_mean_metrics": {},
         }
 
 
 class Classifier(BaseModel):
     """The central orchestration Context utilizing the Template Method pattern.
-    
+
     Defines the structural lifecycle workflow for training classification tasks.
     """
-    train_data: Sequence[Any] = Field(description="Training data source (e.g., list of spaCy Docs)")
+
+    train_data: Sequence[Any] = Field(
+        description="Training data source (e.g., list of spaCy Docs)"
+    )
     labels: Sequence[str] = Field(description="Classification target identifiers")
     pipeline: Pipeline = Field(description="Injected configuration training strategy")
-    features: Optional[Any] = Field(default=None, description="Features selector context or rules")
+    features: Optional[Any] = Field(
+        default=None, description="Features selector context or rules"
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -147,7 +165,9 @@ class Classifier(BaseModel):
     def _preprocess_data(self) -> None:
         """Hook reserved for shared dataset formatting or safety check hooks."""
         if len(self.train_data) != len(self.labels):
-            raise ValueError("Size mismatch across sample dimensions and structural target labels.")
+            raise ValueError(
+                "Size mismatch across sample dimensions and structural target labels."
+            )
 
     def _initialize_model(self) -> None:
         """Hook executed right before executing strategy processing layers."""
@@ -161,22 +181,29 @@ class Classifier(BaseModel):
         """Populates internal context performance metrics from strategy payloads."""
         self._model = results.get("final_model")
         # Support both custom metrics dictionaries or fallback strategies
-        self._metrics = results.get("holdout_metrics", {}) or results.get("cv_mean_metrics", {})
+        self._metrics = results.get("holdout_metrics", {}) or results.get(
+            "cv_mean_metrics", {}
+        )
         self._report = results.get("holdout_report", pd.DataFrame())
 
-    def split(self, test_size: float = 0.2, random_state: Optional[int] = None) -> tuple[list[Any], list[Any], list[str], list[str]]:
+    def split(
+        self, test_size: float = 0.2, random_state: Optional[int] = None
+    ) -> tuple[list[Any], list[Any], list[str], list[str]]:
         """Splits datasets safely before initializing pipeline contexts to avoid leakage."""
         from sklearn.model_selection import train_test_split
         import numpy as np
-        
+
         indices = np.arange(len(self.train_data))
         tr_idx, ts_idx = train_test_split(
-            indices, test_size=test_size, random_state=random_state, stratify=self.labels
+            indices,
+            test_size=test_size,
+            random_state=random_state,
+            stratify=self.labels,
         )
-        
+
         train_x = [self.train_data[i] for i in tr_idx]
         test_x = [self.train_data[i] for i in ts_idx]
         train_y = [self.labels[i] for i in tr_idx]
         test_y = [self.labels[i] for i in ts_idx]
-        
+
         return train_x, test_x, train_y, test_y

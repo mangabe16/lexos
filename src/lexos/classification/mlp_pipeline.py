@@ -11,7 +11,13 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 from pydantic import Field
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, classification_report, confusion_matrix, f1_score
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+)
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
@@ -28,7 +34,9 @@ from lexos.classification.trainer import Pipeline
 
 
 # Utility compilation helpers left decoupled for architectural performance mapping
-def _tokenize_items(items: Sequence[Any], include_bigrams: bool = True) -> list[list[str]]:
+def _tokenize_items(
+    items: Sequence[Any], include_bigrams: bool = True
+) -> list[list[str]]:
     """Transform sequence objects or strings into normal unigram/bigram token vectors."""
     ws_tokenizer = WhitespaceTokenizer()
     ngrams = Ngrams(n=2)
@@ -55,7 +63,9 @@ def _tokenize_items(items: Sequence[Any], include_bigrams: bool = True) -> list[
         token_lists.append(tokens)
 
     if any(len(tokens) == 0 for tokens in token_lists):
-        raise ValueError("At least one document produced zero tokens after preprocessing.")
+        raise ValueError(
+            "At least one document produced zero tokens after preprocessing."
+        )
     return token_lists
 
 
@@ -69,10 +79,19 @@ class MLPPipeline(Pipeline):
 
     seed: int = Field(default=42, description="Random state initialization seed")
     min_df: int = Field(default=2, description="Minimum data document expression limit")
-    test_size: float = Field(default=0.2, description="Validation split layout size ratio")
-    cv_splits: int = Field(default=5, description="Cross-validation evaluation loop folding constraint")
-    include_bigrams: bool = Field(default=True, description="Enables bigram token compilation profiles")
-    use_smote: bool = Field(default=True, description="Controls implementation of SMOTE oversampling algorithms")
+    test_size: float = Field(
+        default=0.2, description="Validation split layout size ratio"
+    )
+    cv_splits: int = Field(
+        default=5, description="Cross-validation evaluation loop folding constraint"
+    )
+    include_bigrams: bool = Field(
+        default=True, description="Enables bigram token compilation profiles"
+    )
+    use_smote: bool = Field(
+        default=True,
+        description="Controls implementation of SMOTE oversampling algorithms",
+    )
     mlp_kwargs: dict[str, Any] = Field(
         default_factory=lambda: {
             "hidden_layer_sizes": (64,),
@@ -82,10 +101,12 @@ class MLPPipeline(Pipeline):
             "learning_rate_init": 1e-3,
             "max_iter": 1000,
         },
-        description="Configuration keywords directly targeting scikit-learn MLP instances"
+        description="Configuration keywords directly targeting scikit-learn MLP instances",
     )
 
-    def _apply_smote(self, feature_matrix: Any, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _apply_smote(
+        self, feature_matrix: Any, labels: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Apply SMOTE oversampling safely across dense arrays."""
         dense_matrix = _to_dense(feature_matrix)
         if not self.use_smote:
@@ -105,18 +126,26 @@ class MLPPipeline(Pipeline):
         kwargs.setdefault("random_state", self.seed)
         return MLPClassifier(**kwargs)
 
-    def execute_training(self, train_data: Sequence[Any], labels: Sequence[str]) -> dict[str, Any]:
+    def execute_training(
+        self, train_data: Sequence[Any], labels: Sequence[str]
+    ) -> dict[str, Any]:
         """Processes tokenized elements, computes metrics, and fits the architecture."""
         np.random.seed(self.seed)
-        
-        all_token_lists = _tokenize_items(train_data, include_bigrams=self.include_bigrams)
+
+        all_token_lists = _tokenize_items(
+            train_data, include_bigrams=self.include_bigrams
+        )
         all_doc_labels = [f"train_doc_{i}" for i in range(len(all_token_lists))]
         y = np.asarray(labels)
         indices = np.arange(len(all_token_lists))
 
         # 1. Holdout Validation Partition Processing Step
         train_idx, test_idx = train_test_split(
-            indices, test_size=self.test_size, random_state=self.seed, stratify=y, shuffle=True
+            indices,
+            test_size=self.test_size,
+            random_state=self.seed,
+            stratify=y,
+            shuffle=True,
         )
 
         token_train = [all_token_lists[i] for i in train_idx]
@@ -126,7 +155,9 @@ class MLPPipeline(Pipeline):
         y_test = y[test_idx]
 
         dtm_holdout = DTM()
-        x_train = dtm_holdout.fit_transform(token_train, labels=list(doc_labels_train), min_df=self.min_df)
+        x_train = dtm_holdout.fit_transform(
+            token_train, labels=list(doc_labels_train), min_df=self.min_df
+        )
         x_test = dtm_holdout.transform(token_test)
 
         scaler_holdout = StandardScaler(with_mean=False)
@@ -144,17 +175,23 @@ class MLPPipeline(Pipeline):
             "macro_f1": float(f1_score(y_test, y_pred, average="macro")),
         }
 
-        report_dict = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
+        report_dict = classification_report(
+            y_test, y_pred, output_dict=True, zero_division=0
+        )
         holdout_report = pd.DataFrame(report_dict).T
 
         class_labels = sorted(np.unique(y).tolist())
         cm = confusion_matrix(y_test, y_pred, labels=class_labels)
         holdout_confusion_matrix = pd.DataFrame(
-            cm, index=[f"true_{l}" for l in class_labels], columns=[f"pred_{l}" for l in class_labels]
+            cm,
+            index=[f"true_{l}" for l in class_labels],
+            columns=[f"pred_{l}" for l in class_labels],
         )
 
         # 2. Stratified Cross Validation Cycle Sequence Block
-        cv = StratifiedKFold(n_splits=self.cv_splits, shuffle=True, random_state=self.seed)
+        cv = StratifiedKFold(
+            n_splits=self.cv_splits, shuffle=True, random_state=self.seed
+        )
         cv_rows: list[dict[str, float]] = []
 
         for fold, (tr_idx, va_idx) in enumerate(cv.split(all_token_lists, y), start=1):
@@ -165,7 +202,11 @@ class MLPPipeline(Pipeline):
             y_va = y[va_idx]
 
             dtm_fold = DTM()
-            x_tr = dtm_fold.fit_transform(fold_train_tokens, labels=list(fold_train_doc_labels), min_df=self.min_df)
+            x_tr = dtm_fold.fit_transform(
+                fold_train_tokens,
+                labels=list(fold_train_doc_labels),
+                min_df=self.min_df,
+            )
             x_va = dtm_fold.transform(fold_valid_tokens)
 
             scaler_fold = StandardScaler(with_mean=False)
@@ -177,12 +218,16 @@ class MLPPipeline(Pipeline):
             fold_model.fit(x_tr_model, y_tr_model)
 
             fold_pred = fold_model.predict(_to_dense(x_va_scaled))
-            cv_rows.append({
-                "fold": float(fold),
-                "accuracy": float(accuracy_score(y_va, fold_pred)),
-                "balanced_accuracy": float(balanced_accuracy_score(y_va, fold_pred)),
-                "macro_f1": float(f1_score(y_va, fold_pred, average="macro")),
-            })
+            cv_rows.append(
+                {
+                    "fold": float(fold),
+                    "accuracy": float(accuracy_score(y_va, fold_pred)),
+                    "balanced_accuracy": float(
+                        balanced_accuracy_score(y_va, fold_pred)
+                    ),
+                    "macro_f1": float(f1_score(y_va, fold_pred, average="macro")),
+                }
+            )
 
         cv_fold_metrics = pd.DataFrame(cv_rows)
         cv_mean_metrics = {
@@ -193,7 +238,9 @@ class MLPPipeline(Pipeline):
 
         # 3. Complete Corpus Aggregation Final Model Compilation
         dtm_final = DTM()
-        x_full = dtm_final.fit_transform(all_token_lists, labels=list(all_doc_labels), min_df=self.min_df)
+        x_full = dtm_final.fit_transform(
+            all_token_lists, labels=list(all_doc_labels), min_df=self.min_df
+        )
 
         scaler_final = StandardScaler(with_mean=False)
         x_full_scaled = scaler_final.fit_transform(x_full)
@@ -210,5 +257,5 @@ class MLPPipeline(Pipeline):
             "holdout_report": holdout_report,
             "holdout_confusion_matrix": holdout_confusion_matrix,
             "cv_fold_metrics": cv_fold_metrics,
-            "cv_mean_metrics": cv_mean_metrics
+            "cv_mean_metrics": cv_mean_metrics,
         }
