@@ -9,6 +9,7 @@ Last Updated: June 22, 2026
 
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Sequence
+import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from sklearn.ensemble import RandomForestClassifier
@@ -20,6 +21,8 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, Normalizer
 
+from lexos.corpus.corpus_stats import CorpusStats
+
 
 class Pipeline(BaseModel, ABC):
     """Abstract base class representing a model training strategy.
@@ -28,6 +31,7 @@ class Pipeline(BaseModel, ABC):
     and model fitting execution loops.
     """
 
+    min_df: int = Field(default=2, description="Minimum data document expression limit")
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @abstractmethod
@@ -94,8 +98,6 @@ class SklearnClassifierPipeline(Pipeline):
         self, train_data: Sequence[Any], labels: Sequence[str]
     ) -> dict[str, Any]:
         """Transforms features, normalizes distributions, and fits the estimator."""
-        # Note: Traditional pipelines assume pre-extracted vector features passed as train_data.
-        # Future development rule: Integrate a modular DTM feature transformer step directly here.
         features = train_data
         scaler = None
 
@@ -106,7 +108,6 @@ class SklearnClassifierPipeline(Pipeline):
         estimator = self._get_estimator()
         estimator.fit(features, labels)
 
-        # Build basic return dictionary to fit the baseline expected by Classifier._evaluate
         return {
             "final_model": estimator,
             "final_scaler": scaler,
@@ -125,12 +126,12 @@ class Classifier(BaseModel):
     """
 
     train_data: Sequence[Any] = Field(
-        description="Training data source (e.g., list of spaCy Docs)"
+        description="Training data source (e.g., list of strings or spaCy Docs)"
     )
     labels: Sequence[str] = Field(description="Classification target identifiers")
     pipeline: Pipeline = Field(description="Injected configuration training strategy")
     features: Optional[Any] = Field(
-        default=None, description="Features selector context or rules"
+        default="all", description="Features selector context, specific list, or 'all' for dynamic extraction"
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -155,6 +156,34 @@ class Classifier(BaseModel):
         """Expose the underlying trained estimator payload."""
         return self._model
 
+    def build_corpus_stat_features(self) -> list[str]:
+        """Dynamically discovers available numeric CorpusStats features for the current training dataset.
+
+        Accessible both as an internal lifecycle step and as a public API tool for end-users.
+
+        Returns:
+            A list of string feature names discovered within the document matrix.
+        """
+        # Minor local imports to ensure clean initialization boundaries
+        from lexos.classification.mlp_pipeline import _tokenize_items
+
+        token_lists = _tokenize_items(self.train_data, include_bigrams=True)
+        doc_ids = [f"doc_{i}" for i in range(len(token_lists))]
+        
+        docs_for_corpus = [
+            (doc_id, doc_id, " ".join(tokens))
+            for doc_id, tokens in zip(doc_ids, token_lists)
+        ]
+        
+        corpus = CorpusStats(docs=docs_for_corpus, min_df=self.pipeline.min_df)
+        stats_df = corpus.doc_stats_df.reindex(doc_ids)
+        numeric_stats = stats_df.select_dtypes(include=[np.number]).copy()
+
+        if numeric_stats.empty:
+            raise ValueError("CorpusStats did not produce any numeric features to evaluate.")
+
+        return list(numeric_stats.columns)
+
     def fit(self) -> None:
         """The Template Method establishing the explicit lifecycle algorithm sequence."""
         self._preprocess_data()
@@ -163,11 +192,15 @@ class Classifier(BaseModel):
         self._evaluate(results)
 
     def _preprocess_data(self) -> None:
-        """Hook reserved for shared dataset formatting or safety check hooks."""
+        """Hook reserved for shared dataset formatting and dynamic feature discovery validation."""
         if len(self.train_data) != len(self.labels):
             raise ValueError(
                 "Size mismatch across sample dimensions and structural target labels."
             )
+
+        # Dynamic discovery execution hook
+        if self.features == "all":
+            self.features = self.build_corpus_stat_features()
 
     def _initialize_model(self) -> None:
         """Hook executed right before executing strategy processing layers."""
@@ -180,7 +213,6 @@ class Classifier(BaseModel):
     def _evaluate(self, results: dict[str, Any]) -> None:
         """Populates internal context performance metrics from strategy payloads."""
         self._model = results.get("final_model")
-        # Support both custom metrics dictionaries or fallback strategies
         self._metrics = results.get("holdout_metrics", {}) or results.get(
             "cv_mean_metrics", {}
         )
@@ -191,7 +223,6 @@ class Classifier(BaseModel):
     ) -> tuple[list[Any], list[Any], list[str], list[str]]:
         """Splits datasets safely before initializing pipeline contexts to avoid leakage."""
         from sklearn.model_selection import train_test_split
-        import numpy as np
 
         indices = np.arange(len(self.train_data))
         tr_idx, ts_idx = train_test_split(
