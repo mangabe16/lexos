@@ -131,7 +131,8 @@ class Classifier(BaseModel):
     labels: Sequence[str] = Field(description="Classification target identifiers")
     pipeline: Pipeline = Field(description="Injected configuration training strategy")
     features: Optional[Any] = Field(
-        default="all", description="Features selector context, specific list, or 'all' for dynamic extraction"
+        default="all",
+        description="Features selector context, specific list, or 'all' for dynamic extraction",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -169,18 +170,20 @@ class Classifier(BaseModel):
 
         token_lists = _tokenize_items(self.train_data, include_bigrams=True)
         doc_ids = [f"doc_{i}" for i in range(len(token_lists))]
-        
+
         docs_for_corpus = [
             (doc_id, doc_id, " ".join(tokens))
             for doc_id, tokens in zip(doc_ids, token_lists)
         ]
-        
+
         corpus = CorpusStats(docs=docs_for_corpus, min_df=self.pipeline.min_df)
         stats_df = corpus.doc_stats_df.reindex(doc_ids)
         numeric_stats = stats_df.select_dtypes(include=[np.number]).copy()
 
         if numeric_stats.empty:
-            raise ValueError("CorpusStats did not produce any numeric features to evaluate.")
+            raise ValueError(
+                "CorpusStats did not produce any numeric features to evaluate."
+            )
 
         return list(numeric_stats.columns)
 

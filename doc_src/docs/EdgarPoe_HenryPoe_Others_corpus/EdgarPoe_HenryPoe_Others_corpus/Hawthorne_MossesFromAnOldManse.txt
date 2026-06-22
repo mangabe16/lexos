@@ -776,7 +776,7 @@ too far too far exclaimed the goodman unconsciously resuming his
 walk my father never went into the woods on such an errand nor his
 father before him we have been a race of honest men and good
 christians since the days of the martyrs and shall i be the first of
-the name of brown that ever took this path and kept 
+the name of brown that ever took this path and kept
 
 such company thou wouldst say observed the elder person
 interpreting his pause well said goodman brown i have been as well
@@ -5629,7 +5629,7 @@ notwithstanding the substitution of fictitious names by such as have
 heard from old men's lips the fate of the few combatants who were in
 a condition to retreat after lovell's fight
 
- 
+
 
 the early sunbeams hovered cheerfully upon the tree-tops beneath which
 two weary and wounded men had stretched their limbs the night before
@@ -5723,7 +5723,7 @@ consciousness made him more earnestly resist his companion's entreaties
 
 how terrible to wait the slow approach of death in this solitude
 exclaimed he a brave man does not shrink in the battle and when
-friends stand round the bed even women may die composedly but here 
+friends stand round the bed even women may die composedly but here
 
 i shall not shrink even here reuben bourne interrupted malvin i
 am a man of no weak heart and if i were there is a surer support
@@ -5906,7 +5906,7 @@ impute blame to him if he shrink from so useless a sacrifice as he
 gave a parting look a breeze waved the little banner upon the sapling
 oak and reminded reuben of his vow
 
- 
+
 
 many circumstances combined to retard the wounded traveller in his way
 to the frontiers on the second day the clouds gathering densely over
@@ -5958,7 +5958,7 @@ his extremity and though bleeding myself i supported him i gave him
 half my strength and led him away with me for three days we journeyed
 on together and your father was sustained beyond my hopes but
 awaking at sunrise on the fourth day i found him faint and exhausted
-he was unable to proceed his life had ebbed away fast and 
+he was unable to proceed his life had ebbed away fast and
 
 he died exclaimed dorcas faintly
 
@@ -6078,7 +6078,7 @@ gods two months of autumn were thus occupied after which reuben
 bourne and his young hunter returned to spend their last winter in the
 settlements
 
- 
+
 
 it was early in the month of may that the little family snapped asunder
 whatever tendrils of affections had clung to inanimate objects and
@@ -6248,7 +6248,7 @@ sapless and utterly dead reuben remembered how the little banner had
 fluttered on that topmost bough when it was green and lovely eighteen
 years before whose guilt had blasted it
 
- 
+
 
 dorcas after the departure of the two hunters continued her
 preparations for their evening repast her sylvan table was the
@@ -7298,6 +7298,3 @@ than this when the artist rose high enough to achieve the beautiful
 the symbol by which he made it perceptible to mortal senses became of
 little value in his eyes while his spirit possessed itself in the
 enjoyment of the reality
-
-
-

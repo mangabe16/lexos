@@ -1228,7 +1228,7 @@ the other, as if each silent grief were insular and incommunicable. The
 chaplain had not yet arrived; and there these silent islands of men and
 women sat steadfastly eyeing several marble tablets, with black borders,
 masoned into the wall on either side the pulpit. Three of them ran
-something like the following, but I do not pretend to quote: 
+something like the following, but I do not pretend to quote:
 
 SACRED TO THE MEMORY OF JOHN TALBOT, Who, at the age of eighteen, was
 lost overboard, Near the Isle of Desolation, off Patagonia, November
@@ -1414,7 +1414,7 @@ bottom of the sea.
 This ended, in prolonged solemn tones, like the continual tolling of
 a bell in a ship that is foundering at sea in a fog in such tones he
 commenced reading the following hymn; but changing his manner towards
-the concluding stanzas, burst forth with a pealing exultation and joy 
+the concluding stanzas, burst forth with a pealing exultation and joy
 
      "The ribs and terrors in the whale,
      Arched over me a dismal gloom,
@@ -1423,12 +1423,12 @@ the concluding stanzas, burst forth with a pealing exultation and joy
 
      "I saw the opening maw of hell,
      With endless pains and sorrows there;
-     Which none but they that feel can tell 
+     Which none but they that feel can tell
      Oh, I was plunging to despair.
 
      "In black distress, I called my God,
      When I could scarce believe him mine,
-     He bowed his ear to my complaints 
+     He bowed his ear to my complaints
      No more the whale did me confine.
 
      "With speed he flew to my relief,
@@ -3240,7 +3240,7 @@ in the head of a whale-boat? did you ever strike a fish?"
 Without saying a word, Queequeg, in his wild sort of way, jumped upon
 the bulwarks, from thence into the bows of one of the whale-boats
 hanging to the side; and then bracing his left knee, and poising his
-harpoon, cried out in some such way as this: 
+harpoon, cried out in some such way as this:
 
 "Cap'ain, you see him small drop tar on water dere? You see him? well,
 spose him one whale eye, well, den!" and taking sharp aim at it, he
@@ -3270,7 +3270,7 @@ part in similar ceremonies, looked no ways abashed; but taking the
 offered pen, copied upon the paper, in the proper place, an exact
 counterpart of a queer round figure which was tattooed upon his arm; so
 that through Captain Peleg's obstinate mistake touching his appellative,
-it stood something like this: 
+it stood something like this:
 
 Quohog. his X mark.
 
@@ -3806,7 +3806,7 @@ the bows.
 Lank Bildad, as pilot, headed the first watch, and ever and anon, as the
 old craft deep dived into the green seas, and sent the shivering frost
 all over her, and the winds howled, and the cordage rang, his steady
-notes were heard, 
+notes were heard,
 
 "Sweet fields beyond the swelling flood, Stand dressed in living green.
 So to the Jews old Canaan stood, While Jordan rolled between."
@@ -5748,7 +5748,7 @@ furnishes an asylum for many romantic, melancholy, and absent-minded
 young men, disgusted with the carking cares of earth, and seeking
 sentiment in tar and blubber. Childe Harold not unfrequently perches
 himself upon the mast-head of some luckless disappointed whale-ship, and
-in moody phrase ejaculates: 
+in moody phrase ejaculates:
 
 "Roll on, thou deep and dark blue ocean, roll! Ten thousand
 blubber-hunters sweep over thee in vain."
@@ -5841,7 +5841,7 @@ resumed his heavy turns upon the deck. With bent head and half-slouched
 hat he continued to pace, unmindful of the wondering whispering among
 the men; till Stubb cautiously whispered to Flask, that Ahab must have
 summoned them there for the purpose of witnessing a pedestrian feat. But
-this did not last long. Vehemently pausing, he cried: 
+this did not last long. Vehemently pausing, he cried:
 
 "What do ye do when ye see a whale, men?"
 
@@ -5867,7 +5867,7 @@ themselves became so excited at such seemingly purposeless questions.
 
 But, they were all eagerness again, as Ahab, now half-revolving in his
 pivot-hole, with one hand reaching high up a shroud, and tightly, almost
-convulsively grasping it, addressed them thus: 
+convulsively grasping it, addressed them thus:
 
 "All ye mast-headers have before now heard me give orders about a white
 whale. Look ye! d'ye see this Spanish ounce of gold?" holding up a
@@ -6212,7 +6212,7 @@ coming, but be it what it will, I'll go to it laughing. Such a waggish
 leering as lurks in all your horribles! I feel funny. Fa, la! lirra,
 skirra! What's my juicy little pear at home doing now? Crying its eyes
 out? Giving a party to the last arrived harpooneers, I dare say, gay as
-a frigate's pennant, and so am I fa, la! lirra, skirra! Oh 
+a frigate's pennant, and so am I fa, la! lirra, skirra! Oh
 
 We'll drink to-night with hearts as light, To love, as gay and fleeting
 As bubbles that swim, on the beaker's brim, And break on the lips while
@@ -6234,7 +6234,7 @@ LYING IN VARIOUS ATTITUDES, ALL SINGING IN CHORUS.)
 
      Farewell and adieu to you, Spanish ladies!
      Farewell and adieu to you, ladies of Spain!
-     Our captain's commanded. 
+     Our captain's commanded.
 
 1ST NANTUCKET SAILOR. Oh, boys, don't be sentimental; it's bad for the
 digestion! Take a tonic, follow me! (SINGS, AND ALL FOLLOW)
@@ -10478,4 +10478,4 @@ the trough of the sea, and ever and anon tranquilly spouting his vapoury
 jet, the whale looked like a portly burgher smoking his pipe of a warm
 afternoon. But that pipe, poor whale, was thy last. As if struck by some
 enchanter's wand, the sleepy ship and every sleeper in it all at once
-started into wakefulness; and more than 
+started into wakefulness; and more than

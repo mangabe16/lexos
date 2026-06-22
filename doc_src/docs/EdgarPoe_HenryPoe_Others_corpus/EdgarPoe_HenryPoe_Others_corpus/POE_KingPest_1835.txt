@@ -304,7 +304,7 @@ seemed exceedingly nettled; and serious consequences might have ensued,
 had not the president, rapping upon the table with his truncheon,
 diverted the attention of all present to the following speech:
 
-"It becomes our duty upon the present happy occasion" 
+"It becomes our duty upon the present happy occasion"
 
 "Avast there!" interrupted Legs, looking very serious, "avast there a
 bit, I say, and tell us who the devil ye all are, and what business ye
@@ -385,7 +385,7 @@ of his companion's speech than at the nature of his refusal "Belay that
 you tubber! and I say, Legs, none of your palaver! My hull is still
 light, although I confess you yourself seem to be a little top-heavy;
 and as for the matter of your share of the cargo, why rather than raise
-a squall I would find stowageroom for it myself, but" 
+a squall I would find stowageroom for it myself, but"
 
 "This proceeding," interposed the president, "is by no means in
 accordance with the terms of the mulct or sentence, which is in its
@@ -459,4 +459,3 @@ out with her into the street, and made a bee-line for the "Free and
 Easy," followed under easy sail by the redoubtable Hugh Tarpaulin, who,
 having sneezed three or four times, panted and puffed after him with the
 Arch Duchess Ana-Pest.
-

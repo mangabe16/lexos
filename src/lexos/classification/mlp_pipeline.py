@@ -33,7 +33,6 @@ from lexos.tokenizer.ngrams import Ngrams
 from lexos.classification.trainer import Pipeline
 
 
-# Utility compilation helpers left decoupled for architectural performance mapping
 def _tokenize_items(
     items: Sequence[Any], include_bigrams: bool = True
 ) -> list[list[str]]:
@@ -43,7 +42,6 @@ def _tokenize_items(
     token_lists: list[list[str]] = []
 
     for item in items:
-        # Check if incoming item is a spacy Doc or raw string object
         if hasattr(item, "text"):
             unigrams = [tok.text.lower() for tok in item if tok.is_alpha]
         elif isinstance(item, str):
@@ -78,7 +76,6 @@ class MLPPipeline(Pipeline):
     """Configuration Strategy implementing custom Neural Network text classification flows."""
 
     seed: int = Field(default=42, description="Random state initialization seed")
-    min_df: int = Field(default=2, description="Minimum data document expression limit")
     test_size: float = Field(
         default=0.2, description="Validation split layout size ratio"
     )
@@ -91,6 +88,10 @@ class MLPPipeline(Pipeline):
     use_smote: bool = Field(
         default=True,
         description="Controls implementation of SMOTE oversampling algorithms",
+    )
+    feature_removal: Optional[str] = Field(
+        default=None,
+        description="Set to 'sequential' or 'random' to trigger native importance pruning loops",
     )
     mlp_kwargs: dict[str, Any] = Field(
         default_factory=lambda: {
