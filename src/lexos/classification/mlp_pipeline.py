@@ -1,9 +1,7 @@
 """mlp_pipeline.py.
 
 A leakage-safe Multi-Layer Perceptron Text Classification Pipeline Strategy
-complying with the Lexos Strategy Pattern specification.
-
-Last Updated: June 22, 2026
+Last Updated: June 23, 2026
 """
 
 from typing import Any, Sequence, Optional
@@ -89,7 +87,7 @@ class MLPPipeline(Pipeline):
         default=True,
         description="Controls implementation of SMOTE oversampling algorithms",
     )
-    feature_removal: Optional[str] = Field(
+    feature_removal: Optional[str] = Field(  # TODO: need to add more algorithms
         default=None,
         description="Set to 'sequential' or 'random' to trigger native importance pruning loops",
     )
@@ -105,19 +103,51 @@ class MLPPipeline(Pipeline):
         description="Configuration keywords directly targeting scikit-learn MLP instances",
     )
 
+    def discover_features(self, train_data: Sequence[Any]) -> list[str]:
+        """Discovers and returns availble baseline features based on input data type."""
+        features: list[str] = []
+
+        # Handles case where user provides CorpusStats statistics
+        if isinstance(train_data, pd.DataFrame):
+            features = train_data.columns.tolist()
+
+        # Handles case where user provides the raw text
+        if isinstance(train_data, list[str] | str):
+            features_DTM = DTM()
+            tokenized_data = _tokenize_items(
+                train_data, include_bigrams=self.include_bigrams
+            )
+            mock_labels = [f"doc_{i}" for i in range(len(tokenized_data))]
+            features_DTM.fit_transform(
+                tokenized_data, labels=mock_labels, min_df=self.min_df
+            )
+            features = features_DTM.sorted_terms_list
+
+        return features
+
+    def _filter_active_features(
+        self, baseline_features: list[str], matrix: Any, active_features: list[str]
+    ) -> Any:
+        """Slices a matrix to only retain terms explicitly provided in active_features."""
+        feature_indices = [
+            baseline_features.index(feature)
+            for feature in active_features
+            if feature in baseline_features
+        ]
+        if isinstance(matrix, np.ndarray):
+            return matrix[:, feature_indices]
+        return matrix.tocsr()[:, feature_indices]
+
     def _apply_smote(
         self, feature_matrix: Any, labels: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Apply SMOTE oversampling safely across dense arrays."""
-        dense_matrix = _to_dense(feature_matrix)
         if not self.use_smote:
-            return dense_matrix, labels
+            return feature_matrix, labels
 
+        dense_matrix = _to_dense(feature_matrix)
         if SMOTE is None:
-            raise ImportError(
-                "SMOTE requested, but imbalanced-learn is not installed. "
-                "Install it with `pip install imbalanced-learn` or set `use_smote=False`."
-            )
+            raise ImportError("SMOTE requested, but imbalanced-learn is not installed.")
+
         smote = SMOTE(random_state=self.seed)
         return smote.fit_resample(dense_matrix, labels)
 
@@ -128,38 +158,65 @@ class MLPPipeline(Pipeline):
         return MLPClassifier(**kwargs)
 
     def execute_training(
-        self, train_data: Sequence[Any], labels: Sequence[str]
+        self,
+        train_data: Sequence[Any],
+        labels: Sequence[str],
+        active_features: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Processes tokenized elements, computes metrics, and fits the architecture."""
-        np.random.seed(self.seed)
+        rng = np.random.RandomState(
+            self.seed
+        )  # Creating an independent random state object
 
-        all_token_lists = _tokenize_items(
-            train_data, include_bigrams=self.include_bigrams
-        )
-        all_doc_labels = [f"train_doc_{i}" for i in range(len(all_token_lists))]
+        baseline_features = self.discover_features(train_data)
         y = np.asarray(labels)
-        indices = np.arange(len(all_token_lists))
+
+        is_dataframe = isinstance(train_data, pd.DataFrame)
+
+        # Tracking sequential array row positional integers as to avoid bugs with indexing alignment
+        positions = np.arange(len(train_data))
 
         # 1. Holdout Validation Partition Processing Step
-        train_idx, test_idx = train_test_split(
-            indices,
+        train_pos, test_pos = train_test_split(
+            positions,
             test_size=self.test_size,
             random_state=self.seed,
             stratify=y,
             shuffle=True,
         )
 
-        token_train = [all_token_lists[i] for i in train_idx]
-        token_test = [all_token_lists[i] for i in test_idx]
-        doc_labels_train = [all_doc_labels[i] for i in train_idx]
-        y_train = y[train_idx]
-        y_test = y[test_idx]
+        y_train = y[train_pos]
+        y_test = y[test_pos]
 
-        dtm_holdout = DTM()
-        x_train = dtm_holdout.fit_transform(
-            token_train, labels=list(doc_labels_train), min_df=self.min_df
-        )
-        x_test = dtm_holdout.transform(token_test)
+        if is_dataframe:
+            x_train_raw = train_data.iloc[train_pos].to_numpy()
+            x_test_raw = train_data.iloc[test_pos].to_numpy()
+        else:
+            token_train = [
+                _tokenize_items(train_data[i], include_bigrams=self.include_bigrams)[0]
+                for i in train_pos
+            ]
+            token_test = [
+                _tokenize_items(train_data[i], include_bigrams=self.include_bigrams)[0]
+                for i in test_pos
+            ]
+            doc_labels_train = [f"train_doc_{i}" for i in train_pos]
+            dtm_holdout = DTM()
+            x_train_raw = dtm_holdout.fit_transform(
+                token_train, labels=list(doc_labels_train), min_df=self.min_df
+            )
+            x_test_raw = dtm_holdout.transform(token_test)
+
+        x_train = x_train_raw
+        x_test = x_test_raw
+
+        if active_features is not None:
+            x_train = self._filter_active_features(
+                baseline_features, x_train, active_features
+            )
+            x_test = self._filter_active_features(
+                baseline_features, x_test, active_features
+            )
 
         scaler_holdout = StandardScaler(with_mean=False)
         x_train_scaled = scaler_holdout.fit_transform(x_train)
@@ -195,20 +252,46 @@ class MLPPipeline(Pipeline):
         )
         cv_rows: list[dict[str, float]] = []
 
-        for fold, (tr_idx, va_idx) in enumerate(cv.split(all_token_lists, y), start=1):
-            fold_train_tokens = [all_token_lists[i] for i in tr_idx]
-            fold_valid_tokens = [all_token_lists[i] for i in va_idx]
-            fold_train_doc_labels = [all_doc_labels[i] for i in tr_idx]
+        cv_split_data = positions if is_dataframe else train_data
+        for fold, (tr_idx, va_idx) in enumerate(cv.split(cv_split_data, y), start=1):
             y_tr = y[tr_idx]
             y_va = y[va_idx]
 
-            dtm_fold = DTM()
-            x_tr = dtm_fold.fit_transform(
-                fold_train_tokens,
-                labels=list(fold_train_doc_labels),
-                min_df=self.min_df,
-            )
-            x_va = dtm_fold.transform(fold_valid_tokens)
+            if is_dataframe:
+                x_tr_raw = train_data.iloc[tr_idx].to_numpy()
+                x_va_raw = train_data.iloc[va_idx].to_numpy()
+            else:
+                fold_train_tokens = [
+                    _tokenize_items(
+                        [train_data[i]], include_bigrams=self.include_bigrams
+                    )[0]
+                    for i in tr_idx
+                ]
+                fold_valid_tokens = [
+                    _tokenize_items(
+                        [train_data[i]], include_bigrams=self.include_bigrams
+                    )[0]
+                    for i in va_idx
+                ]
+                fold_train_doc_labels = [f"fold_doc{i}" for i in tr_idx]
+                dtm_fold = DTM()
+                x_tr_raw = dtm_fold.fit_transform(
+                    fold_train_tokens,
+                    labels=list(fold_train_doc_labels),
+                    min_df=self.min_df,
+                )
+                x_va_raw = dtm_fold.transform(fold_valid_tokens)
+
+            x_tr = x_tr_raw
+            x_va = x_va_raw
+
+            if active_features is not None:
+                x_tr = self._filter_active_features(
+                    baseline_features, x_tr, active_features
+                )
+                x_va = self._filter_active_features(
+                    baseline_features, x_va, active_features
+                )
 
             scaler_fold = StandardScaler(with_mean=False)
             x_tr_scaled = scaler_fold.fit_transform(x_tr)
@@ -228,7 +311,7 @@ class MLPPipeline(Pipeline):
                     ),
                     "macro_f1": float(f1_score(y_va, fold_pred, average="macro")),
                 }
-            )
+            )  # End of for loop
 
         cv_fold_metrics = pd.DataFrame(cv_rows)
         cv_mean_metrics = {
@@ -237,11 +320,25 @@ class MLPPipeline(Pipeline):
             "macro_f1": float(cv_fold_metrics["macro_f1"].mean()),
         }
 
-        # 3. Complete Corpus Aggregation Final Model Compilation
-        dtm_final = DTM()
-        x_full = dtm_final.fit_transform(
-            all_token_lists, labels=list(all_doc_labels), min_df=self.min_df
-        )
+        # 3. Complete Corpus aggregation final model compilation
+        dtm_final = None
+
+        if is_dataframe:
+            x_full = train_data.to_numpy()
+        else:
+            all_tokens_lists = _tokenize_items(
+                train_data, include_bigrams=self.include_bigrams
+            )
+            all_doc_labels = [f"train_doc{i}" for i in range(len(all_tokens_lists))]
+            dtm_final = DTM()
+            x_full = dtm_final.fit_transform(
+                all_tokens_lists, labels=list(all_doc_labels), min_df=self.min_df
+            )
+
+        if active_features is not None:
+            x_full = self._filter_active_features(
+                baseline_features, x_full, active_features
+            )
 
         scaler_final = StandardScaler(with_mean=False)
         x_full_scaled = scaler_final.fit_transform(x_full)

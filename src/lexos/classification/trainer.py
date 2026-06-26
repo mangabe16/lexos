@@ -1,10 +1,11 @@
 """trainer.py.
 
 An object-oriented classification core framework for Lexos.
-Utilizes the Strategy and Template Method design patterns to allow
-modular training configurations and unified lifecycle evaluation.
+Utilizes the Strategy and Template Method design patterns to allow for a hybrid,
+input-agnostic context orchestration loop where individual Pipelines dictate
+the underlying data transformation strategies.
 
-Last Updated: June 22, 2026
+Last Updated: June 23, 2026
 """
 
 import copy
@@ -14,23 +15,13 @@ from typing import Any, Optional, Sequence
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, Normalizer
-
-from lexos.corpus.corpus_stats import CorpusStats
 
 
 class Pipeline(BaseModel, ABC):
     """Abstract base class representing a model training strategy.
 
-    Subclasses must implement specific feature extraction, tokenization,
-    and model fitting execution loops.
+    Subclasses dictate how raw dataset sequences (DataFrames, text streams, or arrays)
+    are transformed, normalized, and trained
     """
 
     min_df: int = Field(default=2, description="Minimum data document expression limit")
@@ -43,96 +34,39 @@ class Pipeline(BaseModel, ABC):
         """Execute feature extraction and model fitting routines.
 
         Args:
-            train_data: A sequence of text or preprocessed spaCy Doc objects.
-            labels: Target categories corresponding directly to train_data.
+            train_data: Input data sequences (could be a pd.DataFrame, strings, or pre-vectorized arrays).
+            labels: Targer categories corresponding directly to rain_data.
+            active_features: Explicit subset of feature names/columns to preserve during training sweeps.
 
         Returns:
             A dictionary containing structural evaluations, metrics, and models.
         """
         pass
 
+    @abstractmethod
+    def discover_features(self, train_data: Sequence[Any]) -> list[str]:
+        """Discovers and returns available baseline feature/column names from the input data layout.
 
-class SklearnClassifierPipeline(Pipeline):
-    """A concrete pipeline strategy handling traditional scikit-learn estimators."""
-
-    # Ported from the legacy functional implementation to adapt smoothly to the new object-oriented framework.
-
-    model_name: str = Field(
-        default="svc", description="The lowercase scikit-learn key name"
-    )
-    normalize: Optional[str] = Field(
-        default=None, description="Normalization technique ('standard', 'minmax', etc.)"
-    )
-    model_kwargs: dict[str, Any] = Field(
-        default_factory=dict, description="Arbitrary estimator hyperparameters"
-    )
-
-    def _get_scaler(self) -> Any:
-        """Instantiate the requested feature normalization model."""
-        mapping = {
-            "standard": StandardScaler,
-            "minmax": MinMaxScaler,
-            "robust": RobustScaler,
-            "l2": lambda: Normalizer(norm="l2"),
-        }
-        if self.normalize not in mapping:
-            raise ValueError(f"Unsupported normalization method: {self.normalize}")
-        return mapping[self.normalize]()
-
-    def _get_estimator(self) -> Any:
-        """Instantiate the raw estimator underlying this execution profile."""
-        registry = {
-            "svc": lambda: SVC(kernel="linear", **self.model_kwargs),
-            "logistic": lambda: LogisticRegression(max_iter=1000, **self.model_kwargs),
-            "decision_tree": lambda: DecisionTreeClassifier(**self.model_kwargs),
-            "random_forest": lambda: RandomForestClassifier(**self.model_kwargs),
-            "knn": lambda: KNeighborsClassifier(**self.model_kwargs),
-            "naive_bayes": lambda: MultinomialNB(**self.model_kwargs),
-        }
-        key = self.model_name.lower()
-        if key not in registry:
-            raise ValueError(f"Unknown model architecture variant: '{self.model_name}'")
-        return registry[key]()
-
-    def execute_training(
-        self, train_data: Sequence[Any], labels: Sequence[str]
-    ) -> dict[str, Any]:
-        """Transforms features, normalizes distributions, and fits the estimator."""
-        features = train_data
-        scaler = None
-
-        if self.normalize:
-            scaler = self._get_scaler()
-            features = scaler.fit_transform(features)
-
-        estimator = self._get_estimator()
-        estimator.fit(features, labels)
-
-        return {
-            "final_model": estimator,
-            "final_scaler": scaler,
-            "holdout_metrics": {},
-            "holdout_report": pd.DataFrame(),
-            "holdout_confusion_matrix": pd.DataFrame(),
-            "cv_fold_metrics": pd.DataFrame(),
-            "cv_mean_metrics": {},
-        }
+        This delegates feature space tracking to the individual Pipeline strategies
+        """
+        pass
 
 
 class Classifier(BaseModel):
     """The central orchestration Context utilizing the Template Method pattern.
 
-    Defines the structural lifecycle workflow for training classification tasks.
+    Defines the structural lifecycle workflow for training classification tasks, while being agnostic to
+    the input data type formats, delagting feature manipulation to the Pipeline strategies.
     """
 
     train_data: Sequence[Any] = Field(
-        description="Training data source (e.g., list of strings or spaCy Docs)"
+        description="Training data source (e.g., list of strings, pre-computed DtaFrames, or arrays)"
     )
     labels: Sequence[str] = Field(description="Classification target identifiers")
     pipeline: Pipeline = Field(description="Injected configuration training strategy")
     features: Optional[Any] = Field(
-        default="all",
-        description="Features selector context, specific list, or 'all' for dynamic extraction",
+        default=None,
+        description="Explicit list of active features keys/columns to track, or None for auto-discovery",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -157,35 +91,6 @@ class Classifier(BaseModel):
         """Expose the underlying trained estimator payload."""
         return self._model
 
-    def build_corpus_stat_features(self) -> list[str]:
-        """Dynamically discovers available numeric CorpusStats features for the current training dataset.
-
-        Accessible both as an internal lifecycle step and as a public API tool for end-users.
-
-        Returns:
-            A list of string feature names discovered within the document matrix.
-        """
-        from lexos.classification.mlp_pipeline import _tokenize_items
-
-        token_lists = _tokenize_items(self.train_data, include_bigrams=True)
-        doc_ids = [f"doc_{i}" for i in range(len(token_lists))]
-
-        docs_for_corpus = [
-            (doc_id, doc_id, " ".join(tokens))
-            for doc_id, tokens in zip(doc_ids, token_lists)
-        ]
-
-        corpus = CorpusStats(docs=docs_for_corpus, min_df=self.pipeline.min_df)
-        stats_df = corpus.doc_stats_df.reindex(doc_ids)
-        numeric_stats = stats_df.select_dtypes(include=[np.number]).copy()
-
-        if numeric_stats.empty:
-            raise ValueError(
-                "CorpusStats did not produce any numeric features to evaluate."
-            )
-
-        return list(numeric_stats.columns)
-
     def fit(self) -> None:
         """The Template Method establishing the explicit lifecycle algorithm sequence."""
         self._preprocess_data()
@@ -194,15 +99,15 @@ class Classifier(BaseModel):
         self._evaluate(results)
 
     def _preprocess_data(self) -> None:
-        """Hook reserved for shared dataset formatting and dynamic feature discovery validation."""
+        """Hook reserved for shared dataset formatting and dynamic feature discovery discovery."""
         if len(self.train_data) != len(self.labels):
             raise ValueError(
                 "Size mismatch across sample dimensions and structural target labels."
             )
 
-        # Dynamic discovery execution hook
-        if self.features == "all":
-            self.features = self.build_corpus_stat_features()
+        # Delegate feature discovery to the Pipeline strategy
+        if self.features is None:
+            self.features = self.pipeline.discover_features(self.train_data)
 
     def _initialize_model(self) -> None:
         """Hook executed right before executing strategy processing layers."""
@@ -210,7 +115,9 @@ class Classifier(BaseModel):
 
     def _train(self) -> dict[str, Any]:
         """Delegates feature production and model training to the injected Strategy."""
-        return self.pipeline.execute_training(self.train_data, self.labels)
+        return self.pipeline.execute_training(
+            self.train_data, self.labels, active_features=self.features
+        )
 
     def _evaluate(self, results: dict[str, Any]) -> None:
         """Populates internal context performance metrics from strategy payloads."""
@@ -228,8 +135,8 @@ class Classifier(BaseModel):
         Returns:
             pd.DataFrame: A comprehensive table tracking performance metrics per feature removal step.
         """
-        if self.features == "all" or self.features is None:
-            self.features = self.build_corpus_stat_features()
+        if self.features is None:
+            self.features = self.pipeline.discover_features(self.train_data)
 
         active_features = list(self.features)
         removal_order = list(self.features)
