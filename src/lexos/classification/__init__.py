@@ -6,7 +6,7 @@ object-oriented Lexos Classification infrastructure.
 Last Updated: June 22, 2026
 """
 
-from lexos.classification.trainer import Classifier, Pipeline, SklearnClassifierPipeline
+from lexos.classification.trainer import Classifier, Pipeline
 from lexos.classification.mlp_pipeline import MLPPipeline
 from lexos.classification.utils import PredictionSaver, save_predictions
 
