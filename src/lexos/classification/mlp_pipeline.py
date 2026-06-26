@@ -183,7 +183,7 @@ class MLPPipeline(Pipeline):
         # Tracking sequential array row positional integers as to avoid bugs with indexing alignment
         positions = np.arange(len(train_data))
 
-        if run_holdout:
+        if self.run_holdout:
             # 1. Holdout Validation Partition Processing Step
             train_pos, test_pos = train_test_split(
                 positions,
@@ -258,7 +258,7 @@ class MLPPipeline(Pipeline):
                 columns=[f"pred_{l}" for l in class_labels],
             )
 
-        if run_cv:
+        if self.run_cv:
             # 2. Stratified Cross Validation Cycle Sequence Block
             cv = StratifiedKFold(
                 n_splits=self.cv_splits, shuffle=True, random_state=self.seed
