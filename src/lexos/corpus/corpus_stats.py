@@ -1,5 +1,4 @@
-"""corpus_stats.py.
-
+"""corpus_stats.py.git s
 Last updated: December 4, 2025
 Last tested: November 18, 2025
 """
@@ -16,15 +15,36 @@ from plotly.subplots import make_subplots
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy import stats
 import spacy
-from spacy.symbols import ORTH, LEMMA
-from spacytextblob.spacytextblob import SpacyTextBlob
 
+from spacy.symbols import ORTH, LEMMA
+from spacy_syllables import SpacySyllables
 from lexos.dtm import DTM
 from lexos.util import load_spacy_model, is_spacy_model_loaded
 from collections import Counter
 from lexos.exceptions import LexosException
 from lexos.filter.filters import IsStopwordFilter
 
+# Define metrics as a simple list of (metric_name, metric_key) tuples
+# This keeps the actual calculation logic in one place
+POS_TAGS = ["NUM", "ADJ", "ADP", "AUX", "CCONJ", "DET", "INTJ", "PART", "PRON", "PROPN", "SCONJ", "SYM"]
+
+DYNAMIC_METRICS = [
+    ("noun_count", "NOUN"),
+    ("verb_count", "VERB"),
+    ("adverb_count", "ADV"),
+    ("num_count", "NUM"),
+    ("adj_count", "ADJ"),
+    ("adp_count", "ADP"),
+    ("aux_count", "AUX"),
+    ("cconj_count", "CCONJ"),
+    ("det_count", "DET"),
+    ("intj_count", "INTJ"),
+    ("part_count", "PART"),
+    ("pron_count", "PRON"),
+    ("propn_count", "PROPN"),
+    ("sconj_count", "SCONJ"),
+    ("sym_count", "SYM"),
+]
 
 def make_labels_unique(labels: list[str]) -> list[str]:
     """Make labels unique by adding suffixes recursively.
@@ -326,9 +346,9 @@ class CorpusStats(BaseModel):
         return self._spacy_doc_stats
 
     def _count_stopwords(self, doc: spacy.tokens.Doc) -> int:
-        """ """
+
         stopword_filter = IsStopwordFilter()
-        stopword_filter(doc=doc)
+        stopword_filter(doc = doc)
         return len(stopword_filter.matched_token_ids or set())
 
     @cached_property
@@ -338,7 +358,7 @@ class CorpusStats(BaseModel):
         Returns:
             pd.DataFrame: A Pandas dataframe containing statistics of each record.
         """
-        rows = []  # Initialize row for the Pandas dataframe to store later
+        rows = [] # Initialize row for the Pandas dataframe to store later
 
         try:
             nlp = load_spacy_model()
@@ -346,192 +366,177 @@ class CorpusStats(BaseModel):
             raise LexosException(
                 f"Error loading model. Please check the name and try again. You may need to install the model on your system."
             )
-
-        nlp.add_pipe(
-            "spacytextblob"
-        )  # adding sentiment analysis into spaCy pipeline using textBlob
+        
+        try:
+            nlp.add_pipe("syllables", after="tagger")
+        except LexosException:
+            raise LexosException(
+                f"Error loading syllables. Please check the name and try again."
+            )
 
         for doc_id, label, token_data in self.docs:
-            if isinstance(
-                token_data, str
-            ):  # If the input is raw text, process it with spaCy
+            if isinstance(token_data, str): # If the input is raw text, process it with spaCy
                 doc = nlp(token_data)
-                tokens = [token.text for token in doc]
-
-            elif isinstance(
-                token_data, spacy.tokens.Doc
-            ):  # If input is already a spaCy Doc, use it directly
+                tokens = [token.text for token in doc]            
+                
+            elif isinstance(token_data, spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly   
                 doc = token_data
                 tokens = [token.text for token in doc]
 
-            elif isinstance(token_data, list):  # If input is a list of tokens
-                # Rebuilding pre-tokenized data into a string to be processed with spaCy
-                reconstructed_text = " ".join(token_data)
-                doc = nlp(reconstructed_text)
-                tokens = token_data
-
             else:
-                raise TypeError(
-                    "Input data must be either a string (raw text), a list of tokens or a spaCy Doc object."
-                )
+                raise TypeError("Input data must be either a string (raw text) or a spaCy Doc object.")
 
-            # Lexical Data
-            total_tokens = len(tokens)
-            unique_words = set(tokens)
-            unique_word_count = len(unique_words)
-            char_count = len(doc.text)
-
-            # If data is a list of tokens
-            if isinstance(token_data, list):
-                total_terms = len(set(tokens))
-                tokens_freq_list = list(Counter(tokens).values())
-
-            else:
-                counts = doc.count_by(LEMMA)
-                total_terms = len(counts)
-                tokens_freq_list = list(counts.values())
-
-            stopword_count = self._count_stopwords(doc)
-
-            """Variety of Vocabulary Metric"""
-            guiraud_index = unique_word_count / math.sqrt(total_terms)
-
-            freq_of_freq = Counter(tokens_freq_list)
-            """Metric"""
-            yule_k = (
-                100000
-                * (sum(f**2 * count for f, count in freq_of_freq.items()) - total_terms)
-                / (total_terms**2)
-            )
-
-            """POS Counts"""
-            participle_count = 0
-            punc_count = 0
-
-            pos_counts = Counter(token.pos_ for token in doc if not token.is_space)
-            noun_count = pos_counts["PUNCT"]
-            verb_count = pos_counts["VERB"]
-            adverb_count = pos_counts["ADV"]
-            num_count = pos_counts["NUM"]
-            adj_count = pos_counts["ADJ"]  # Adjective
-            adp_count = pos_counts["ADP"]  # Adposition (in, to, during)
-            aux_count = pos_counts["AUX"]  # Auxiliary verb (is, has will)
-            cconj_count = pos_counts["CCONJ"]  # Coordinating Conjunction
-            det_count = pos_counts["DET"]  # Determiner
-            intj_count = pos_counts["INTJ"]  # Interjection
-            part_count = pos_counts[
-                "PART"
-            ]  # Particles ('s, not, up -- like in "give up")
-            pron_count = pos_counts["PRON"]  # Pronouns
-            propn_count = pos_counts["PROPN"]  # Proper Noun
-            sconj_count = pos_counts[
-                "SCONJ"
-            ]  # Subordinating conjunction (if, while, that)
-            sym_count = pos_counts["SYM"]  # Symbols
-
-            for token in doc:
-                if token.is_punct:
-                    punc_count += 1
-                if token.tag_ == "VBG" or token.tag_ == "VBN":
-                    participle_count += 1
-
-            hapax_legomena = 0
-            hapax_dislegomena = 0
-            for token in tokens_freq_list:
-                if token == 1:
-                    hapax_legomena += 1
-                if token == 2:
-                    hapax_dislegomena += 1
-
-            """Measure of how noun-heavy/ dense with information a doc is"""
-            nominal_ratio = (
-                (noun_count + adp_count + participle_count)
-                / (pron_count + adverb_count + verb_count)
-                if (pron_count + adverb_count + verb_count) > 0
-                else 0
-            )
-
-            """Nominal Ratio calculated with less complex parts of speech (nouns and verbs)"""
-            simple_nominal_ratio = noun_count / verb_count if verb_count > 0 else 0
-
-            avg_word_length = char_count / total_tokens
-            ttr = unique_word_count / total_tokens
-            hapax_legomenon_rate = hapax_legomena / total_tokens
-
-            # Syntatic Data
-            sentence_count = len(list(doc.sents)) if doc else 1
-            avg_sentence_length = (
-                (total_tokens / sentence_count) if sentence_count > 0 else 0
-            )
-
-            punc_count = sum(1 for token in doc if token.is_punct)
-            question_count = sum(
-                1 for token in doc if token.text == "?"
-            )  # Not a permanent solution...
-            exclamation_count = sum(
-                1 for token in doc if token.text == "!"
-            )  # Also not very elegant...
-
-            # Readability Data
-            flesch_reading_ease = 206.835 - 1.015 * (avg_sentence_length)
-            vocab_density = (
-                (total_terms / total_tokens * 100) if total_tokens > 0 else 0
-            )
-
-            # Sentiment Data
-            polarity = doc._.blob.polarity
-            subjectivity = doc._.blob.subjectivity
-            emotion_word_count = len(doc._.blob.sentiment_assessments[2])
-
-            rows.append(
-                {
-                    "Documents": label,
-                    "total_tokens": int(total_tokens),
-                    "unique_word_count": int(unique_word_count),
-                    "character_count": int(char_count),
-                    "total_terms": int(total_terms),
-                    "average_word_length": round(avg_word_length, 2),
-                    "ttr": round(ttr, 2),
-                    "nominal_ratio": round(nominal_ratio, 2),
-                    "simple_nominal_ratio": round(simple_nominal_ratio, 2),
-                    "guiraud_index": round(guiraud_index, 2),
-                    "yule_k": round(yule_k, 2),
-                    "hapax_legomena": int(hapax_legomena),
-                    "hapax_dislegomena": int(hapax_dislegomena),
-                    "hapax_legomenon_rate": round(hapax_legomenon_rate, 2),
-                    "question_count": int(question_count),
-                    "exclamation_count": int(exclamation_count),
-                    "vocabulary_density": round(vocab_density, 2),
-                    "polarity": round(polarity, 2),
-                    "subjectivity": round(subjectivity, 2),
-                    "emotion_word_count": int(emotion_word_count),
-                    "stop_word_count": int(stopword_count),
-                    "adverb_count": int(adverb_count),
-                    "average_sentence_length": round(avg_sentence_length, 2),
-                    "flesch_reading_ease": round(flesch_reading_ease, 2),
-                    "sentence_count": int(sentence_count),
-                    "punc_count": int(punc_count),
-                    "noun_count": int(noun_count),
-                    "verb_count": int(verb_count),
-                    "num_count": int(num_count),
-                    "adj_count": int(adj_count),
-                    "adp_count": int(adp_count),
-                    "aux_count": int(aux_count),
-                    "cconj_count": int(cconj_count),
-                    "det_count": int(det_count),
-                    "intj_count": int(intj_count),
-                    "part_count": int(part_count),
-                    "pron_count": int(pron_count),
-                    "propn_count": int(propn_count),
-                    "sconj_count": int(sconj_count),
-                    "sym_count": int(sym_count),
-                    "participle_count": int(participle_count),
-                }
-            )
+            metrics = self._calculate_document_metrics(doc, tokens, label)
+            rows.append(metrics)
 
         df = pd.DataFrame(rows).set_index("Documents")
-
         return df
+    
+    def _calculate_document_metrics(self, doc: spacy.tokens.Doc, tokens: list[str], label: str) -> dict:
+        """ Calculate all linguistic metrics
+        
+        """
+        # Pre-calculate and initialize simple values used for multiple metrics
+        total_tokens = len(tokens)
+        unique_words = set(tokens)
+        unique_word_count = len(unique_words)
+        char_count = len(doc.text)
+        counts = doc.count_by(LEMMA)
+        total_terms = len(counts)
+        tokens_freq_list = list(counts.values())
+        pos_counts = Counter(token.pos_ for token in doc if not token.is_space)
+        freq_of_freq = Counter(tokens_freq_list)
+        punc_count = 0
+        question_count = 0
+        exclamation_count = 0
+        participle_count = 0
+        hapax_legomena = 0
+        hapax_dislegomena = 0
+
+        # Calculate metrics
+        stopword_count = self._count_stopwords(doc)
+        for token in doc:
+            if token.is_punct:
+                punc_count += 1
+            if token.text == "?": # There should be a better way to caluclate this using spaCy
+                question_count += 1
+            if token.text == "!":
+                exclamation_count += 1
+            if token.tag_ == "VBG" or token.tag_ == "VBN":
+                participle_count += 1
+        
+        for freq in tokens_freq_list:
+            if freq == 1:
+                hapax_legomena += 1
+            elif freq == 2:
+                hapax_dislegomena += 1
+        
+        if doc:
+            sentence_count = len(list(doc.sents))
+        else:
+            sentence_count = 1 # Should this be excluded instead?
+        
+        # Start building metrics dictionary
+        metrics = {
+            "Documents": label,
+            "total_tokens": int(total_tokens),
+            "unique_word_count": int(unique_word_count),
+            "character_count": int(char_count),
+            "total_terms": int(total_terms),
+            "punc_count": int(punc_count),
+            "stop_word_count": int(stopword_count),
+            "question_count": int(question_count),
+            "exclamation_count": int(exclamation_count),
+            "participle_count": int(participle_count),
+            "hapax_legomena": int(hapax_legomena),
+            "hapax_dislegomena": int(hapax_dislegomena),
+            "sentence_count": int(sentence_count),
+        }
+
+        # Dynamically add POS counts from DYNAMIC_METRICS
+        for metric_name, pos_tag in DYNAMIC_METRICS:
+            metrics[metric_name] = int(pos_counts.get(pos_tag,0))
+        
+        # Calculate complex metrics that depend on the features calculated in the current function
+        metrics.update(self._calculate_complex_metrics(
+            total_tokens, unique_word_count, char_count, total_terms,
+            tokens_freq_list, pos_counts, freq_of_freq, punc_count, question_count, exclamation_count,
+            stopword_count, participle_count, sentence_count, doc
+        ))
+
+        return metrics
+        
+        
+    def _calculate_complex_metrics(
+        self,
+        total_tokens: int,
+        unique_word_count: int,
+        char_count: int,
+        total_terms: int,
+        tokens_freq_list: list[int],
+        pos_counts: Counter,
+        freq_of_freq: Counter,
+        punc_count: int,
+        question_count: int,
+        exclamation_count: int,
+        stopword_count: int,
+        participle_count: int,
+        sentence_count: int,
+        doc: spacy.tokens.Doc,
+    ) -> dict:
+        """Calculate statistics that rely on previously-calculated values
+
+        """
+        # Safe division helper function
+        def safe_div(numerator, denominator, default = 0):
+            return numerator / denominator if denominator > 0 else default
+        
+        # Lexical metrics
+        avg_word_length = safe_div(char_count, total_tokens)
+        ttr = safe_div(unique_word_count, total_tokens)
+        root_ttr = safe_div(unique_word_count, math.sqrt(total_tokens))
+        log_ttr = safe_div(math.log(unique_word_count), math.log(total_tokens)) if total_tokens > 1 and unique_word_count > 0 else 0
+        maas = safe_div(math.log(total_tokens) - math.log(unique_word_count), (math.log(total_tokens) ** 2)) if total_tokens > 1 and unique_word_count > 0 else 0
+        guiraud_index = safe_div(unique_word_count, math.sqrt(total_terms))
+        yule_k = 100000 * (sum(f**2 * count for f, count in freq_of_freq.items()) - total_terms) / (total_terms**2) if total_terms > 0 else 0
+        hapax_legomenon_rate = safe_div(sum(1 for freq in tokens_freq_list if freq == 1), total_tokens)
+        vocab_density = safe_div(total_terms * 100, total_tokens)
+
+        # POS ratios
+        noun_count = pos_counts.get("NOUN", 0)
+        verb_count = pos_counts.get("VERB", 0)
+        adverb_count = pos_counts.get("ADV", 0)
+        adp_count = pos_counts.get("ADP", 0)
+        pron_count = pos_counts.get("PRON", 0)
+
+        nominal_ratio = safe_div(
+            noun_count + adp_count + participle_count,
+            pron_count + adverb_count + verb_count
+        )
+        simple_nominal_ratio = safe_div(noun_count, verb_count)
+        
+        # Syntactic metrics
+        avg_sentence_length = safe_div(total_tokens, sentence_count)
+        avg_syllable_word = safe_div(total_tokens, doc._.syllables_count) if hasattr(doc._, "syllables_count") and doc._.syllables_count > 0 else 0
+        
+        # Readability
+        flesch_reading_ease = 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllable_word)
+        
+        return {
+            "average_word_length": round(avg_word_length, 2),
+            "ttr": round(ttr, 2),
+            "root_ttr": round(root_ttr, 2),
+            "log_ttr": round(log_ttr, 2),
+            "maas": round(maas, 2),
+            "guiraud_index": round(guiraud_index, 2),
+            "yule_k": round(yule_k, 2),
+            "nominal_ratio": round(nominal_ratio, 2),
+            "simple_nominal_ratio": round(simple_nominal_ratio, 2),
+            "hapax_legomenon_rate": round(hapax_legomenon_rate, 2),
+            "vocabulary_density": round(vocab_density, 2),
+            "average_sentence_length": round(avg_sentence_length, 2),
+            "flesch_reading_ease": round(flesch_reading_ease, 2),
+        }
 
     def get_iqr_outliers(self) -> list[tuple[str, str]]:
         """Get the interquartile range (IQR) outliers in the Corpus.
@@ -1162,3 +1167,4 @@ def get_plotly_boxplot(
         "scrollZoom": True,
     }
     figure.show(showlink=False, config=config)
+
