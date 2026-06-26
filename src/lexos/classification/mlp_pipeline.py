@@ -183,6 +183,13 @@ class MLPPipeline(Pipeline):
         # Tracking sequential array row positional integers as to avoid bugs with indexing alignment
         positions = np.arange(len(train_data))
 
+        holdout_metrics: Optional[dict[str, float]] = None
+        holdout_report = pd.DataFrame()
+        holdout_confusion_matrix = pd.DataFrame()
+
+        cv_fold_metrics = pd.DataFrame()
+        cv_mean_metrics: Optional[dict[str, float]] = None
+
         if self.run_holdout:
             # 1. Holdout Validation Partition Processing Step
             train_pos, test_pos = train_test_split(
