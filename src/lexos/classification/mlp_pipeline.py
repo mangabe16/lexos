@@ -1,7 +1,7 @@
 """mlp_pipeline.py.
 
 A leakage-safe Multi-Layer Perceptron Text Classification Pipeline Strategy
-Last Updated: June 23, 2026
+Last Updated: June 26, 2026
 """
 
 from typing import Any, Sequence, Optional
@@ -87,9 +87,16 @@ class MLPPipeline(Pipeline):
         default=True,
         description="Controls implementation of SMOTE oversampling algorithms",
     )
-    feature_removal: Optional[str] = Field(  # TODO: need to add more algorithms
+    feature_removal: Optional[str] = Field(
         default=None,
         description="Set to 'sequential' or 'random' to trigger native importance pruning loops",
+    )
+    run_holdout: bool = Field(
+        default=False,
+        description="Controls execution of holdout model evaluation",
+    )
+    run_cv: bool = Field(
+        default=False, description="Controls execution of cross-validation step"
     )
     mlp_kwargs: dict[str, Any] = Field(
         default_factory=lambda: {
@@ -176,149 +183,157 @@ class MLPPipeline(Pipeline):
         # Tracking sequential array row positional integers as to avoid bugs with indexing alignment
         positions = np.arange(len(train_data))
 
-        # 1. Holdout Validation Partition Processing Step
-        train_pos, test_pos = train_test_split(
-            positions,
-            test_size=self.test_size,
-            random_state=self.seed,
-            stratify=y,
-            shuffle=True,
-        )
-
-        y_train = y[train_pos]
-        y_test = y[test_pos]
-
-        if is_dataframe:
-            x_train_raw = train_data.iloc[train_pos].to_numpy()
-            x_test_raw = train_data.iloc[test_pos].to_numpy()
-        else:
-            token_train = [
-                _tokenize_items(train_data[i], include_bigrams=self.include_bigrams)[0]
-                for i in train_pos
-            ]
-            token_test = [
-                _tokenize_items(train_data[i], include_bigrams=self.include_bigrams)[0]
-                for i in test_pos
-            ]
-            doc_labels_train = [f"train_doc_{i}" for i in train_pos]
-            dtm_holdout = DTM()
-            x_train_raw = dtm_holdout.fit_transform(
-                token_train, labels=list(doc_labels_train), min_df=self.min_df
-            )
-            x_test_raw = dtm_holdout.transform(token_test)
-
-        x_train = x_train_raw
-        x_test = x_test_raw
-
-        if active_features is not None:
-            x_train = self._filter_active_features(
-                baseline_features, x_train, active_features
-            )
-            x_test = self._filter_active_features(
-                baseline_features, x_test, active_features
+        if run_holdout:
+            # 1. Holdout Validation Partition Processing Step
+            train_pos, test_pos = train_test_split(
+                positions,
+                test_size=self.test_size,
+                random_state=self.seed,
+                stratify=y,
+                shuffle=True,
             )
 
-        scaler_holdout = StandardScaler(with_mean=False)
-        x_train_scaled = scaler_holdout.fit_transform(x_train)
-        x_test_scaled = scaler_holdout.transform(x_test)
-
-        x_train_model, y_train_model = self._apply_smote(x_train_scaled, y_train)
-        holdout_model = self._build_mlp_classifier()
-        holdout_model.fit(x_train_model, y_train_model)
-
-        y_pred = holdout_model.predict(_to_dense(x_test_scaled))
-        holdout_metrics = {
-            "accuracy": float(accuracy_score(y_test, y_pred)),
-            "balanced_accuracy": float(balanced_accuracy_score(y_test, y_pred)),
-            "macro_f1": float(f1_score(y_test, y_pred, average="macro")),
-        }
-
-        report_dict = classification_report(
-            y_test, y_pred, output_dict=True, zero_division=0
-        )
-        holdout_report = pd.DataFrame(report_dict).T
-
-        class_labels = sorted(np.unique(y).tolist())
-        cm = confusion_matrix(y_test, y_pred, labels=class_labels)
-        holdout_confusion_matrix = pd.DataFrame(
-            cm,
-            index=[f"true_{l}" for l in class_labels],
-            columns=[f"pred_{l}" for l in class_labels],
-        )
-
-        # 2. Stratified Cross Validation Cycle Sequence Block
-        cv = StratifiedKFold(
-            n_splits=self.cv_splits, shuffle=True, random_state=self.seed
-        )
-        cv_rows: list[dict[str, float]] = []
-
-        cv_split_data = positions if is_dataframe else train_data
-        for fold, (tr_idx, va_idx) in enumerate(cv.split(cv_split_data, y), start=1):
-            y_tr = y[tr_idx]
-            y_va = y[va_idx]
+            y_train = y[train_pos]
+            y_test = y[test_pos]
 
             if is_dataframe:
-                x_tr_raw = train_data.iloc[tr_idx].to_numpy()
-                x_va_raw = train_data.iloc[va_idx].to_numpy()
+                x_train_raw = train_data.iloc[train_pos].to_numpy()
+                x_test_raw = train_data.iloc[test_pos].to_numpy()
             else:
-                fold_train_tokens = [
+                token_train = [
                     _tokenize_items(
-                        [train_data[i]], include_bigrams=self.include_bigrams
+                        train_data[i], include_bigrams=self.include_bigrams
                     )[0]
-                    for i in tr_idx
+                    for i in train_pos
                 ]
-                fold_valid_tokens = [
+                token_test = [
                     _tokenize_items(
-                        [train_data[i]], include_bigrams=self.include_bigrams
+                        train_data[i], include_bigrams=self.include_bigrams
                     )[0]
-                    for i in va_idx
+                    for i in test_pos
                 ]
-                fold_train_doc_labels = [f"fold_doc{i}" for i in tr_idx]
-                dtm_fold = DTM()
-                x_tr_raw = dtm_fold.fit_transform(
-                    fold_train_tokens,
-                    labels=list(fold_train_doc_labels),
-                    min_df=self.min_df,
+                doc_labels_train = [f"train_doc_{i}" for i in train_pos]
+                dtm_holdout = DTM()
+                x_train_raw = dtm_holdout.fit_transform(
+                    token_train, labels=list(doc_labels_train), min_df=self.min_df
                 )
-                x_va_raw = dtm_fold.transform(fold_valid_tokens)
+                x_test_raw = dtm_holdout.transform(token_test)
 
-            x_tr = x_tr_raw
-            x_va = x_va_raw
+            x_train = x_train_raw
+            x_test = x_test_raw
 
             if active_features is not None:
-                x_tr = self._filter_active_features(
-                    baseline_features, x_tr, active_features
+                x_train = self._filter_active_features(
+                    baseline_features, x_train, active_features
                 )
-                x_va = self._filter_active_features(
-                    baseline_features, x_va, active_features
+                x_test = self._filter_active_features(
+                    baseline_features, x_test, active_features
                 )
 
-            scaler_fold = StandardScaler(with_mean=False)
-            x_tr_scaled = scaler_fold.fit_transform(x_tr)
-            x_va_scaled = scaler_fold.transform(x_va)
+            scaler_holdout = StandardScaler(with_mean=False)
+            x_train_scaled = scaler_holdout.fit_transform(x_train)
+            x_test_scaled = scaler_holdout.transform(x_test)
 
-            x_tr_model, y_tr_model = self._apply_smote(x_tr_scaled, y_tr)
-            fold_model = self._build_mlp_classifier()
-            fold_model.fit(x_tr_model, y_tr_model)
+            x_train_model, y_train_model = self._apply_smote(x_train_scaled, y_train)
+            holdout_model = self._build_mlp_classifier()
+            holdout_model.fit(x_train_model, y_train_model)
 
-            fold_pred = fold_model.predict(_to_dense(x_va_scaled))
-            cv_rows.append(
-                {
-                    "fold": float(fold),
-                    "accuracy": float(accuracy_score(y_va, fold_pred)),
-                    "balanced_accuracy": float(
-                        balanced_accuracy_score(y_va, fold_pred)
-                    ),
-                    "macro_f1": float(f1_score(y_va, fold_pred, average="macro")),
-                }
-            )  # End of for loop
+            y_pred = holdout_model.predict(_to_dense(x_test_scaled))
+            holdout_metrics = {
+                "accuracy": float(accuracy_score(y_test, y_pred)),
+                "balanced_accuracy": float(balanced_accuracy_score(y_test, y_pred)),
+                "macro_f1": float(f1_score(y_test, y_pred, average="macro")),
+            }
 
-        cv_fold_metrics = pd.DataFrame(cv_rows)
-        cv_mean_metrics = {
-            "accuracy": float(cv_fold_metrics["accuracy"].mean()),
-            "balanced_accuracy": float(cv_fold_metrics["balanced_accuracy"].mean()),
-            "macro_f1": float(cv_fold_metrics["macro_f1"].mean()),
-        }
+            report_dict = classification_report(
+                y_test, y_pred, output_dict=True, zero_division=0
+            )
+            holdout_report = pd.DataFrame(report_dict).T
+
+            class_labels = sorted(np.unique(y).tolist())
+            cm = confusion_matrix(y_test, y_pred, labels=class_labels)
+            holdout_confusion_matrix = pd.DataFrame(
+                cm,
+                index=[f"true_{l}" for l in class_labels],
+                columns=[f"pred_{l}" for l in class_labels],
+            )
+
+        if run_cv:
+            # 2. Stratified Cross Validation Cycle Sequence Block
+            cv = StratifiedKFold(
+                n_splits=self.cv_splits, shuffle=True, random_state=self.seed
+            )
+            cv_rows: list[dict[str, float]] = []
+
+            cv_split_data = positions if is_dataframe else train_data
+            for fold, (tr_idx, va_idx) in enumerate(
+                cv.split(cv_split_data, y), start=1
+            ):
+                y_tr = y[tr_idx]
+                y_va = y[va_idx]
+
+                if is_dataframe:
+                    x_tr_raw = train_data.iloc[tr_idx].to_numpy()
+                    x_va_raw = train_data.iloc[va_idx].to_numpy()
+                else:
+                    fold_train_tokens = [
+                        _tokenize_items(
+                            [train_data[i]], include_bigrams=self.include_bigrams
+                        )[0]
+                        for i in tr_idx
+                    ]
+                    fold_valid_tokens = [
+                        _tokenize_items(
+                            [train_data[i]], include_bigrams=self.include_bigrams
+                        )[0]
+                        for i in va_idx
+                    ]
+                    fold_train_doc_labels = [f"fold_doc{i}" for i in tr_idx]
+                    dtm_fold = DTM()
+                    x_tr_raw = dtm_fold.fit_transform(
+                        fold_train_tokens,
+                        labels=list(fold_train_doc_labels),
+                        min_df=self.min_df,
+                    )
+                    x_va_raw = dtm_fold.transform(fold_valid_tokens)
+
+                x_tr = x_tr_raw
+                x_va = x_va_raw
+
+                if active_features is not None:
+                    x_tr = self._filter_active_features(
+                        baseline_features, x_tr, active_features
+                    )
+                    x_va = self._filter_active_features(
+                        baseline_features, x_va, active_features
+                    )
+
+                scaler_fold = StandardScaler(with_mean=False)
+                x_tr_scaled = scaler_fold.fit_transform(x_tr)
+                x_va_scaled = scaler_fold.transform(x_va)
+
+                x_tr_model, y_tr_model = self._apply_smote(x_tr_scaled, y_tr)
+                fold_model = self._build_mlp_classifier()
+                fold_model.fit(x_tr_model, y_tr_model)
+
+                fold_pred = fold_model.predict(_to_dense(x_va_scaled))
+                cv_rows.append(
+                    {
+                        "fold": float(fold),
+                        "accuracy": float(accuracy_score(y_va, fold_pred)),
+                        "balanced_accuracy": float(
+                            balanced_accuracy_score(y_va, fold_pred)
+                        ),
+                        "macro_f1": float(f1_score(y_va, fold_pred, average="macro")),
+                    }
+                )  # End of for loop
+
+            cv_fold_metrics = pd.DataFrame(cv_rows)
+            cv_mean_metrics = {
+                "accuracy": float(cv_fold_metrics["accuracy"].mean()),
+                "balanced_accuracy": float(cv_fold_metrics["balanced_accuracy"].mean()),
+                "macro_f1": float(cv_fold_metrics["macro_f1"].mean()),
+            }
 
         # 3. Complete Corpus aggregation final model compilation
         dtm_final = None
