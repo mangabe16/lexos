@@ -195,7 +195,7 @@ class MLPPipeline(Pipeline):
             train_pos, test_pos = train_test_split(
                 positions,
                 test_size=self.test_size,
-                random_state=self.seed,
+                random_state=rng,
                 stratify=y,
                 shuffle=True,
             )
@@ -268,7 +268,7 @@ class MLPPipeline(Pipeline):
         if self.run_cv:
             # 2. Stratified Cross Validation Cycle Sequence Block
             cv = StratifiedKFold(
-                n_splits=self.cv_splits, shuffle=True, random_state=self.seed
+                n_splits=self.cv_splits, shuffle=True, random_state=rng
             )
             cv_rows: list[dict[str, float]] = []
 
