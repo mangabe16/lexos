@@ -5377,7 +5377,7 @@
 <p>For test functions, only a "Summary" line is required. The other sections can be provided optionally if they help to explain the function's behaviour.</p>
 <h2 id="comments">Comments<a class="headerlink" href="#comments" title="Permanent link">¤</a></h2>
 <h3 id="inline-code-comments">Inline Code Comments<a class="headerlink" href="#inline-code-comments" title="Permanent link">¤</a></h3>
-<p>Code comments do not need to be extensive. However, if your code includes complex logic or aspects that may be unintuitive at first glance (or even included a subtle bug that you ended up fixing), you should leave a comment that provides more context. Comments should preferably begin with a capital letter.</p>
+<p>Code comments do not need to be extensive. However, if your code includes complex logic or aspects that may be unintuitive at first glance (or even included a subtle bug that you ended up fixing), you should leave a comment that provides more context. Comments should preferably begin with a capital letter. This is enforced at the <a href="#using-pre-commit" class="md-nav__link"><span class="md-ellipsis">pre-commit stage</span></a>.</p>
 <div class="language-diff highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>token_index = indices[value]
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="gi">+ # Index describes Token.i of last token but Span indices are inclusive</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>span = doc[prev_token_index:token_index + 1]
@@ -5533,7 +5533,7 @@
 <p>Lexos uses two tools for checking for linting and formatting errors:</p>
 <ul>
 <li><code><a href="https://docs.astral.sh/ruff/" target="_blank">ruff</a></code>: an opinionated linter and formatter</li>
-<li>code&gt;<a href="https://pre-commit.com/" target="_blank">pre-commit</a></code>: a tool for running tests and fixing errors before code is committed to the project repository</li>
+<li><code><a href="https://pre-commit.com/" target="_blank">pre-commit</a></code>: a tool for running tests and fixing errors before code is committed to the project repository</li>
 </ul>
 <p>Code you write should be compatible with our the default <code>ruff</code> rules and the Lexos <code>pre-commit</code> hooks. It should not cause any errors or warnings.</p>
 <p>Depending on your setup, you can perform linting and formatting checks repeatedly at various stages of development, but running <code>pre-commit</code> on your code should always be the final stage of the process.</p>
@@ -5562,7 +5562,7 @@
 <h3 id="using-pre-commit">Using <code>pre-commit</code><a class="headerlink" href="#using-pre-commit" title="Permanent link">¤</a></h3>
 <p>As a further check, you should run <code><a href="https://pre-commit.com/" target="_blank">pre-commit</a></code>. This tool provides various hooks to check your code for stylistic conformity and consistency. It should be installed when you create your development environment.</p>
 <p>Start by installing the Lexos <code>pre-commit</code> hooks in your environment with</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pre-commit<span class="w"> </span>install<span class="sb">`</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pre-commit<span class="w"> </span>install
 </span></code></pre></div>
 <p>Lexos pre-commit hooks include:</p>
 <ul>
