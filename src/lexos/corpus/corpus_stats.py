@@ -1,6 +1,6 @@
-"""corpus_stats.py.git s
-Last updated: December 4, 2025
-Last tested: November 18, 2025
+"""corpus_stats.py.git
+Last updated: June 28, 2026
+Last tested: November 18, 2025.
 """
 
 import math
@@ -15,6 +15,7 @@ from plotly.subplots import make_subplots
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy import stats
 import spacy
+import warnings
 
 from spacy.symbols import ORTH, LEMMA
 from spacy_syllables import SpacySyllables
@@ -26,7 +27,20 @@ from lexos.filter.filters import IsStopwordFilter
 
 # Define metrics as a simple list of (metric_name, metric_key) tuples
 # This keeps the actual calculation logic in one place
-POS_TAGS = ["NUM", "ADJ", "ADP", "AUX", "CCONJ", "DET", "INTJ", "PART", "PRON", "PROPN", "SCONJ", "SYM"]
+POS_TAGS = [
+    "NUM",
+    "ADJ",
+    "ADP",
+    "AUX",
+    "CCONJ",
+    "DET",
+    "INTJ",
+    "PART",
+    "PRON",
+    "PROPN",
+    "SCONJ",
+    "SYM",
+]
 
 DYNAMIC_METRICS = [
     ("noun_count", "NOUN"),
@@ -45,6 +59,7 @@ DYNAMIC_METRICS = [
     ("sconj_count", "SCONJ"),
     ("sym_count", "SYM"),
 ]
+
 
 def make_labels_unique(labels: list[str]) -> list[str]:
     """Make labels unique by adding suffixes recursively.
@@ -346,7 +361,6 @@ class CorpusStats(BaseModel):
         return self._spacy_doc_stats
 
     def _count_stopwords(self, doc: spacy.tokens.Doc) -> int:
-
         stopword_filter = IsStopwordFilter()
         stopword_filter(doc = doc)
         return len(stopword_filter.matched_token_ids or set())
@@ -366,12 +380,26 @@ class CorpusStats(BaseModel):
             raise LexosException(
                 f"Error loading model. Please check the name and try again. You may need to install the model on your system."
             )
-        
-        try:
-            nlp.add_pipe("syllables", after="tagger")
-        except LexosException:
-            raise LexosException(
-                f"Error loading syllables. Please check the name and try again."
+
+        self._syllables_available = False
+
+        if "tagger" in nlp.pipe_names:
+            try:
+                nlp.add_pip("syllables", after="tagger")
+                self._syllables_available = True
+            except ValueError as exc:
+                warnings.warn(
+                    "spaCy syllable support unavailable for this model; "
+                    "skipping syllable-based features.",
+                    UserWarning,
+                )
+
+        else:
+            warnings.warn(
+                f"Loaded spaCy model '{nlp.meta.get('name', 'unknown')}' "
+                "does not include a tagger; "
+                "skipping syllable-based features.",
+                UserWarning,
             )
 
         for doc_id, label, token_data in self.docs:
@@ -384,18 +412,20 @@ class CorpusStats(BaseModel):
                 tokens = [token.text for token in doc]
 
             else:
-                raise TypeError("Input data must be either a string (raw text) or a spaCy Doc object.")
+                raise TypeError(
+                    "Input data must be either a string (raw text) or a spaCy Doc object."
+                )
 
             metrics = self._calculate_document_metrics(doc, tokens, label)
             rows.append(metrics)
 
         df = pd.DataFrame(rows).set_index("Documents")
         return df
-    
-    def _calculate_document_metrics(self, doc: spacy.tokens.Doc, tokens: list[str], label: str) -> dict:
-        """ Calculate all linguistic metrics
-        
-        """
+
+    def _calculate_document_metrics(
+        self, doc: spacy.tokens.Doc, tokens: list[str], label: str
+    ) -> dict:
+        """Calculate all linguistic metrics."""
         # Pre-calculate and initialize simple values used for multiple metrics
         total_tokens = len(tokens)
         unique_words = set(tokens)
@@ -418,24 +448,26 @@ class CorpusStats(BaseModel):
         for token in doc:
             if token.is_punct:
                 punc_count += 1
-            if token.text == "?": # There should be a better way to caluclate this using spaCy
+            if (
+                token.text == "?"
+            ):  # There should be a better way to caluclate this using spaCy
                 question_count += 1
             if token.text == "!":
                 exclamation_count += 1
             if token.tag_ == "VBG" or token.tag_ == "VBN":
                 participle_count += 1
-        
+
         for freq in tokens_freq_list:
             if freq == 1:
                 hapax_legomena += 1
             elif freq == 2:
                 hapax_dislegomena += 1
-        
+
         if doc:
             sentence_count = len(list(doc.sents))
         else:
-            sentence_count = 1 # Should this be excluded instead?
-        
+            sentence_count = 1  # Should this be excluded instead?
+
         # Start building metrics dictionary
         metrics = {
             "Documents": label,
@@ -455,18 +487,30 @@ class CorpusStats(BaseModel):
 
         # Dynamically add POS counts from DYNAMIC_METRICS
         for metric_name, pos_tag in DYNAMIC_METRICS:
-            metrics[metric_name] = int(pos_counts.get(pos_tag,0))
-        
-        # Calculate complex metrics that depend on the features calculated in the current function
-        metrics.update(self._calculate_complex_metrics(
-            total_tokens, unique_word_count, char_count, total_terms,
-            tokens_freq_list, pos_counts, freq_of_freq, punc_count, question_count, exclamation_count,
-            stopword_count, participle_count, sentence_count, doc
-        ))
+            metrics[metric_name] = int(pos_counts.get(pos_tag, 0))
+
+        # Calculate complex metrics that depend on the features calculated in the current function.
+        metrics.update(
+            self._calculate_complex_metrics(
+                total_tokens,
+                unique_word_count,
+                char_count,
+                total_terms,
+                tokens_freq_list,
+                pos_counts,
+                freq_of_freq,
+                punc_count,
+                question_count,
+                exclamation_count,
+                stopword_count,
+                participle_count,
+                sentence_count,
+                doc,
+            )
+        )
 
         return metrics
-        
-        
+
     def _calculate_complex_metrics(
         self,
         total_tokens: int,
@@ -484,22 +528,40 @@ class CorpusStats(BaseModel):
         sentence_count: int,
         doc: spacy.tokens.Doc,
     ) -> dict:
-        """Calculate statistics that rely on previously-calculated values
+        """Calculate statistics that rely on previously-calculated values."""
 
-        """
         # Safe division helper function
-        def safe_div(numerator, denominator, default = 0):
+        def safe_div(numerator, denominator, default=0):
             return numerator / denominator if denominator > 0 else default
-        
+
         # Lexical metrics
         avg_word_length = safe_div(char_count, total_tokens)
         ttr = safe_div(unique_word_count, total_tokens)
         root_ttr = safe_div(unique_word_count, math.sqrt(total_tokens))
-        log_ttr = safe_div(math.log(unique_word_count), math.log(total_tokens)) if total_tokens > 1 and unique_word_count > 0 else 0
-        maas = safe_div(math.log(total_tokens) - math.log(unique_word_count), (math.log(total_tokens) ** 2)) if total_tokens > 1 and unique_word_count > 0 else 0
+        log_ttr = (
+            safe_div(math.log(unique_word_count), math.log(total_tokens))
+            if total_tokens > 1 and unique_word_count > 0
+            else 0
+        )
+        maas = (
+            safe_div(
+                math.log(total_tokens) - math.log(unique_word_count),
+                (math.log(total_tokens) ** 2),
+            )
+            if total_tokens > 1 and unique_word_count > 0
+            else 0
+        )
         guiraud_index = safe_div(unique_word_count, math.sqrt(total_terms))
-        yule_k = 100000 * (sum(f**2 * count for f, count in freq_of_freq.items()) - total_terms) / (total_terms**2) if total_terms > 0 else 0
-        hapax_legomenon_rate = safe_div(sum(1 for freq in tokens_freq_list if freq == 1), total_tokens)
+        yule_k = (
+            100000
+            * (sum(f**2 * count for f, count in freq_of_freq.items()) - total_terms)
+            / (total_terms**2)
+            if total_terms > 0
+            else 0
+        )
+        hapax_legomenon_rate = safe_div(
+            sum(1 for freq in tokens_freq_list if freq == 1), total_tokens
+        )
         vocab_density = safe_div(total_terms * 100, total_tokens)
 
         # POS ratios
@@ -511,18 +573,29 @@ class CorpusStats(BaseModel):
 
         nominal_ratio = safe_div(
             noun_count + adp_count + participle_count,
-            pron_count + adverb_count + verb_count
+            pron_count + adverb_count + verb_count,
         )
         simple_nominal_ratio = safe_div(noun_count, verb_count)
-        
+
         # Syntactic metrics
         avg_sentence_length = safe_div(total_tokens, sentence_count)
-        avg_syllable_word = safe_div(total_tokens, doc._.syllables_count) if hasattr(doc._, "syllables_count") and doc._.syllables_count > 0 else 0
-        
-        # Readability
-        flesch_reading_ease = 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllable_word)
-        
-        return {
+
+        flesch_reading_ease = -1
+
+        if self._syllables_available == True:
+            syllable_count = doc._.syllables_count
+            avg_syllable_word = (
+                safe_div(total_tokens, syllable_count)
+                if hasattr(doc._, "syllables_count") and syllable_count > 0
+                else 0
+            )
+
+            # Readability
+            flesch_reading_ease = (
+                206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllable_word)
+            )
+
+        result = {
             "average_word_length": round(avg_word_length, 2),
             "ttr": round(ttr, 2),
             "root_ttr": round(root_ttr, 2),
@@ -535,8 +608,12 @@ class CorpusStats(BaseModel):
             "hapax_legomenon_rate": round(hapax_legomenon_rate, 2),
             "vocabulary_density": round(vocab_density, 2),
             "average_sentence_length": round(avg_sentence_length, 2),
-            "flesch_reading_ease": round(flesch_reading_ease, 2),
         }
+
+        if flesch_reading_ease != -1:
+            result["flesch_reading_ease"] = round(flesch_reading_ease, 2)
+
+        return result
 
     def get_iqr_outliers(self) -> list[tuple[str, str]]:
         """Get the interquartile range (IQR) outliers in the Corpus.
