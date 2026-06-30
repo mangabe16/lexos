@@ -105,7 +105,7 @@ def make_labels_unique(labels: list[str]) -> list[str]:
             new_label = f"{label}-{label_indices[label]:03d}"
 
             # Recursively handle conflicts: if the new label is also a duplicate,
-            # rename all instances including the newly generated one
+            # Rename all instances including the newly generated one
             if new_label in label_counts or new_label in duplicates:
                 # Re-run make_labels_unique with the conflicting label treated as duplicate
                 temp_labels = result + [new_label] + labels[len(result) + 1 :]
@@ -362,7 +362,7 @@ class CorpusStats(BaseModel):
 
     def _count_stopwords(self, doc: spacy.tokens.Doc) -> int:
         stopword_filter = IsStopwordFilter()
-        stopword_filter(doc = doc)
+        stopword_filter(doc=doc)
         return len(stopword_filter.matched_token_ids or set())
 
     @cached_property
@@ -372,7 +372,7 @@ class CorpusStats(BaseModel):
         Returns:
             pd.DataFrame: A Pandas dataframe containing statistics of each record.
         """
-        rows = [] # Initialize row for the Pandas dataframe to store later
+        rows = []  # Initialize row for the Pandas dataframe to store later
 
         try:
             nlp = load_spacy_model()
@@ -385,7 +385,7 @@ class CorpusStats(BaseModel):
 
         if "tagger" in nlp.pipe_names:
             try:
-                nlp.add_pip("syllables", after="tagger")
+                nlp.add_pipe("syllables", after="tagger")
                 self._syllables_available = True
             except ValueError as exc:
                 warnings.warn(
@@ -403,11 +403,15 @@ class CorpusStats(BaseModel):
             )
 
         for doc_id, label, token_data in self.docs:
-            if isinstance(token_data, str): # If the input is raw text, process it with spaCy
+            if isinstance(
+                token_data, str
+            ):  # If the input is raw text, process it with spaCy
                 doc = nlp(token_data)
-                tokens = [token.text for token in doc]            
-                
-            elif isinstance(token_data, spacy.tokens.Doc): # If input is already a spaCy Doc, use it directly   
+                tokens = [token.text for token in doc]
+
+            elif isinstance(
+                token_data, spacy.tokens.Doc
+            ):  # If input is already a spaCy Doc, use it directly
                 doc = token_data
                 tokens = [token.text for token in doc]
 
@@ -746,7 +750,7 @@ class CorpusStats(BaseModel):
 
             # Calculate Cohen's d for unequal variances:
             # Even though we use Welch's t-test, we still use pooled std for Cohen's d
-            # as it provides a standardized effect size comparable across studies
+            # As it provides a standardized effect size comparable across studies
             s1, s2 = np.std(group1_values, ddof=1), np.std(group2_values, ddof=1)
             n1, n2 = len(group1_values), len(group2_values)
 
@@ -1244,4 +1248,3 @@ def get_plotly_boxplot(
         "scrollZoom": True,
     }
     figure.show(showlink=False, config=config)
-
