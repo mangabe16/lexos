@@ -9,7 +9,7 @@ Supports Python and JavaScript files. For Python, it checks comments that start 
 
 Currently set to run only on Python files in the pre-commit configuration, but can be easily extended to check JavaScript files as well by adding the appropriate entry in the pre-commit config and ensuring the script is called with the correct file paths.
 
-Last Update: June 10, 2026
+Last Update: June 26, 2026
 """
 
 import re
@@ -25,6 +25,7 @@ SKIP_PREFIXES = (
     "eslint-",
     "todo",
     "fixme",
+    "pragma",
 )
 
 
@@ -52,6 +53,18 @@ def should_skip(comment_body: str) -> bool:
     """
     text = comment_body.strip().lower()
     return any(text.startswith(p) for p in SKIP_PREFIXES)
+
+
+def is_comment_block_continuation(
+    line_no: int, full_line_comment: bool, previous_full_line_comment: int | None
+) -> bool:
+    """Return True when a full-line comment continues the immediately previous comment block."""
+    return full_line_comment and previous_full_line_comment == line_no - 1
+
+
+def is_full_line_comment(line: str, col: int) -> bool:
+    """Return True when a comment is the only non-whitespace content on the line."""
+    return not line[:col].strip()
 
 
 CODE_LIKE_RE = re.compile(
@@ -108,23 +121,38 @@ def check_python(path: Path) -> list[tuple[int, str]]:
     errors = []
     text = path.read_text(encoding="utf-8")
     toks = tokenize.generate_tokens(StringIO(text).readline)
+    previous_full_line_comment = None
     for tok in toks:
         if tok.type != tokenize.COMMENT:
             continue
         line_no, col = tok.start
+        line = tok.line
+        full_line_comment = is_full_line_comment(line, col)
         body = tok.string.lstrip("#").strip()
         if not body or should_skip(body):
+            if full_line_comment:
+                previous_full_line_comment = line_no
             continue
 
         # Full-line comments that are actually commented-out code
-        if col == 0:
+        if full_line_comment:
             body_l = body.lstrip()
             if body_l and body_l[0].islower() and CODE_LIKE_RE.match(body_l):
+                previous_full_line_comment = line_no
+                continue
+
+            if is_comment_block_continuation(
+                line_no, full_line_comment, previous_full_line_comment
+            ):
+                previous_full_line_comment = line_no
                 continue
 
         ch = first_alpha(body)
         if ch and ch.islower():
             errors.append((line_no, "Comment should start with a capital letter"))
+
+        if full_line_comment:
+            previous_full_line_comment = line_no
     return errors
 
 

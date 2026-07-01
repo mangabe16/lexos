@@ -101,27 +101,11 @@ def is_valid_colour(color: str) -> bool:
     return True
 
 
-def is_spacy_model_loaded() -> bool:
-    """Check if a spaCy language model is loaded.
-
-    Returns:
-        bool: True if a spaCy language model is loaded, False otherwise.
-
-    Raises:
-        LexosException: If the spaCy model fails to load.
-    """
-    try:
-        spacy.blank("en")  # Attempt to load a blank English model
-        return True
-    except Exception as e:
-        raise LexosException(f"Failed to load spaCy model: {e}")
-
-
-def load_spacy_model(model: Language | str = "xx_sent_ud_sm") -> Language:
+def load_spacy_model(model: Language | str) -> Language:
     """Load a spaCy language model.
 
     Args:
-        model (Language | str): The spaCy model to load, either as a Language object or a string representing the model name. Defaults to xx_sent_ud_sm.
+        model (Language | str): The spaCy model to load, either as a Language object or a string representing the model name.
 
     Returns:
         Language: The loaded spaCy language model.
@@ -313,7 +297,7 @@ def strip_doc(doc: Doc) -> Doc:
 
     # Find last non-whitespace token
     end_idx = len(doc) - 1
-    for i in range(len(doc) - 1, -1, -1):  # list(doc)[::-1]
+    for i in range(len(doc) - 1, -1, -1):  # Replaces list(doc)[::-1]
         if not doc[i].is_space:
             end_idx = i
             break
