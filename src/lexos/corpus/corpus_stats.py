@@ -16,11 +16,12 @@ from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy import stats
 import spacy
 import warnings
+from typing import Optional
 
 from spacy.symbols import ORTH, LEMMA
 from spacy_syllables import SpacySyllables
 from lexos.dtm import DTM
-from lexos.util import load_spacy_model, is_spacy_model_loaded
+from lexos.util import load_spacy_model
 from collections import Counter
 from lexos.exceptions import LexosException
 from lexos.filter.filters import IsStopwordFilter
@@ -147,6 +148,11 @@ class CorpusStats(BaseModel):
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    model: Optional[str] = Field(
+        default="xx_sent_ud_sm",
+        description="The name of the spaCy model to be used for feature calculation.",
+    )
 
     def __init__(self, **data):
         """Initialize the CorpusStats and create the DTM."""
@@ -375,7 +381,7 @@ class CorpusStats(BaseModel):
         rows = []  # Initialize row for the Pandas dataframe to store later
 
         try:
-            nlp = load_spacy_model()
+            nlp = load_spacy_model(self.model)
         except LexosException:
             raise LexosException(
                 f"Error loading model. Please check the name and try again. You may need to install the model on your system."
