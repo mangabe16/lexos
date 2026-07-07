@@ -204,6 +204,12 @@ class Classifier(BaseModel):
             "cv_accuracy": base_cv.get("accuracy", np.nan),
             "cv_balanced_accuracy": base_cv.get("balanced_accuracy", np.nan),
             "cv_macro_f1": base_cv.get("macro_f1", np.nan),
+            "holdout_accuracy": base_holdout.get("accuracy", np.nan),
+            "holdout_balanced_accuracy": base_holdout.get("balanced_accuracy", np.nan),
+            "holdout_macro_f1": base_holdout.get("macro_f1", np.nan),
+            "cv_accuracy": base_cv.get("accuracy", np.nan),
+            "cv_balanced_accuracy": base_cv.get("balanced_accuracy", np.nan),
+            "cv_macro_f1": base_cv.get("macro_f1", np.nan),
         }
         experiment_rows.append(base_row)
 
@@ -212,7 +218,16 @@ class Classifier(BaseModel):
             active_features = [f for f in active_features if f != feature_to_drop]
             if active_features:
                 cloned_strategy = copy.deepcopy(self.pipeline)
+            if active_features:
+                cloned_strategy = copy.deepcopy(self.pipeline)
 
+                sub_classifier = Classifier(
+                    train_data=self.train_data,
+                    labels=self.labels,
+                    pipeline=cloned_strategy,
+                    features=active_features,
+                )
+                sub_classifier.fit()
                 sub_classifier = Classifier(
                     train_data=self.train_data,
                     labels=self.labels,
