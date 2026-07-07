@@ -139,6 +139,19 @@ class Classifier(BaseModel):
                 active_features=self.features,
             )
 
+        elif isinstance(data, list) and isinstance(data[0], str):
+            from lexos.classification.mlp_pipeline import _tokenize_items
+
+            # If raw text is passed, transform it into the DTM matrix using the fitted pipeline vectorizer rules
+            data = self._results_payload.get("final_dtm").transform(
+                [
+                    _tokenize_items(
+                        [text], include_bigrams=self.pipeline.include_bigrams
+                    )[0]
+                    for text in data
+                ]
+            )
+
         # 2. Scale and run inference
         transformed_data = scaler.transform(data)
         predictions = self._model.predict(transformed_data)

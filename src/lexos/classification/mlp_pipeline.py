@@ -158,22 +158,34 @@ class MLPPipeline(Pipeline):
         if active_features is None:
             return matrix
 
+        if isinstance(matrix, pd.DataFrame):
+            # Strict validation for DataFrames remains unchanged
+            feature_positions = {
+                feature: index for index, feature in enumerate(baseline_features)
+            }
+            missing_features = [
+                feature
+                for feature in active_features
+                if feature not in feature_positions
+            ]
+            if missing_features:
+                raise ValueError(
+                    "Requested active features are not present in the baseline feature set: "
+                    f"{missing_features}"
+                )
+            return matrix.loc[:, active_features]
+
+        # For numerical text matrices (numpy/scipy sparse), tolerate sub-fold vocabulary shrinkage
         feature_positions = {
             feature: index for index, feature in enumerate(baseline_features)
         }
-        missing_features = [
-            feature for feature in active_features if feature not in feature_positions
+
+        # Only extract indices for features that actually exist in this split's vocabulary matrix
+        feature_indices = [
+            feature_positions[feature]
+            for feature in active_features
+            if feature in feature_positions
         ]
-        if missing_features:
-            raise ValueError(
-                "Requested active features are not present in the baseline feature set: "
-                f"{missing_features}"
-            )
-
-        feature_indices = [feature_positions[feature] for feature in active_features]
-
-        if isinstance(matrix, pd.DataFrame):
-            return matrix.loc[:, active_features]
 
         if isinstance(matrix, np.ndarray):
             return matrix[:, feature_indices]
@@ -244,13 +256,13 @@ class MLPPipeline(Pipeline):
             else:
                 token_train = [
                     _tokenize_items(
-                        train_data[i], include_bigrams=self.include_bigrams
+                        [train_data[i]], include_bigrams=self.include_bigrams
                     )[0]
                     for i in train_pos
                 ]
                 token_test = [
                     _tokenize_items(
-                        train_data[i], include_bigrams=self.include_bigrams
+                        [train_data[i]], include_bigrams=self.include_bigrams
                     )[0]
                     for i in test_pos
                 ]
@@ -262,11 +274,16 @@ class MLPPipeline(Pipeline):
                 x_test_raw = dtm_holdout.transform(token_test)
 
             if active_features is not None:
+                # Use the DataFrame baseline if true, otherwise use the local DTM vocabulary
+                holdout_baseline = (
+                    baseline_features if is_dataframe else dtm_holdout.sorted_terms_list
+                )
+
                 x_train_raw = self._filter_active_features(
-                    baseline_features, x_train_raw, active_features
+                    holdout_baseline, x_train_raw, active_features
                 )
                 x_test_raw = self._filter_active_features(
-                    baseline_features, x_test_raw, active_features
+                    holdout_baseline, x_test_raw, active_features
                 )
 
             scaler_holdout = StandardScaler(with_mean=False)
@@ -337,11 +354,18 @@ class MLPPipeline(Pipeline):
                     x_va_raw = dtm_fold.transform(fold_valid_tokens)
 
                 if active_features is not None:
+                    # Use the DataFrame baseline if true, otherwise use the local DTM vocabulary
+                    cv_baseline = (
+                        baseline_features
+                        if is_dataframe
+                        else dtm_fold.sorted_terms_list
+                    )
+
                     x_tr_raw = self._filter_active_features(
-                        baseline_features, x_tr_raw, active_features
+                        cv_baseline, x_tr_raw, active_features
                     )
                     x_va_raw = self._filter_active_features(
-                        baseline_features, x_va_raw, active_features
+                        cv_baseline, x_va_raw, active_features
                     )
 
                 scaler_fold = StandardScaler(with_mean=False)
