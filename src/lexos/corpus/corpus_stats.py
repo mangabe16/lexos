@@ -17,6 +17,8 @@ from scipy import stats
 import spacy
 import warnings
 from typing import Optional
+from pathlib import Path
+from lexos.io.loader import Loader
 
 from spacy.symbols import ORTH, LEMMA
 from spacy_syllables import SpacySyllables
@@ -119,6 +121,44 @@ def make_labels_unique(labels: list[str]) -> list[str]:
     return result
 
 
+def create_corpus_stats_input(
+    sources: list[Path] | list[str],
+    nlp: spacy.Language | None = None,
+    start_id: int = 1,
+    read_files: bool = True,
+) -> list[tuple[str, str, str | spacy.tokens.Doc | list[str]]]:
+    """Build [(id, label, text_or_doc), ...].
+
+    - ids: doc_ids will be generated counting up from the start_id ("1, "2", ... )
+    - labels: filename(Path.name) when source is a file, otherwise "doc-{n}"
+    - If read_files is True and a source path exists, the file is read as text.
+    - If nlp is provided and you want
+    """
+    doc_tuples: list[tuple[str, str, str | spacy.tokens.Doc]] = []
+    for i, src in enumerate(sources, start=start_id):
+        doc_id = str(i)
+        p = Path(src) if not isinstance(src, spacy.tokens.Doc) else None
+
+        if p is not None and p.exists() and read_files:
+            label = p.name
+            text = p.read_text(encoding="utf-8", errors="ignore")
+            doc_tuples.append((doc_id, label, text))
+        else:
+            # treat src as raw text or already a spaCy Doc:
+            if isinstance(src, spacy.tokens.Doc):
+                doc = f"doc-{i}"
+                label = doc._.label or f"doc-{i}"
+                doc_tuples.append((doc_id, label, src))
+            else:
+                #
+                label = (
+                    Path(str(src)).name
+                    if "/" in str(src) or "\\" in str(src)
+                    else f"doc-{i}"
+                )
+                doc_tuples.append((doc_id, label, str(src)))
+    return doc_tuples
+
 class CorpusStats(BaseModel):
     """A class to hold statistics about a Corpus.
 
@@ -193,6 +233,11 @@ class CorpusStats(BaseModel):
             A Pandas dataframe containing statistics of each record.
         """
         return self._get_doc_stats_df()
+
+    @cached_property
+    def features_calculated(self) -> list[str]:
+        """Get the list of features that were calculated"""
+        return list(self.doc_stats_df.columns.values)
 
     @cached_property
     def mean_and_spread(self) -> tuple[float, float]:
