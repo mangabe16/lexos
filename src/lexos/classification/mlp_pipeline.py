@@ -112,14 +112,11 @@ class MLPPipeline(Pipeline):
 
     def discover_features(self, train_data: Sequence[Any]) -> list[str]:
         """Discovers and returns availble baseline features based on input data type."""
-        features: list[str] = []
-
-        # Handles case where user provides CorpusStats statistics
         if isinstance(train_data, pd.DataFrame):
-            features = train_data.columns.tolist()
+            return train_data.columns.tolist()
 
         # Handles case where user provides the raw text
-        if isinstance(train_data, list[str] | str):
+        if isinstance(train_data, list | str):
             features_DTM = DTM()
             tokenized_data = _tokenize_items(
                 train_data, include_bigrams=self.include_bigrams
@@ -128,19 +125,56 @@ class MLPPipeline(Pipeline):
             features_DTM.fit_transform(
                 tokenized_data, labels=mock_labels, min_df=self.min_df
             )
-            features = features_DTM.sorted_terms_list
+            return features_DTM.sorted_terms_list
 
-        return features
+        return []
+
+    def _normalize_active_features(
+        self, active_features: Optional[Any]
+    ) -> Optional[list[str]]:
+        """Normalize feature selectors to a plain list of column names."""
+        if active_features is None:
+            return None
+
+        if isinstance(active_features, pd.DataFrame):
+            return active_features.columns.tolist()
+
+        if isinstance(active_features, pd.Index):
+            return active_features.tolist()
+
+        if isinstance(active_features, str):
+            return [active_features]
+
+        return list(active_features)
 
     def _filter_active_features(
-        self, baseline_features: list[str], matrix: Any, active_features: list[str]
+        self,
+        baseline_features: list[str],
+        matrix: Any,
+        active_features: Optional[Any],
     ) -> Any:
         """Slices a matrix to only retain terms explicitly provided in active_features."""
-        feature_indices = [
-            baseline_features.index(feature)
-            for feature in active_features
-            if feature in baseline_features
+        active_features = self._normalize_active_features(active_features)
+        if active_features is None:
+            return matrix
+
+        feature_positions = {
+            feature: index for index, feature in enumerate(baseline_features)
+        }
+        missing_features = [
+            feature for feature in active_features if feature not in feature_positions
         ]
+        if missing_features:
+            raise ValueError(
+                "Requested active features are not present in the baseline feature set: "
+                f"{missing_features}"
+            )
+
+        feature_indices = [feature_positions[feature] for feature in active_features]
+
+        if isinstance(matrix, pd.DataFrame):
+            return matrix.loc[:, active_features]
+
         if isinstance(matrix, np.ndarray):
             return matrix[:, feature_indices]
         return matrix.tocsr()[:, feature_indices]
@@ -168,13 +202,14 @@ class MLPPipeline(Pipeline):
         self,
         train_data: Sequence[Any],
         labels: Sequence[str],
-        active_features: Optional[list[str]] = None,
+        active_features: Optional[Any] = None,
     ) -> dict[str, Any]:
         """Processes tokenized elements, computes metrics, and fits the architecture."""
         rng = np.random.RandomState(
             self.seed
         )  # Creating an independent random state object
 
+        active_features = self._normalize_active_features(active_features)
         baseline_features = self.discover_features(train_data)
         y = np.asarray(labels)
 
@@ -204,8 +239,8 @@ class MLPPipeline(Pipeline):
             y_test = y[test_pos]
 
             if is_dataframe:
-                x_train_raw = train_data.iloc[train_pos].to_numpy()
-                x_test_raw = train_data.iloc[test_pos].to_numpy()
+                x_train_raw = train_data.iloc[train_pos]
+                x_test_raw = train_data.iloc[test_pos]
             else:
                 token_train = [
                     _tokenize_items(
@@ -226,20 +261,17 @@ class MLPPipeline(Pipeline):
                 )
                 x_test_raw = dtm_holdout.transform(token_test)
 
-            x_train = x_train_raw
-            x_test = x_test_raw
-
             if active_features is not None:
-                x_train = self._filter_active_features(
-                    baseline_features, x_train, active_features
+                x_train_raw = self._filter_active_features(
+                    baseline_features, x_train_raw, active_features
                 )
-                x_test = self._filter_active_features(
-                    baseline_features, x_test, active_features
+                x_test_raw = self._filter_active_features(
+                    baseline_features, x_test_raw, active_features
                 )
 
             scaler_holdout = StandardScaler(with_mean=False)
-            x_train_scaled = scaler_holdout.fit_transform(x_train)
-            x_test_scaled = scaler_holdout.transform(x_test)
+            x_train_scaled = scaler_holdout.fit_transform(x_train_raw)
+            x_test_scaled = scaler_holdout.transform(x_test_raw)
 
             x_train_model, y_train_model = self._apply_smote(x_train_scaled, y_train)
             holdout_model = self._build_mlp_classifier()
@@ -280,8 +312,8 @@ class MLPPipeline(Pipeline):
                 y_va = y[va_idx]
 
                 if is_dataframe:
-                    x_tr_raw = train_data.iloc[tr_idx].to_numpy()
-                    x_va_raw = train_data.iloc[va_idx].to_numpy()
+                    x_tr_raw = train_data.iloc[tr_idx]
+                    x_va_raw = train_data.iloc[va_idx]
                 else:
                     fold_train_tokens = [
                         _tokenize_items(
@@ -304,20 +336,17 @@ class MLPPipeline(Pipeline):
                     )
                     x_va_raw = dtm_fold.transform(fold_valid_tokens)
 
-                x_tr = x_tr_raw
-                x_va = x_va_raw
-
                 if active_features is not None:
-                    x_tr = self._filter_active_features(
-                        baseline_features, x_tr, active_features
+                    x_tr_raw = self._filter_active_features(
+                        baseline_features, x_tr_raw, active_features
                     )
-                    x_va = self._filter_active_features(
-                        baseline_features, x_va, active_features
+                    x_va_raw = self._filter_active_features(
+                        baseline_features, x_va_raw, active_features
                     )
 
                 scaler_fold = StandardScaler(with_mean=False)
-                x_tr_scaled = scaler_fold.fit_transform(x_tr)
-                x_va_scaled = scaler_fold.transform(x_va)
+                x_tr_scaled = scaler_fold.fit_transform(x_tr_raw)
+                x_va_scaled = scaler_fold.transform(x_va_raw)
 
                 x_tr_model, y_tr_model = self._apply_smote(x_tr_scaled, y_tr)
                 fold_model = self._build_mlp_classifier()
@@ -346,33 +375,46 @@ class MLPPipeline(Pipeline):
         dtm_final = None
 
         if is_dataframe:
-            x_full = train_data.to_numpy()
+            x_full_raw = train_data
         else:
             all_tokens_lists = _tokenize_items(
                 train_data, include_bigrams=self.include_bigrams
             )
             all_doc_labels = [f"train_doc{i}" for i in range(len(all_tokens_lists))]
             dtm_final = DTM()
-            x_full = dtm_final.fit_transform(
+            x_full_raw = dtm_final.fit_transform(
                 all_tokens_lists, labels=list(all_doc_labels), min_df=self.min_df
             )
 
         if active_features is not None:
-            x_full = self._filter_active_features(
-                baseline_features, x_full, active_features
+            x_full_raw = self._filter_active_features(
+                baseline_features, x_full_raw, active_features
             )
 
         scaler_final = StandardScaler(with_mean=False)
-        x_full_scaled = scaler_final.fit_transform(x_full)
+        x_full_scaled = scaler_final.fit_transform(x_full_raw)
 
         x_full_model, y_full_model = self._apply_smote(x_full_scaled, y)
         final_model = self._build_mlp_classifier()
         final_model.fit(x_full_model, y_full_model)
 
+        final_pred = final_model.predict(_to_dense(x_full_scaled))
+        final_metrics = {
+            "accuracy": float(accuracy_score(y, final_pred)),
+            "balanced_accuracy": float(balanced_accuracy_score(y, final_pred)),
+            "macro_f1": float(f1_score(y, final_pred, average="macro")),
+        }
+
+        final_report = pd.DataFrame(
+            classification_report(y, final_pred, output_dict=True, zero_division=0)
+        ).T
+
         return {
             "final_model": final_model,
             "final_dtm": dtm_final,
             "final_scaler": scaler_final,
+            "final_metrics": final_metrics,
+            "final_report": final_report,
             "holdout_metrics": holdout_metrics,
             "holdout_report": holdout_report,
             "holdout_confusion_matrix": holdout_confusion_matrix,

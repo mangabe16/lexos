@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, Sequence
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 
 
 class Pipeline(BaseModel, ABC):
@@ -29,7 +29,7 @@ class Pipeline(BaseModel, ABC):
 
     @abstractmethod
     def execute_training(
-        self, train_data: Sequence[Any], labels: Sequence[str]
+        self, train_data: Sequence[Any] | pd.DataFrame, labels: Sequence[str]
     ) -> dict[str, Any]:
         """Execute feature extraction and model fitting routines.
 
@@ -44,7 +44,7 @@ class Pipeline(BaseModel, ABC):
         pass
 
     @abstractmethod
-    def discover_features(self, train_data: Sequence[Any]) -> list[str]:
+    def discover_features(self, train_data: Sequence[Any] | pd.DataFrame) -> list[str]:
         """Discovers and returns available baseline feature/column names from the input data layout.
 
         This delegates feature space tracking to the individual Pipeline strategies
@@ -59,7 +59,7 @@ class Classifier(BaseModel):
     the input data type formats, delagting feature manipulation to the Pipeline strategies.
     """
 
-    train_data: Sequence[Any] = Field(
+    train_data: Any = Field(
         description="Training data source (e.g., list of strings, pre-computed DtaFrames, or arrays)"
     )
     labels: Sequence[str] = Field(description="Classification target identifiers")
@@ -76,6 +76,21 @@ class Classifier(BaseModel):
     _report: pd.DataFrame = PrivateAttr(default_factory=pd.DataFrame)
     _model: Optional[Any] = PrivateAttr(default=None)
 
+    _results_payload: dict[str, Any] = PrivateAttr(default_factory=dict)
+
+    @field_validator("train_data")
+    @classmethod
+    def _validate_train_data(cls, value: Any) -> Any:
+        if isinstance(value, pd.DataFrame):
+            return value
+
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            return value
+
+        raise TypeError(
+            "train_data must be a pandas DataFrame or a sequence of training samples."
+        )
+
     @property
     def metrics(self) -> dict[str, float]:
         """Expose calculated model validation performance metrics."""
@@ -90,6 +105,21 @@ class Classifier(BaseModel):
     def model(self) -> Any:
         """Expose the underlying trained estimator payload."""
         return self._model
+
+    def predict(self, data: Any) -> np.ndarray:
+        """Predict labels for a fitted classifier using the stored final scaler and model.
+
+        TODO: only works for dataframe data.
+        """
+        if self._model is None:
+            raise ValueError("Classifier must be fitted before calling predict().")
+
+        scaler = self._results_payload.get("final_scaler")
+        if scaler is None:
+            raise ValueError("No fitted scaler is available for prediction.")
+
+        transformed_data = scaler.transform(data)
+        return self._model.predict(transformed_data)
 
     def fit(self) -> None:
         """The Template Method establishing the explicit lifecycle algorithm sequence."""
@@ -122,10 +152,18 @@ class Classifier(BaseModel):
     def _evaluate(self, results: dict[str, Any]) -> None:
         """Populates internal context performance metrics from strategy payloads."""
         self._model = results.get("final_model")
-        self._metrics = results.get("holdout_metrics", {}) or results.get(
-            "cv_mean_metrics", {}
+
+        self._results_payload = results
+        self._metrics = (
+            results.get("holdout_metrics", {})
+            or results.get("cv_mean_metrics", {})
+            or results.get("final_metrics", {})
         )
-        self._report = results.get("holdout_report", pd.DataFrame())
+        self._report = (
+            results.get("holdout_report", pd.DataFrame())
+            if not results.get("holdout_report", pd.DataFrame()).empty
+            else results.get("final_report", pd.DataFrame())
+        )
 
     def feature_importance_sweep(self) -> pd.DataFrame:
         """Natively retrains models by progressively pruning features based on the pipeline configuration.
@@ -141,8 +179,8 @@ class Classifier(BaseModel):
         active_features = list(self.features)
         removal_order = list(self.features)
 
+        # Still lacking different removal strategies
         strategy_removal = getattr(self.pipeline, "feature_removal", None)
-        # TODO: add more removal strategies
         if strategy_removal == "random":
             seed = getattr(self.pipeline, "seed", 42)
             random.Random(seed).shuffle(removal_order)
@@ -151,46 +189,66 @@ class Classifier(BaseModel):
 
         # 1. Train and parse baseline configurations
         self.fit()
+
+        base_holdout = (
+            getattr(self, "_results_payload", {}).get("holdout_metrics") or {}
+        )
+        base_cv = getattr(self, "_results_payload", {}).get("cv_mean_metrics") or {}
         base_row = {
             "configuration": "baseline",
             "removed_feature": "baseline",
             "features_remaining": len(active_features),
-            "holdout_accuracy": self.metrics.get("accuracy", 0.0),
-            "holdout_balanced_accuracy": self.metrics.get("balanced_accuracy", 0.0),
-            "holdout_macro_f1": self.metrics.get("macro_f1", 0.0),
-            "cv_accuracy": self.metrics.get("accuracy", 0.0),
-            "cv_balanced_accuracy": self.metrics.get("balanced_accuracy", 0.0),
-            "cv_macro_f1": self.metrics.get("macro_f1", 0.0),
+            "holdout_accuracy": base_holdout.get("accuracy", np.nan),
+            "holdout_balanced_accuracy": base_holdout.get("balanced_accuracy", np.nan),
+            "holdout_macro_f1": base_holdout.get("macro_f1", np.nan),
+            "cv_accuracy": base_cv.get("accuracy", np.nan),
+            "cv_balanced_accuracy": base_cv.get("balanced_accuracy", np.nan),
+            "cv_macro_f1": base_cv.get("macro_f1", np.nan),
         }
         experiment_rows.append(base_row)
 
         # 2. Progressively drop features one by one
         for step, feature_to_drop in enumerate(removal_order, start=1):
             active_features = [f for f in active_features if f != feature_to_drop]
+            if active_features:
+                cloned_strategy = copy.deepcopy(self.pipeline)
 
-            cloned_strategy = copy.deepcopy(self.pipeline)
+                sub_classifier = Classifier(
+                    train_data=self.train_data,
+                    labels=self.labels,
+                    pipeline=cloned_strategy,
+                    features=active_features,
+                )
+                sub_classifier.fit()
 
-            sub_classifier = Classifier(
-                train_data=self.train_data,
-                labels=self.labels,
-                pipeline=cloned_strategy,
-                features=active_features,
-            )
-            sub_classifier.fit()
+                sub_holdout = (
+                    getattr(sub_classifier, "_results_payload", {}).get(
+                        "holdout_metrics"
+                    )
+                    or {}
+                )
+                sub_cv = (
+                    getattr(sub_classifier, "_results_payload", {}).get(
+                        "cv_mean_metrics"
+                    )
+                    or {}
+                )
+                sub_final = (
+                    getattr(sub_classifier, "_results_payload", {}).get("final_metrics")
+                    or {}
+                )
 
-            sub_metrics = sub_classifier.metrics
-            row = {
-                "configuration": f"remove_{step:02d}",
-                "removed_feature": feature_to_drop,
-                "features_remaining": len(active_features),
-                "holdout_accuracy": sub_metrics.get("accuracy", 0.0),
-                "holdout_balanced_accuracy": sub_metrics.get("balanced_accuracy", 0.0),
-                "holdout_macro_f1": sub_metrics.get("macro_f1", 0.0),
-                "cv_accuracy": sub_metrics.get("accuracy", 0.0),
-                "cv_balanced_accuracy": sub_metrics.get("balanced_accuracy", 0.0),
-                "cv_macro_f1": sub_metrics.get("macro_f1", 0.0),
-            }
-            experiment_rows.append(row)
+                row = {
+                    "configuration": f"remove_{step:02d}",
+                    "removed_feature": feature_to_drop,
+                    "features_remaining": len(active_features),
+                    "holdout_accuracy": sub_holdout.get("accuracy", np.nan),
+                    "holdout_macro_f1": sub_holdout.get("macro_f1", np.nan),
+                    "cv_accuracy": sub_cv.get("accuracy", np.nan),
+                    "final_model_accuracy": sub_final.get("accuracy", np.nan),
+                    "final_model_macro_f1": sub_final.get("macro_f1", np.nan),
+                }
+                experiment_rows.append(row)
 
         return pd.DataFrame(experiment_rows)
 

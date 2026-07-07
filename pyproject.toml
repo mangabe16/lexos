@@ -45,6 +45,7 @@ dependencies = [
     "en-core-web-sm",
     "spacytextblob>=5.0.0",
     "textblob>=0.20.0",
+    "spacy-syllables>=3.0.2",
 ]
 
 [build-system]
