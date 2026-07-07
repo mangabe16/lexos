@@ -106,10 +106,22 @@ class Classifier(BaseModel):
         """Expose the underlying trained estimator payload."""
         return self._model
 
-    def predict(self, data: Any) -> np.ndarray:
+    def predict(
+        self,
+        data: Any,
+        ids: Optional[Sequence[Any]] = None,
+        true_labels: Optional[Sequence[str]] = None,
+    ) -> pd.DataFrame:
         """Predict labels for a fitted classifier using the stored final scaler and model.
 
-        TODO: only works for dataframe data.
+        Args:
+            data: Input feature data (e.g., pd.DataFrame or pre-vectorized array).
+            ids: Optional sequence of document or sample identifiers.
+            true_labels: Optional sequence of the actual ground truth labels.
+
+        Returns:
+            pd.DataFrame: A structured table combining IDs, True Labels (if provided),
+                          and the Model's Predicted Labels.
         """
         if self._model is None:
             raise ValueError("Classifier must be fitted before calling predict().")
@@ -118,8 +130,42 @@ class Classifier(BaseModel):
         if scaler is None:
             raise ValueError("No fitted scaler is available for prediction.")
 
+        # 1. Safely handle feature alignment if data is a DataFrame
+        if isinstance(data, pd.DataFrame):
+            # Ensure columns match what the pipeline expects, using the baseline features
+            data = self.pipeline._filter_active_features(
+                baseline_features=self.features,
+                matrix=data,
+                active_features=self.features,
+            )
+
+        # 2. Scale and run inference
         transformed_data = scaler.transform(data)
-        return self._model.predict(transformed_data)
+        predictions = self._model.predict(transformed_data)
+
+        # 3. Assemble the rich output DataFrame
+        output_dict = {}
+
+        # Add Document IDs if given, otherwise fallback to standard integer indices
+        if ids is not None:
+            if len(ids) != len(predictions):
+                raise ValueError("Length of 'ids' must match length of predictions.")
+            output_dict["doc_id"] = list(ids)
+        else:
+            output_dict["doc_id"] = list(range(len(predictions)))
+
+        # Add True Labels if provided for side-by-side comparison
+        if true_labels is not None:
+            if len(true_labels) != len(predictions):
+                raise ValueError(
+                    "Length of 'true_labels' must match length of predictions."
+                )
+            output_dict["true_label"] = list(true_labels)
+
+        # Add the final predictions
+        output_dict["predicted_label"] = list(predictions)
+
+        return pd.DataFrame(output_dict)
 
     def fit(self) -> None:
         """The Template Method establishing the explicit lifecycle algorithm sequence."""
