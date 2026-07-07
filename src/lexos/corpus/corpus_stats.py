@@ -19,7 +19,6 @@ import spacy
 import warnings
 from typing import Optional
 from pathlib import Path
-from lexos.io.loader import Loader
 
 from spacy.symbols import ORTH, LEMMA
 from spacy_syllables import SpacySyllables
