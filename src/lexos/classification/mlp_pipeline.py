@@ -112,6 +112,7 @@ class MLPPipeline(Pipeline):
 
     def discover_features(self, train_data: Sequence[Any]) -> list[str]:
         """Discovers and returns availble baseline features based on input data type."""
+        # Handles case where user provides a dataframe of features
         if isinstance(train_data, pd.DataFrame):
             return train_data.columns.tolist()
 
