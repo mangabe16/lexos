@@ -78,6 +78,7 @@ If you are using a Jupyter notebook, you can also check the installation by runn
 
 ```python
 import lexos
+
 print(lexos.__version__)
 ```
 

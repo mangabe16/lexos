@@ -80,6 +80,7 @@ def title_case(text: str) -> str:
     """Our custom function to convert text to title case."""
     return text.title()
 
+
 # Register the custom function
 scrubber_components.register("title_case", func=title_case)
 ```
@@ -166,10 +167,7 @@ from lexos.scrubber import scrub
 pipes = (lower_case, punctuation)
 pipeline = make_pipeline(pipes)
 
-scrubbed_text = scrub(
-    "Lexos is the number 12 text analysis tool!!",
-    pipeline
-)
+scrubbed_text = scrub("Lexos is the number 12 text analysis tool!!", pipeline)
 ```
 
 This is an alternative way of applying the pipeline.
@@ -191,6 +189,7 @@ The `add_pipe()` method can also take a list or tuple of components such as `["l
 
 ```python
 from functools import partial
+
 scrubber.add_pipe(["lower_case", partial(remove_digits, only=["1"])])
 ```
 
@@ -231,7 +230,7 @@ It is also possible to apply the scrubbing pipeline to a list or tuple of texts 
 ```python
 texts = [
     "Lexos is the number 12 text analysis tool!!",
-    "Lexos is the number 1 text analysis tool!!"
+    "Lexos is the number 1 text analysis tool!!",
 ]
 scrubbed_texts = scrubber.pipe(texts)
 for text in scrubbed_texts:
@@ -253,7 +252,7 @@ from lexos.scrubber import Pipe
 
 text = "Number 12 is the best number!"
 my_pipe = Pipe("digits", {"only": ["1"]})
-my_pipe(text) # Returns "Number 2 is the best number!"
+my_pipe(text)  # Returns "Number 2 is the best number!"
 ```
 
 You can even create and apply your own pipeline:
@@ -262,7 +261,7 @@ You can even create and apply your own pipeline:
 text = "Number 12 is the best number!"
 pipes = [Pipe("lower_case"), Pipe("digits", {"only": ["1"]})]
 for pipe in pipes:
-    text = pipe(text) # Returns "number 2 is the best number!"
+    text = pipe(text)  # Returns "number 2 is the best number!"
 ```
 
 The Scrubber `add_pipe()` and `pipe()` methods also accept `Pipe` objects or iterables of `Pipe` objects, which in many use cases can be a more convenient way to manage a pipeline.
@@ -284,11 +283,7 @@ The `pipe()` method allows the existing configuration to be overridden using the
 
 ```python
 scrubber = Scrubber()
-scrubber.add_pipe([
-    "lower_case",
-    "punctuation",
-    partial("digits", only=["1"])
-])
+scrubber.add_pipe(["lower_case", "punctuation", partial("digits", only=["1"])])
 
 text = "This is a sample text with some digits, 12345, and some punctuation! Let's see how it works."
 

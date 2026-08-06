@@ -37,10 +37,9 @@ doc = tokenizer.make_doc(text)
 
 # Generate a filtered list of tokens
 tokens = [
-    token.text for token in doc
-    if not token.is_punct
-    and not token.is_stop
-    and not token.is_space
+    token.text
+    for token in doc
+    if not token.is_punct and not token.is_stop and not token.is_space
 ]
 
 # Create a new word cloud
@@ -57,10 +56,7 @@ That's much nicer! You can also pass a list of documents. By default, they will 
 
 ```python
 # Add some more tokens
-multiple_docs = [
-    tokens[:10],
-    ["Some", "additional", "tokens"]
-]
+multiple_docs = [tokens[:10], ["Some", "additional", "tokens"]]
 
 # Create and display a word cloud
 wc = WordCloud(
@@ -69,7 +65,7 @@ wc = WordCloud(
     height=200,
     width=200,
     round=100,
-    limit=10
+    limit=10,
 )
 wc.show()
 ```
@@ -114,7 +110,7 @@ wc.show()
 
     # Create the image
     # The semicolon prevents display of the object in Jupyter notebooks, or you can add plt.show()
-    plt.imshow(wc.cloud, interpolation="bilinear");
+    plt.imshow(wc.cloud, interpolation="bilinear")
     ```
 
 To save your image, use the save method. The file type will be determined by your file suffix (`.png` or `.jpg`).
@@ -130,7 +126,7 @@ wc.save("wordcloud.jpg")
 The `save` method accepts any arguments allowed by `matplotlib`'s <code><a href="https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html" target="_blank">savefig</a></code> method:
 
 ```python
-plt.savefig("wordcloud.png", dpi = 300)
+plt.savefig("wordcloud.png", dpi=300)
 ```
 
 ## Bubble Charts
@@ -221,7 +217,7 @@ texts = [
     "Machine learning algorithms help computers understand and process human language effectively.",
     "Natural language processing is a fascinating field that combines linguistics, computer science, and artificial intelligence.",
     "Text analysis, sentiment analysis, and language modeling are key components of modern NLP systems.",
-    "Machine learning algorithms help computers understand and process human language effectively."
+    "Machine learning algorithms help computers understand and process human language effectively.",
 ]
 
 # Create and display a MultiCloud chart
@@ -283,7 +279,7 @@ In the examples above, we have shown how `WordCloud`, `BubbleChart`, and `MultiC
 ```python
 tokens = [
     ["Natural", "language", "processing", "is", "a", "fascinating", "field", "."],
-    ["Text", "analysis", "sentiment", "analysis", "," "and", "language", "modeling"]
+    ["Text", "analysis", "sentiment", "analysis", ",and", "language", "modeling"],
 ]
 ```
 
@@ -292,10 +288,7 @@ Each sublist represents a separate document. By default, `WordCloud` and `Bubble
 If your data has already been tokenised into spaCy `Doc` objects, you can pass them directly to the visualisation classes (likewise, you can pass spaCy `Span` objects or lists of `Token` objects). However, a better approach is to use spaCy to pre-process your documents, such as by filtering punctuation and stop words, and then pass the tokens as lists of strings. Here is an example where we additionally convert the tokens to lower case.
 
 ```python
-tokens = [
-    token.lower_ for token in doc
-    if not token.is_punct and not token.is_stop
-]
+tokens = [token.lower_ for token in doc if not token.is_punct and not token.is_stop]
 ```
 
 This allows you to take advantage of spaCy's natural language processing functionality.
@@ -307,7 +300,21 @@ Finally, you may have a pre-generated list of term counts, such as is produced b
 ```python
 from collections import Counter
 
-tokens = ["this", "is", "a", "sample", "text", "to", "demonstrate", "how", "to", "produce", "a", "bubble", "chart"]
+tokens = [
+    "this",
+    "is",
+    "a",
+    "sample",
+    "text",
+    "to",
+    "demonstrate",
+    "how",
+    "to",
+    "produce",
+    "a",
+    "bubble",
+    "chart",
+]
 counter = dict(Counter(tokens))
 print(counter)
 # {'this': 1, 'is': 1, 'a': 2, 'sample': 1, 'text': 1, 'to': 2, 'demonstrate': 1, 'how': 1, 'produce': 1, 'bubble': 1, 'chart': 1}
@@ -364,7 +371,7 @@ wc = D3WordCloud(
     title="30 Most Common Words in Doc 2",
     width=300,
     height=300,
-    limit=30
+    limit=30,
 )
 ```
 
@@ -401,7 +408,7 @@ mc = D3MultiCloud(
     labels=None,
     cloud_width=250,
     cloud_height=250,
-    columns=2
+    columns=2,
 )
 mc.save("d3_multiclouds.html")
 ```

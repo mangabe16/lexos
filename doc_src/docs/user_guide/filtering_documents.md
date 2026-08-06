@@ -177,7 +177,9 @@ result_doc = stopword_filter(doc, stopwords="the", remove=True)
 doc2 = tokenizer.make_doc("The quick brown fox")
 for token in doc2:
     if token.text.lower() == "the":
-        print(f"'{token.text}' is_stop: {token.is_stop}")  # Output: is_stop: False for both
+        print(
+            f"'{token.text}' is_stop: {token.is_stop}"
+        )  # Output: is_stop: False for both
 ```
 
 **Case-Sensitive Stop Word Removal:**
@@ -270,9 +272,9 @@ for token in filtered_doc:
 
 ```python
 word_filter = IsWordFilter(
-    exclude_digits=True,           # Exclude numeric tokens
-    exclude_roman_numerals=True,   # Exclude Roman numerals
-    exclude_pattern=r"[^\w\s]"     # Exclude special characters
+    exclude_digits=True,  # Exclude numeric tokens
+    exclude_roman_numerals=True,  # Exclude Roman numerals
+    exclude_pattern=r"[^\w\s]",  # Exclude special characters
 )
 filtered_doc = word_filter(doc)
 ```
@@ -295,7 +297,9 @@ words_only = word_filter.get_matched_doc()
 
 # Then, filter for Roman numerals (on the original doc)
 roman_filter = IsRomanFilter()
-doc = tokenizer.make_doc("Chapter IV: The quick brown fox (123) jumps.")  # Reset to original
+doc = tokenizer.make_doc(
+    "Chapter IV: The quick brown fox (123) jumps."
+)  # Reset to original
 roman_filter(doc)
 roman_numerals = roman_filter.matched_tokens
 print([token.text for token in roman_numerals])

@@ -62,17 +62,19 @@ for milestone in milestones:
 You can pass a list of patterns:
 
 ```python
-milestones = StringMilestones(doc=text, patterns=["This", "Chapter"], case_sensitive=False)
+milestones = StringMilestones(
+    doc=text, patterns=["This", "Chapter"], case_sensitive=False
+)
 
 for milestone in milestones:
     print(milestone.start, milestone.end, milestone.text)
 
 # 0 7 Chapter
-#10 14 This
-#40 47 chapter
-#49 56 Chapter
-#59 63 This
-#90 97 chapter
+# 10 14 This
+# 40 47 chapter
+# 49 56 Chapter
+# 59 63 This
+# 90 97 chapter
 ```
 
 ### Updating Patterns and Settings
@@ -265,7 +267,24 @@ There is also a `to_list()` method, which returns a list of dictionaries providi
 
 ```python
 print(milestones.to_list())
-[{'text': 'Chapter 1: Introduction.', 'characters': 'Chapter 1: Introduction', 'start_token': 0, 'end_token': 5, 'start_char': 0, 'end_char': 23}, {'text': 'Chapter 2: Methods.', 'characters': 'Chapter 2: Methods', 'start_token': 6, 'end_token': 11, 'start_char': 25, 'end_char': 43}]
+[
+    {
+        "text": "Chapter 1: Introduction.",
+        "characters": "Chapter 1: Introduction",
+        "start_token": 0,
+        "end_token": 5,
+        "start_char": 0,
+        "end_char": 23,
+    },
+    {
+        "text": "Chapter 2: Methods.",
+        "characters": "Chapter 2: Methods",
+        "start_token": 6,
+        "end_token": 11,
+        "start_char": 25,
+        "end_char": 43,
+    },
+]
 ```
 
 !!! note

@@ -1,7 +1,7 @@
-"""corpus_stats.py.git.
+"""corpus_stats.py.
 
-Last updated: July 7th, 2026
-Last tested: November 18, 2025
+Last updated: July 10, 2026
+Last tested: July 10, 2026
 """
 
 import math
@@ -15,53 +15,8 @@ import seaborn as sns
 from plotly.subplots import make_subplots
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 from scipy import stats
-import spacy
-import warnings
-from typing import Optional
-from pathlib import Path
 
-from spacy.symbols import ORTH, LEMMA
-from spacy_syllables import SpacySyllables
 from lexos.dtm import DTM
-from lexos.util import load_spacy_model
-from collections import Counter
-from lexos.exceptions import LexosException
-from lexos.filter.filters import IsStopwordFilter
-
-# Define metrics as a simple list of (metric_name, metric_key) tuples
-# This keeps the actual calculation logic in one place
-POS_TAGS = [
-    "NUM",
-    "ADJ",
-    "ADP",
-    "AUX",
-    "CCONJ",
-    "DET",
-    "INTJ",
-    "PART",
-    "PRON",
-    "PROPN",
-    "SCONJ",
-    "SYM",
-]
-
-DYNAMIC_METRICS = [
-    ("noun_count", "NOUN"),
-    ("verb_count", "VERB"),
-    ("adverb_count", "ADV"),
-    ("num_count", "NUM"),
-    ("adj_count", "ADJ"),
-    ("adp_count", "ADP"),
-    ("aux_count", "AUX"),
-    ("cconj_count", "CCONJ"),
-    ("det_count", "DET"),
-    ("intj_count", "INTJ"),
-    ("part_count", "PART"),
-    ("pron_count", "PRON"),
-    ("propn_count", "PROPN"),
-    ("sconj_count", "SCONJ"),
-    ("sym_count", "SYM"),
-]
 
 
 def make_labels_unique(labels: list[str]) -> list[str]:
@@ -108,7 +63,7 @@ def make_labels_unique(labels: list[str]) -> list[str]:
             new_label = f"{label}-{label_indices[label]:03d}"
 
             # Recursively handle conflicts: if the new label is also a duplicate,
-            # Rename all instances including the newly generated one
+            # rename all instances including the newly generated one
             if new_label in label_counts or new_label in duplicates:
                 # Re-run make_labels_unique with the conflicting label treated as duplicate
                 temp_labels = result + [new_label] + labels[len(result) + 1 :]
@@ -119,51 +74,6 @@ def make_labels_unique(labels: list[str]) -> list[str]:
             result.append(label)
 
     return result
-
-
-def create_corpus_stats_input(
-    sources: list[Path] | list[str],
-    start_id: int = 1,
-) -> list[tuple[str, str, str | spacy.tokens.Doc | list[str]]]:
-    """Build [(id, label, text_or_doc), ...] as input for creating a CorpusStats instance.
-
-    Args:
-        sources: A list of paths that lead to each desired file. Or a list of raw text.
-        start_id: Number to begin generating doc_ids.
-
-    - ids: doc_ids will be generated counting up from the start_id ("1, "2", ... ).
-    - labels: filename(Path.name) when source is a file, otherwise "doc-{n}".
-    """
-    doc_tuples: list[tuple[str, str, str | spacy.tokens.Doc]] = []
-    labels: list[str] = []
-
-    for i, src in enumerate(sources, start=start_id):
-        doc_id = str(i)
-        path = Path(src)
-
-        # Source is in a file.
-        if path.exists() and path.is_file():
-            text = path.read_text(encoding="utf-8", errors="ignore")
-            label = path.name
-
-        # Source is raw text/ not in a file.
-        else:
-            text = str(src)
-            label = f"doc-{i}"  # Generate a label.
-
-        doc_tuples.append((doc_id, label, text))
-        labels.append(label)
-
-    # Make sure labels are unique (there are no duplicates).
-    unique_labels = make_labels_unique(labels)
-
-    # Append unique labels to output
-    final_docs = []
-    for i in range(len(doc_tuples)):
-        doc_id, _, content = doc_tuples[i]
-        final_docs.append((doc_id, unique_labels[i], content))
-
-    return final_docs
 
 
 class CorpusStats(BaseModel):
@@ -186,7 +96,7 @@ class CorpusStats(BaseModel):
       - stats.plot(column="total_tokens", type="plotly_boxplot" title="Corpus Boxplot") # Plot the boxplot of total tokens with Plotly.
     """
 
-    docs: list[tuple[str, str, str | spacy.tokens.Doc]]
+    docs: list[tuple[str, str, list[str]]]
     min_df: int | None = None
     max_df: int | None = None
     max_n_terms: int | None = None
@@ -195,11 +105,6 @@ class CorpusStats(BaseModel):
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    model: Optional[str] = Field(
-        default="xx_sent_ud_sm",
-        description="The name of the spaCy model to be used for feature calculation.",
-    )
 
     def __init__(self, **data):
         """Initialize the CorpusStats and create the DTM."""
@@ -242,15 +147,11 @@ class CorpusStats(BaseModel):
         return self._get_doc_stats_df()
 
     @cached_property
-    def features_calculated(self) -> list[str]:
-        """Get the list of features that were calculated."""
-        return list(self.doc_stats_df.columns.values)
-
-    @cached_property
     def mean_and_spread(self) -> tuple[float, float]:
         """Get the mean and standard deviation of the total tokens in the Corpus."""
-        doc_lengths = self.doc_stats_df["total_tokens"].values
-        return doc_lengths.mean(), doc_lengths.std()
+        df = self.df.sparse.to_dense().T
+        df["Total"] = df.sum(axis=1)
+        return df["Total"].mean(), df["Total"].std()
 
     @property
     def mean(self) -> float:
@@ -416,266 +317,37 @@ class CorpusStats(BaseModel):
                 "The DataFrame is empty. Please provide a valid DataFrame."
             )
 
-        return self._spacy_doc_stats
+        # Convert the DataFrame to dense format
+        df = self.dtm.to_df().sparse.to_dense()
 
-    def _count_stopwords(self, doc: spacy.tokens.Doc) -> int:
-        stopword_filter = IsStopwordFilter()
-        stopword_filter(doc=doc)
-        return len(stopword_filter.matched_token_ids or set())
+        # Replace the unique columns with the original columns (labels)
+        df.columns = self.labels
 
-    @cached_property
-    def _spacy_doc_stats(self) -> pd.DataFrame:
-        """Set a Pandas dataframe containing the statistics of each record.
+        # Transpose the DataFrame so that documents are rows
+        df = df.T
 
-        Returns:
-            pd.DataFrame: A Pandas dataframe containing statistics of each record.
-        """
-        rows = []  # Initialize row for the Pandas dataframe to store later
+        # Create file_stats DataFrame
+        file_stats = pd.DataFrame(self.labels, columns=["Documents"])
+        file_stats.set_index("Documents", inplace=True)
 
-        try:
-            nlp = load_spacy_model(self.model)
-        except LexosException:
-            raise LexosException(
-                f"Error loading model. Please check the name and try again. You may need to install the model on your system."
-            )
+        # Count terms appearing exactly once in each document
+        file_stats[f"hapax_legomena"] = df.eq(1).sum(axis=1)
 
-        self._syllables_available = False
+        # Calculate total tokens in each document
+        file_stats["total_tokens"] = df.sum(axis=1)
 
-        if "tagger" in nlp.pipe_names:
-            try:
-                nlp.add_pipe("syllables", after="tagger")
-                self._syllables_available = True
-            except ValueError as exc:
-                warnings.warn(
-                    "spaCy syllable support unavailable for this model; "
-                    "skipping syllable-based features.",
-                    UserWarning,
-                )
+        # Number of distinct terms in each document
+        file_stats["total_terms"] = df.ne(0).sum(axis=1)
 
-        else:
-            warnings.warn(
-                f"Loaded spaCy model '{nlp.meta.get('name', 'unknown')}' "
-                "does not include a tagger; "
-                "skipping syllable-based features.",
-                UserWarning,
-            )
+        # Calculate vocabulary density
+        file_stats["vocabulary_density"] = (
+            file_stats["total_terms"] / file_stats["total_tokens"] * 100
+        ).round(2)
 
-        for doc_id, label, token_data in self.docs:
-            if isinstance(
-                token_data, str
-            ):  # If the input is raw text, process it with spaCy
-                doc = nlp(token_data)
-                tokens = [token.text for token in doc]
+        # Add hapax dislegomena (words appearing exactly twice)
+        file_stats["hapax_dislegomena"] = df.eq(2).sum(axis=1)
 
-            elif isinstance(
-                token_data, spacy.tokens.Doc
-            ):  # If input is already a spaCy Doc, use it directly
-                doc = token_data
-                tokens = [token.text for token in doc]
-
-            else:
-                raise TypeError(
-                    "Input data must be either a string (raw text) or a spaCy Doc object."
-                )
-
-            metrics = self._calculate_document_metrics(doc, tokens, label)
-            rows.append(metrics)
-
-        df = pd.DataFrame(rows).set_index("Documents")
-        return df
-
-    def _calculate_document_metrics(
-        self, doc: spacy.tokens.Doc, tokens: list[str], label: str
-    ) -> dict:
-        """Calculate all linguistic metrics."""
-        # Pre-calculate and initialize simple values used for multiple metrics
-        total_tokens = len(tokens)
-        unique_words = set(tokens)
-        unique_word_count = len(unique_words)
-        char_count = len(doc.text)
-        counts = doc.count_by(LEMMA)
-        total_terms = len(counts)
-        tokens_freq_list = list(counts.values())
-        pos_counts = Counter(token.pos_ for token in doc if not token.is_space)
-        freq_of_freq = Counter(tokens_freq_list)
-        punc_count = 0
-        question_count = 0
-        exclamation_count = 0
-        participle_count = 0
-        hapax_legomena = 0
-        hapax_dislegomena = 0
-
-        # Calculate metrics
-        stopword_count = self._count_stopwords(doc)
-        for token in doc:
-            if token.is_punct:
-                punc_count += 1
-            if (
-                token.text == "?"
-            ):  # There should be a better way to caluclate this using spaCy
-                question_count += 1
-            if token.text == "!":
-                exclamation_count += 1
-            if token.tag_ == "VBG" or token.tag_ == "VBN":
-                participle_count += 1
-
-        for freq in tokens_freq_list:
-            if freq == 1:
-                hapax_legomena += 1
-            elif freq == 2:
-                hapax_dislegomena += 1
-
-        if doc:
-            sentence_count = len(list(doc.sents))
-        else:
-            sentence_count = 1  # Should this be excluded instead?
-
-        # Start building metrics dictionary
-        metrics = {
-            "Documents": label,
-            "total_tokens": int(total_tokens),
-            "unique_word_count": int(unique_word_count),
-            "character_count": int(char_count),
-            "total_terms": int(total_terms),
-            "punc_count": int(punc_count),
-            "stop_word_count": int(stopword_count),
-            "question_count": int(question_count),
-            "exclamation_count": int(exclamation_count),
-            "participle_count": int(participle_count),
-            "hapax_legomena": int(hapax_legomena),
-            "hapax_dislegomena": int(hapax_dislegomena),
-            "sentence_count": int(sentence_count),
-        }
-
-        # Dynamically add POS counts from DYNAMIC_METRICS
-        for metric_name, pos_tag in DYNAMIC_METRICS:
-            metrics[metric_name] = int(pos_counts.get(pos_tag, 0))
-
-        # Calculate complex metrics that depend on the features calculated in the current function.
-        metrics.update(
-            self._calculate_complex_metrics(
-                total_tokens,
-                unique_word_count,
-                char_count,
-                total_terms,
-                tokens_freq_list,
-                pos_counts,
-                freq_of_freq,
-                punc_count,
-                question_count,
-                exclamation_count,
-                stopword_count,
-                participle_count,
-                sentence_count,
-                doc,
-            )
-        )
-
-        return metrics
-
-    def _calculate_complex_metrics(
-        self,
-        total_tokens: int,
-        unique_word_count: int,
-        char_count: int,
-        total_terms: int,
-        tokens_freq_list: list[int],
-        pos_counts: Counter,
-        freq_of_freq: Counter,
-        punc_count: int,
-        question_count: int,
-        exclamation_count: int,
-        stopword_count: int,
-        participle_count: int,
-        sentence_count: int,
-        doc: spacy.tokens.Doc,
-    ) -> dict:
-        """Calculate statistics that rely on previously-calculated values."""
-
-        # Safe division helper function
-        def safe_div(numerator, denominator, default=0):
-            return numerator / denominator if denominator > 0 else default
-
-        # Lexical metrics
-        avg_word_length = safe_div(char_count, total_tokens)
-        ttr = safe_div(unique_word_count, total_tokens)
-        root_ttr = safe_div(unique_word_count, math.sqrt(total_tokens))
-        log_ttr = (
-            safe_div(math.log(unique_word_count), math.log(total_tokens))
-            if total_tokens > 1 and unique_word_count > 0
-            else 0
-        )
-        maas = (
-            safe_div(
-                math.log(total_tokens) - math.log(unique_word_count),
-                (math.log(total_tokens) ** 2),
-            )
-            if total_tokens > 1 and unique_word_count > 0
-            else 0
-        )
-        guiraud_index = safe_div(unique_word_count, math.sqrt(total_terms))
-        yule_k = (
-            100000
-            * (sum(f**2 * count for f, count in freq_of_freq.items()) - total_terms)
-            / (total_terms**2)
-            if total_terms > 0
-            else 0
-        )
-        hapax_legomenon_rate = safe_div(
-            sum(1 for freq in tokens_freq_list if freq == 1), total_tokens
-        )
-        vocab_density = safe_div(total_terms * 100, total_tokens)
-
-        # POS ratios
-        noun_count = pos_counts.get("NOUN", 0)
-        verb_count = pos_counts.get("VERB", 0)
-        adverb_count = pos_counts.get("ADV", 0)
-        adp_count = pos_counts.get("ADP", 0)
-        pron_count = pos_counts.get("PRON", 0)
-
-        nominal_ratio = safe_div(
-            noun_count + adp_count + participle_count,
-            pron_count + adverb_count + verb_count,
-        )
-        simple_nominal_ratio = safe_div(noun_count, verb_count)
-
-        # Syntactic metrics
-        avg_sentence_length = safe_div(total_tokens, sentence_count)
-
-        flesch_reading_ease = -1
-
-        if self._syllables_available == True:
-            syllable_count = doc._.syllables_count
-            avg_syllable_word = (
-                safe_div(total_tokens, syllable_count)
-                if hasattr(doc._, "syllables_count") and syllable_count > 0
-                else 0
-            )
-
-            # Readability
-            flesch_reading_ease = (
-                206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllable_word)
-            )
-
-        result = {
-            "average_word_length": round(avg_word_length, 2),
-            "ttr": round(ttr, 2),
-            "root_ttr": round(root_ttr, 2),
-            "log_ttr": round(log_ttr, 2),
-            "maas": round(maas, 2),
-            "guiraud_index": round(guiraud_index, 2),
-            "yule_k": round(yule_k, 2),
-            "nominal_ratio": round(nominal_ratio, 2),
-            "simple_nominal_ratio": round(simple_nominal_ratio, 2),
-            "hapax_legomenon_rate": round(hapax_legomenon_rate, 2),
-            "vocabulary_density": round(vocab_density, 2),
-            "average_sentence_length": round(avg_sentence_length, 2),
-        }
-
-        if flesch_reading_ease != -1:
-            result["flesch_reading_ease"] = round(flesch_reading_ease, 2)
-
-        return result
+        return file_stats
 
     def get_iqr_outliers(self) -> list[tuple[str, str]]:
         """Get the interquartile range (IQR) outliers in the Corpus.
@@ -808,7 +480,7 @@ class CorpusStats(BaseModel):
 
             # Calculate Cohen's d for unequal variances:
             # Even though we use Welch's t-test, we still use pooled std for Cohen's d
-            # As it provides a standardized effect size comparable across studies
+            # as it provides a standardized effect size comparable across studies
             s1, s2 = np.std(group1_values, ddof=1), np.std(group2_values, ddof=1)
             n1, n2 = len(group1_values), len(group2_values)
 
@@ -1222,10 +894,9 @@ def get_seaborn_boxplot(
         title: The title of the plot.
     """
     sns.set_theme(style="darkgrid")
-    ax = sns.boxplot(y=df[column], width=0.25)
-    sns.swarmplot(y=column, data=df, color="black", ax=ax)
+    ax = sns.boxplot(y=df[column], width=0.25, orient="v")
+    sns.swarmplot(y=column, data=df, color="black", ax=ax, orient="v")
     ax.set_title(title)
-    plt.show()
 
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
@@ -1263,8 +934,8 @@ def get_plotly_boxplot(
 
     # Create a figure with two subplots and fill the figure.
     figure = make_subplots(rows=1, cols=2, shared_yaxes=False)
-    figure.append_trace(trace=scatter_plot, row=1, col=1)
-    figure.append_trace(trace=box_plot, row=1, col=2)
+    figure.add_trace(trace=scatter_plot, row=1, col=1)
+    figure.add_trace(trace=box_plot, row=1, col=2)
 
     # Hide useless information on x-axis and set up title.
     figure.layout.update(

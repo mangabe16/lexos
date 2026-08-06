@@ -7,7 +7,7 @@ A tokenized document can be defined as a text split into tokens. This can be rep
 ```python
 tokenized_doc = [
     {"token_text": "The", "part_of_speech": "noun", "is_stopword": True},
-    {"token_text": "end", "part_of_speech": "noun", "is_stopword": False}
+    {"token_text": "end", "part_of_speech": "noun", "is_stopword": False},
 ]
 ```
 
@@ -15,17 +15,14 @@ It is then a simple matter to iterate through the document and retrieve all the 
 
 ```python
 for token in tokenized_doc:
-    if not token["is_stopword"]: # If is_stopword is False
+    if not token["is_stopword"]:  # If is_stopword is False
         print(token)
 ```
 
 Or you might want to save the tokens to a new list with a list comprehension:
 
 ```python
-non_stopwords = [
-    token for token in tokenized_doc
-    if not token["is_stopword"]
-]
+non_stopwords = [token for token in tokenized_doc if not token["is_stopword"]]
 ```
 
 Many filtering procedures are easy to implement in this way.
@@ -88,6 +85,7 @@ doc = tokenizer.make_doc("This is a test.")
 
     ```python
     import spacy
+
     nlp = spacy.load("en_core_web_sm")
     doc = nlp("This is a test.")
     ```
@@ -182,6 +180,7 @@ Sometimes using a language model to perform tokenization is not appropriate or i
 
 ```python
 from lexos.tokenizer import SliceTokenizer
+
 test_text = "Cut me up into tiny pieces!"
 slicer = SliceTokenizer(n=4, drop_ws=True)
 slices = slicer(test_text)
@@ -192,6 +191,7 @@ print(slices)
 
 ```python
 from lexos.tokenizer import WhitespaceTokenizer
+
 test_text = "Split me up by whitespace!"
 neatSlicer = WhitespaceTokenizer()
 slices = neatSlicer(test_text)
@@ -244,6 +244,7 @@ The `from_doc()` function yields a generator, so, if you wish to view it as a li
 
     ```python
     import textacy.extract.basics.ngrams as ng
+
     ngrams = ng(doc, 2, min_freq=2)
     ```
 
@@ -259,5 +260,6 @@ In some cases, you may wish to generate a `Doc` object with ngrams as tokens. Th
 
 ```python
 from spacy.tokens import Doc
+
 new_doc = Doc.from_docs(ngrams)
 ```

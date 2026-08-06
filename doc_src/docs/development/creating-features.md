@@ -59,6 +59,7 @@ In Pydantic, the class would like this:
 ```python
 from pydantic import BaseModel
 
+
 class MyPydanticClass(BaseModel):
     value: int
 ```
@@ -83,9 +84,11 @@ The @validate_call decorator can be used to apply Pydantic validation to a funct
 ```python
 from pydantic import validate_call
 
+
 @validate_call
 def print_value(value: int) -> None:
     print(value)
+
 
 print_value({"value": 1})
 ```
@@ -96,11 +99,14 @@ This will raise a `ValidationError` because the `@validate_call` decorator tells
 from pydantic import validate_call
 import spacy
 from spacy.tokens import Doc
+
 nlp = spacy.load("en_core_web_sm")
+
 
 @validate_call
 def print_spacy_doc(doc: Doc) -> str:
     print(doc.text)
+
 
 doc = nlp("This is a test.")
 print_spacy_doc(doc)
@@ -113,13 +119,16 @@ from pydantic import ConfigDict, validate_call
 import spacy
 from spacy.schemas import DocJSONSchema
 from spacy.tokens import Doc
+
 nlp = spacy.load("en_core_web_sm")
 
 config = ConfigDict(json_schema=DocJSONSchema.schema())
 
+
 @validate_call(config=config)
 def print_spacy_doc(doc: Doc) -> str:
     print(doc.text)
+
 
 doc = nlp("This is a test.")
 print_spacy_doc(doc)
@@ -139,6 +148,7 @@ Pydantic models are used to define data structures in Python (see below). When u
 ```python
 from pydantic import BaseModel, Field
 from typing import Optional
+
 
 class Person(BaseModel):
     name: str = Field(default="John Doe", description="The name of the person.")

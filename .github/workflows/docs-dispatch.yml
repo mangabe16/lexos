@@ -1,0 +1,119 @@
+name: Dispatch Docs Publish
+
+'on':
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+      - ".github/workflows/docs-dispatch.yml"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Required: why this manual dispatch is needed"
+        required: true
+        type: string
+      change_summary:
+        description: "Required: expected docs impact"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+
+    env:
+      TARGET_DOCS_REPO: scottkleinman/lexos-docs
+
+    steps:
+      - name: Require strict audit inputs for manual dispatch
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${{ inputs.reason }}" || -z "${{ inputs.change_summary }}" ]]; then
+            echo "Manual dispatch requires both reason and change_summary inputs."
+            exit 1
+          fi
+
+      - name: Build dispatch payload
+        id: payload
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          operation="push-sync"
+          source_ref="main"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            operation="manual-dispatch"
+            source_ref="main"
+          fi
+
+          echo "operation=${operation}" >> "$GITHUB_OUTPUT"
+          echo "source_ref=${source_ref}" >> "$GITHUB_OUTPUT"
+      - name: Send repository dispatch to docs repo
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.LEXOS_DOCS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          payload="$(jq -n \
+            --arg operation "${{ steps.payload.outputs.operation }}" \
+            --arg source_ref "${{ steps.payload.outputs.source_ref }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg repo "${{ github.repository }}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg reason "${{ github.event_name == 'workflow_dispatch' && inputs.reason || '' }}" \
+            --arg change_summary "${{ github.event_name == 'workflow_dispatch' && inputs.change_summary || '' }}" \
+            '{
+                event_type: "lexos_docs_publish",
+                client_payload: {
+                operation: $operation,
+                source_ref: $source_ref,
+                actor: $actor,
+                sha: $sha,
+                source_repository: $repo,
+                source_run_id: $run_id,
+                reason: $reason,
+                change_summary: $change_summary
+                }
+            }')"
+
+          http_code="$(curl -sS -o dispatch_response.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${TARGET_DOCS_REPO}/dispatches" \
+            -d "${payload}")"
+
+          if [[ "${http_code}" != "204" ]]; then
+            echo "Dispatch failed with HTTP ${http_code}"
+            cat dispatch_response.json
+            exit 1
+          fi
+
+          echo "Dispatch accepted by ${TARGET_DOCS_REPO}"
+      - name: Publish run summary
+        shell: bash
+        run: |
+          {
+            echo "## Docs Dispatch Summary"
+            echo ""
+            echo "- Source repository: ${{ github.repository }}"
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- Operation: ${{ steps.payload.outputs.operation }}"
+            echo "- Source ref: ${{ steps.payload.outputs.source_ref }}"
+            echo "- Source SHA: ${{ github.sha }}"
+            echo "- Target docs repo: ${TARGET_DOCS_REPO}"
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              echo "- Reason: ${{ inputs.reason }}"
+              echo "- Change summary: ${{ inputs.change_summary }}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -18,7 +18,7 @@ from lexos.corpus import Record
 record = Record(
     name="my_first_doc",
     content="This is the text of my document.",
-    meta={"author": "Jane", "date": "2025-01-15"}
+    meta={"author": "Jane", "date": "2025-01-15"},
 )
 ```
 
@@ -43,13 +43,13 @@ corpus = Corpus(corpus_dir="my_collection", name="My Texts")
 corpus.add(
     content="The quick brown fox jumps over the lazy dog.",
     name="fable_1",
-    metadata={"type": "fable", "year": 1900}
+    metadata={"type": "fable", "year": 1900},
 )
 
 corpus.add(
     content="A journey of a thousand miles begins with a single step.",
     name="saying_1",
-    metadata={"type": "saying", "author": "Lao Tzu"}
+    metadata={"type": "saying", "author": "Lao Tzu"},
 )
 
 print(f"Corpus has {corpus.num_docs} documents")
@@ -74,7 +74,7 @@ corpus.add_from_files(
     max_workers=4,
     show_progress=True,
     name_template="doc_{index:03d}",
-    metadata={"collection": "my_texts", "year": 2025}
+    metadata={"collection": "my_texts", "year": 2025},
 )
 
 print(f"Loaded {corpus.num_docs} documents")
@@ -104,7 +104,7 @@ print(f"Loaded {corpus.num_docs} documents")
 corpus.add_from_files(
     paths="documents",
     name_template="{stem}",  # Use filename without extension
-    metadata={"source": "project_alpha"}
+    metadata={"source": "project_alpha"},
 )
 
 # Or use sequential numbering
@@ -166,14 +166,14 @@ corpus = SQLiteCorpus(
     corpus_dir="my_collection",
     sqlite_path="corpus.db",
     name="My Texts",
-    use_sqlite=True
+    use_sqlite=True,
 )
 
 # Add documents just like before
 corpus.add(
     content="The digital revolution transformed society.",
     name="article_1",
-    metadata={"source": "tech_journal", "topic": "technology"}
+    metadata={"source": "tech_journal", "topic": "technology"},
 )
 
 # Sync file-based records to the database
@@ -201,10 +201,7 @@ Filter by multiple criteria:
 
 ```python
 # Find long documents that have been parsed with NLP
-long_parsed = corpus.filter_records(
-    is_parsed=True,
-    min_tokens=500
-)
+long_parsed = corpus.filter_records(is_parsed=True, min_tokens=500)
 
 # Find inactive records (useful for archiving)
 archived = corpus.filter_records(is_active=False)
@@ -275,7 +272,7 @@ from lexos.corpus.corpus_stats import CorpusStats
 docs = [
     ("doc1", "First Document", ["the", "quick", "brown", "fox"]),
     ("doc2", "Second Document", ["the", "lazy", "dog", "sleeps"]),
-    ("doc3", "Third Document", ["a", "quick", "dog", "runs"])
+    ("doc3", "Third Document", ["a", "quick", "dog", "runs"]),
 ]
 
 # Create the statistics object
@@ -414,7 +411,9 @@ adv_diversity = stats.advanced_lexical_diversity
 
 print(f"Mean CTTR: {adv_diversity['mean_cttr']:.3f}")
 print(f"Mean RTTR: {adv_diversity['mean_rttr']:.3f}")
-print(f"Diversity coefficient of variation: {adv_diversity['diversity_coefficient_variation']:.3f}")
+print(
+    f"Diversity coefficient of variation: {adv_diversity['diversity_coefficient_variation']:.3f}"
+)
 ```
 
 - **CTTR (Corrected TTR)**: Types / √(2 × tokens) - less sensitive to text length
@@ -450,17 +449,17 @@ Assess whether your corpus is balanced and sufficiently sampled:
 quality = stats.corpus_quality_metrics
 
 # Document length balance
-balance = quality['document_length_balance']
+balance = quality["document_length_balance"]
 print(f"Length balance: {balance['classification']}")
 print(f"Coefficient of variation: {balance['coefficient_variation']:.3f}")
 
 # Vocabulary coverage
-coverage = quality['corpus_coverage']
+coverage = quality["corpus_coverage"]
 print(f"Total unique terms: {coverage['unique_terms']}")
 print(f"Coverage ratio: {coverage['coverage_ratio']:.4f}")
 
 # Sampling adequacy
-richness = quality['vocabulary_richness']
+richness = quality["vocabulary_richness"]
 print(f"Sampling adequacy: {richness['sampling_adequacy']}")
 print(f"Hapax ratio: {richness['hapax_ratio']:.3f}")
 ```
@@ -491,13 +490,15 @@ results = stats.compare_groups(
     group1_labels=["doc1", "doc3"],
     group2_labels=["doc2"],
     metric="total_tokens",
-    test_type="mann_whitney"  # or "t_test" or "welch_t"
+    test_type="mann_whitney",  # or "t_test" or "welch_t"
 )
 
 print(f"Group 1 mean: {results['group1_mean']:.1f}")
 print(f"Group 2 mean: {results['group2_mean']:.1f}")
 print(f"P-value: {results['p_value']:.4f}")
-print(f"Effect size: {results['effect_size']:.3f} ({results['effect_size_interpretation']})")
+print(
+    f"Effect size: {results['effect_size']:.3f} ({results['effect_size_interpretation']})"
+)
 print(f"Significant: {results['is_significant']}")
 ```
 
@@ -516,9 +517,7 @@ Estimate confidence intervals for any metric using resampling:
 
 ```python
 ci = stats.bootstrap_confidence_interval(
-    metric="total_tokens",
-    confidence_level=0.95,
-    n_bootstrap=1000
+    metric="total_tokens", confidence_level=0.95, n_bootstrap=1000
 )
 
 print(f"Original mean: {ci['original_mean']:.1f}")

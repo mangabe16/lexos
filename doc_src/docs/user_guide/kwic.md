@@ -71,7 +71,15 @@ We can use the `use_regex` keyword to use a regular expression for our pattern:
 ```python
 patterns = r".ingle"
 
-kwic(docs=doc, labels=None, patterns=patterns, window=5, matcher="tokens", use_regex=True, case_sensitive=False)
+kwic(
+    docs=doc,
+    labels=None,
+    patterns=patterns,
+    window=5,
+    matcher="tokens",
+    use_regex=True,
+    case_sensitive=False,
+)
 ```
 
 This will find any token containing a character followed by "ingle" (and the search will be case insensitive).

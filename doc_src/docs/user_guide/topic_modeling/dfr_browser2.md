@@ -54,7 +54,7 @@ b = Browser(
     template_path="/path/to/dfr_browser2/template",
     filename_map={"doc-topics.txt": "doc-topic.txt"},
     config={"application": {"name": "My Browser"}},
-    port=5000
+    port=5000,
 )
 ```
 

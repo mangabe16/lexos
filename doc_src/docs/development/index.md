@@ -46,8 +46,7 @@ Next, add a test to the relevant file in the `lexos/tests` folder. Then add a <a
 ```python
 # Assume you're fixing Issue #1234
 @pytest.mark.issue(1234)
-def test_issue1234():
-    ...
+def test_issue1234(): ...
 ```
 
 Test for the bug you're fixing, and make sure the test fails. Next, add and commit your test file. Finally, fix the bug, make sure your test passes and reference the issue number in your pull request description.

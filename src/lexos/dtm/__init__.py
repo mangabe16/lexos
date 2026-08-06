@@ -238,86 +238,11 @@ class DTM(BaseModel):
         except Exception as e:
             raise LexosException(f"Error building DTM: {e}")
 
-    def fit_transform(
-        self,
-        docs: list[list[str] | Doc],
-        labels: list[str],
-        **kwargs: dict[str, str | int | float | bool],
-    ) -> sp.spmatrix:
-        """Fit the vectorizer to the documents and transform them into a document-term matrix.
-
-        Args:
-            docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
-            labels (list[str]): A list of labels for the documents.
-            **kwargs (dict): Additional keyword arguments to pass to the vectorizer.
-
-        Returns:
-            sp.spmatrix: The resulting document-term matrix.
-        """
-        # Validate input
-        if not docs or not labels:
-            raise LexosException("Both docs and labels must be provided.")
-        if len(docs) != len(labels):
-            raise LexosException("The number of docs must match the number of labels.")
-
-        # Update instance attributes
-        self.docs = [
-            [token.text for token in doc] if isinstance(doc, Doc) else doc
-            for doc in docs
-        ]
-        self.labels = labels
-
-        # Update the vectorizer with additional parameters
-        self._update_vectorizer(**kwargs)
-
-        # Fit the vectorizer and transform the documents
-        try:
-            self.doc_term_matrix = self.vectorizer.fit_transform(self.docs)
-        except Exception as e:
-            raise LexosException(f"Error building DTM: {e}")
-
-        return self.doc_term_matrix
-
-    def transform(
-        self, docs: list[list[str] | Doc], **kwargs: dict[str, str | int | float | bool]
-    ) -> sp.spmatrix:
-        """Transform new documents indo a document-term matrix using the fitted vectorizer.
-
-        Args:
-            docs (list[list[str] | Doc]): A list of spaCy docs or a list of token lists.
-        **kwargs (dict): Additional keyword arguments to pass to the vectorizer.
-
-        Returns:
-            sp.spmatrix: The resulting document-term matrix.
-        """
-        # validate input
-        if not docs:
-            raise LexosException("You must provide a list of documents")
-
-        # ensure the vectorizer is already fitted
-        if not hasattr(self.vectorizer, "transform"):
-            raise LexosException(
-                "The vectorizer must be fitted before transforming data."
-            )
-
-        # coerce the docs to a list of token lists
-        docs = [
-            [token.text for token in doc] if isinstance(doc, Doc) else doc
-            for doc in docs
-        ]
-
-        # transform the documents
-        try:
-            transformed_matrix = self.vectorizer.transform(docs)
-        except Exception as e:
-            raise LexosException(f"Error transforming documents: {e}")
-        return transformed_matrix
-
     def _get_term_percentages(
         self,
         df: pd.DataFrame,
         rounding: int = 3,
-        as_str: bool | str = "string",
+        as_str: bool = False,
         sum: bool = False,
         mean: bool = False,
         median: bool = False,
@@ -327,7 +252,7 @@ class DTM(BaseModel):
         Args:
             df (pd.DataFrame): The dataframe to convert to percentages.
             rounding (int): The number of decimal places to round to.
-            as_str (bool | str): Whether to return the terms as strings.
+            as_str (bool): Whether to return the terms as strings.
             sum (bool): Whether to include a column for the sum of each row.
             mean (bool): Whether to include a column for the mean of each row.
             median (bool): Whether to include a column for the median of each row.
@@ -351,7 +276,7 @@ class DTM(BaseModel):
             df["Median"] = df.median(numeric_only=True, axis=1)
         if rounding:
             df = df.round(rounding)
-        if as_str == "string":
+        if as_str:
             df = df.astype(str) + "%"
         return df
 
@@ -438,7 +363,8 @@ class DTM(BaseModel):
             df = self._get_term_percentages(
                 df,
                 rounding=rounding,
-                as_str=as_percent,
+                # Explicitly control formatting based on the value of as_percent
+                as_str=True if as_percent == "string" else False,
                 sum=sum,
                 mean=mean,
                 median=median,

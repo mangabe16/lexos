@@ -133,7 +133,7 @@ This will save files like `doc001_001.txt`, `doc001_002.txt`, `doc002_001.txt`, 
 You can customize the file naming convention by providing your own list of document names, changing the delimiter, and adjusting the padding. For example:
 
 ```python
-cutter.save(output_dir="output_chunks", names=["A","B"], delimiter="-", pad=2)
+cutter.save(output_dir="output_chunks", names=["A", "B"], delimiter="-", pad=2)
 ```
 
 This will save files like `A-01.txt`, `A-02.txt`, `B-01.txt`, `B-02.txt`.
@@ -163,7 +163,9 @@ However, one important difference is that the resulting chunks will be spaCy `Do
 If your spaCy `Doc` objects are stored in files, you can load them and cut them using them by setting `file=True` and the name of the spaCy model with the `model` parameter:
 
 ```python
-cutter.split(docs=["doc1.spacy", "doc2.spacy"], file=True, model="en_core_web_sm", chunksize=100)
+cutter.split(
+    docs=["doc1.spacy", "doc2.spacy"], file=True, model="en_core_web_sm", chunksize=100
+)
 ```
 
 The files must be in spaCy's binary format, which can be created using the `Doc.to_bytes()` or `Doc.to_disk()` methods. You must also specify the spaCy model used to create the `Doc` objects so that they can be deserialised correctly.
@@ -204,8 +206,8 @@ You can also merge a list of string chunks back into a single string using the `
 # Split the doc on the milestone "quick" (into two chunks)
 cutter = TokenCutter()
 chunks = cutter.split_on_milestones(docs=doc, milestones=spans)
-print(chunks[0]) # The
-print(chunks[1]) # brown fox jumps over the lazy dog.
+print(chunks[0])  # The
+print(chunks[1])  # brown fox jumps over the lazy dog.
 
 merged_doc = cutter.merge(chunks)
 print(merged_doc.text)
@@ -234,10 +236,10 @@ cutter = TextCutter()
 # Split the text on the milestone "quick"
 chunks = cutter.split_on_milestones(
     docs=text,
-    milestones=milestones.spans, # The list of StringSpan objects
+    milestones=milestones.spans,  # The list of StringSpan objects
 )
-print(chunks[0]) # The
-print(chunks[1]) # brown fox jumps over the lazy dog.
+print(chunks[0])  # The
+print(chunks[1])  # brown fox jumps over the lazy dog.
 ```
 
 You will notice that the milestone itself ("quick") is not included in either chunk. By default, the milestone text is removed during the split. You can control this behaviour by setting the `keep_spans` parameter to either `'preceding'` or `'following'`, which will keep the milestone text in the preceding or following chunk, respectively.
@@ -246,7 +248,7 @@ You will notice that the milestone itself ("quick") is not included in either ch
 chunks = cutter.split_on_milestones(
     docs=text,
     milestones=milestones.spans,
-    keep_spans='preceding'  # or 'following' to keep in the next chunk
+    keep_spans="preceding",  # or 'following' to keep in the next chunk
 )
 ```
 
@@ -263,13 +265,13 @@ doc = "The quick brown fox jumps over the lazy dog."
 
 # Create a Token Milestones instance and search for the pattern "quick"
 milestones = TokenMilestones(doc=doc)
-spans = milestones.get_matches(patterns="quick") # The list of Span objects
+spans = milestones.get_matches(patterns="quick")  # The list of Span objects
 
 # Create a TokenCutter instance and split on the found milestones
 cutter = TokenCutter()
 chunks = cutter.split_on_milestones(docs=doc, milestones=spans)
-print(chunks[0]) # The
-print(chunks[1]) # brown fox jumps over the lazy dog.
+print(chunks[0])  # The
+print(chunks[1])  # brown fox jumps over the lazy dog.
 ```
 
 In the case above, the *token* "quick" is used as the milestone, rather than the string "quick".

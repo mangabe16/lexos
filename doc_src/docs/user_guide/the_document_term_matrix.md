@@ -13,11 +13,7 @@ from lexos.dtm import DTM
 from lexos.tokenizer import Tokenizer
 
 # Define some texts and their labels
-texts = [
-    "Our first text.",
-    "Our second text.",
-    "Out third text."
-]
+texts = ["Our first text.", "Our second text.", "Out third text."]
 labels = ["Doc1", "Doc2", "Doc3"]
 
 # Tokenize the texts
@@ -32,11 +28,7 @@ dtm(docs=docs, labels=labels)
 If we did not want to use spaCy docs, we would need to have a list containing lists of tokens like this:
 
 ```python
-docs = [
-    ["Our", "first", "text"],
-    ["Our", "second", "text"],
-    ["Our", "third", "text"]
-]
+docs = [["Our", "first", "text"], ["Our", "second", "text"], ["Our", "third", "text"]]
 ```
 
 !!! note "Developer's Note"
@@ -44,6 +36,7 @@ docs = [
 
     ```python
     from textacy.representations.vectorizers import Vectorizer
+
     vectorizer = Vectorizer(tf_type="linear", idf_type=None, norm=None)
     tokenized_docs = []
     for doc in docs:
@@ -88,7 +81,7 @@ Depending on your workflow, you can also configure the vectorizer directly or wh
 dtm = DTM(max_n_terms=100)
 
 # Configure the DTM tokenizer directly
-dtm.vectorizer.min_df=2
+dtm.vectorizer.min_df = 2
 
 # Set the parameters when calling the DTM instance
 dtm(docs=docs, labels=labels, max_df=5)
@@ -169,10 +162,7 @@ df = dtm.to_df(sum=True, by="Total", ascending=False)[0:20]
 
 # Plot the DataFrame
 df.Total.plot(
-    kind="bar",
-    title="Top 20 Most Frequent Terms",
-    xlabel="Terms",
-    ylabel="Frequency"
+    kind="bar", title="Top 20 Most Frequent Terms", xlabel="Terms", ylabel="Frequency"
 )
 ```
 
@@ -184,11 +174,12 @@ See the Pandas <code><a href="https://pandas.pydata.org/docs/reference/api/panda
 
     ```python
     import pandas as pd
+
     pd.options.plotting.backend = "plotly"
     df.Total.plot(
-            kind="bar",
-            title="Top 20 Most Frequent Terms",
-            labels={"index": "Terms", "value": "Frequency"}
+        kind="bar",
+        title="Top 20 Most Frequent Terms",
+        labels={"index": "Terms", "value": "Frequency"},
     )
     ```
 
@@ -213,11 +204,13 @@ from lexos.tokenizer import Tokenizer
 # 2. Create a Lexos Tokenizer instance
 lexos_tokenizer = Tokenizer(model="en_core_web_sm")
 
+
 # 3. Define a custom tokenizer function to return lists of tokens
 # We'll get token lemmas instead of text just to show that we have
 # access to NLP capabilities.
 def my_tokenizer(text, tokenizer=lexos_tokenizer):
     return [token.lemma_ for token in tokenizer.make_doc(text)]
+
 
 # 4. Create a `CountVectorizer` instance
 # Notice that we supply `CountVectorizer`, passing it our own tokenizer.
@@ -227,8 +220,8 @@ count_vectorizer = CountVectorizer(tokenizer=my_tokenizer, token_pattern=None)
 
 # Define the steps of the scikit-learn pipeline
 pipeline_steps = [
-    ('vectorizer', count_vectorizer),
-    ('logistic_regression', LogisticRegression())
+    ("vectorizer", count_vectorizer),
+    ("logistic_regression", LogisticRegression()),
 ]
 
 # Create the pipeline
@@ -259,13 +252,14 @@ terms_list = vectorizer.get_feature_names_out()
 new_dtm = DTM(docs=docs, labels=labels)
 
 # Assign our scikit-learn matrix as a numpy array to the new instance
-new_dtm.doc_term_matrix=document_term_matrix.toarray()
+new_dtm.doc_term_matrix = document_term_matrix.toarray()
 
 # Assign the vocabulary terms to the `DTM`'s vectorizer
 # Note that the `_validate_vocabulary()` method returns a tuple,
 # so we take the first element.
 new_dtm.vectorizer.vocabulary_terms = new_dtm.vectorizer._validate_vocabulary(
-    terms_list)[0]
+    terms_list
+)[0]
 ```
 
 This should enable you to access all properties and methods of the `DTM` class.

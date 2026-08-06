@@ -67,7 +67,7 @@ kt = KeyTerms(
     topn=10,
     model="xx_sent_ud_sm",
     ngrams=1,
-    normalize="lemma"
+    normalize="lemma",
 )
 
 # Access keyterms directly
@@ -215,10 +215,7 @@ Here are some rules of thumb for choosing a method:
 When spaCy `Doc` objects are used as input, the `ZTest` and `MannWhitney` classes automatically register a custom `._.topwords` attribute on each `Doc` (both target and comparison documents). The topwords are assign to this attribute and can be accessed directly form the `Doc`. For example:
 
 ```python
-ztest = ZTest(
-    target_docs=target_docs,
-    comparison_docs=background_docs
-)
+ztest = ZTest(target_docs=target_docs, comparison_docs=background_docs)
 
 # Access results via the extension
 print(target_docs[0]._.topwords)
@@ -248,12 +245,14 @@ from lexos.topwords.compare import Compare
 tokenizer = Tokenizer(model="en_core_web_sm")
 
 # Prepare sample documents
-docs = tokenizer.make_docs([
-    "Dracula was a vampire who lived in Transylvania. He had sharp fangs and drank blood.",
-    "Frankenstein created a monster in his laboratory. The creature was terrifying and misunderstood.",
-    "Alice fell down the rabbit hole into Wonderland. She met the Cheshire Cat and Mad Hatter.",
-    "Peter Pan could fly and never wanted to grow up. He lived in Neverland with the Lost Boys."
-])
+docs = tokenizer.make_docs(
+    [
+        "Dracula was a vampire who lived in Transylvania. He had sharp fangs and drank blood.",
+        "Frankenstein created a monster in his laboratory. The creature was terrifying and misunderstood.",
+        "Alice fell down the rabbit hole into Wonderland. She met the Cheshire Cat and Mad Hatter.",
+        "Peter Pan could fly and never wanted to grow up. He lived in Neverland with the Lost Boys.",
+    ]
+)
 
 # Create a calculator instance (ZTest in this example)
 calculator = ZTest(target_docs=[], comparison_docs=[])
@@ -283,7 +282,7 @@ results = compare.document_to_corpus(docs)
 #     'Doc 4': [('fly', 3.412), ('Neverland', 3.412), ...]
 # }
 
-print(results['Doc 1'])
+print(results["Doc 1"])
 # [('vampire', 3.845), ('Transylvania', 3.845), ('blood', 3.845), ...]
 ```
 
@@ -293,12 +292,9 @@ By default, your docs will be named "Doc 1", "Doc 2", "Doc 3", etc. However, you
 # Provide custom document labels
 doc_labels = ["Dracula", "Frankenstein", "Alice", "Peter Pan"]
 
-results = compare.document_to_corpus(
-    corpus=docs,
-    doc_labels=doc_labels
-)
+results = compare.document_to_corpus(corpus=docs, doc_labels=doc_labels)
 
-print(results['Dracula'])
+print(results["Dracula"])
 # [('vampire', 3.845), ('Transylvania', 3.845), ...]
 ```
 
@@ -308,9 +304,7 @@ The default output format is a dict with your document labels as keys and the to
 
 ```python
 df = compare.document_to_corpus(
-    corpus=docs,
-    doc_labels=doc_labels,
-    output_format="dataframe"
+    corpus=docs, doc_labels=doc_labels, output_format="dataframe"
 )
 
 print(df)
@@ -326,9 +320,7 @@ Additionally, you can produce a list of dicts:
 
 ```python
 list_results = compare.document_to_corpus(
-    corpus=docs,
-    doc_labels=doc_labels,
-    output_format="list_of_dicts"
+    corpus=docs, doc_labels=doc_labels, output_format="list_of_dicts"
 )
 
 print(list_results[:3])
@@ -351,9 +343,7 @@ doc_labels = ["Dracula", "Frankenstein", "Alice", "Peter Pan"]
 class_labels = ["gothic", "gothic", "whimsy", "whimsy"]
 
 results = compare.documents_to_classes(
-    docs=docs,
-    doc_labels=doc_labels,
-    class_labels=class_labels
+    docs=docs, doc_labels=doc_labels, class_labels=class_labels
 )
 
 # Results structure (dict format):
@@ -368,7 +358,7 @@ results = compare.documents_to_classes(
 #     }
 # }
 
-print(results['Dracula'])
+print(results["Dracula"])
 # {
 #     'comparison_class': 'whimsy',
 #     'topwords': [('vampire', 4.123), ('Transylvania', 4.123), ('blood', 4.012)]
@@ -391,7 +381,7 @@ df = compare.documents_to_classes(
     docs=docs,
     doc_labels=doc_labels,
     class_labels=class_labels,
-    output_format="dataframe"
+    output_format="dataframe",
 )
 
 print(df)
@@ -412,7 +402,7 @@ list_results = compare.documents_to_classes(
     docs=docs,
     doc_labels=doc_labels,
     class_labels=class_labels,
-    output_format="list_of_dicts"
+    output_format="list_of_dicts",
 )
 
 print(list_results[:2])
@@ -428,9 +418,7 @@ The `classes_to_classes()` method is used to find what what terms characterize e
 
 ```python
 results = compare.classes_to_classes(
-    docs=docs,
-    doc_labels=doc_labels,
-    class_labels=class_labels
+    docs=docs, doc_labels=doc_labels, class_labels=class_labels
 )
 
 # Results structure (dict format):
@@ -445,7 +433,7 @@ results = compare.classes_to_classes(
 #     }
 # }
 
-print(results['gothic'])
+print(results["gothic"])
 # {
 #     'comparison_class': 'whimsy',
 #     'topwords': [('vampire', 5.234), ('monster', 5.123), ('dark', 4.987)]
@@ -466,7 +454,7 @@ df = compare.classes_to_classes(
     docs=docs,
     doc_labels=doc_labels,
     class_labels=class_labels,
-    output_format="dataframe"
+    output_format="dataframe",
 )
 
 print(df)
@@ -482,7 +470,7 @@ list_results = compare.classes_to_classes(
     docs=docs,
     doc_labels=doc_labels,
     class_labels=class_labels,
-    output_format="list_of_dicts"
+    output_format="list_of_dicts",
 )
 
 print(list_results[:2])
@@ -501,7 +489,7 @@ docs = [
     {"doc": docs[0], "doc_label": "Dracula", "class_label": "gothic"},
     {"doc": docs[1], "doc_label": "Frankenstein", "class_label": "gothic"},
     {"doc": docs[2], "doc_label": "Alice", "class_label": "whimsy"},
-    {"doc": docs[3], "doc_label": "Peter Pan", "class_label": "whimsy"}
+    {"doc": docs[3], "doc_label": "Peter Pan", "class_label": "whimsy"},
 ]
 
 # No need to specify doc_labels and class_labels separately
@@ -522,10 +510,12 @@ If given a list of spaCy `Doc` objects, the `Compare` class will attempt to extr
     ```python
     from dataclasses import dataclass
 
+
     @dataclass
     class Metadata:
         author: str
         language: str
+
 
     doc._.metadata = Metadata("Shakespeare", "en")
     ```
@@ -533,10 +523,7 @@ If given a list of spaCy `Doc` objects, the `Compare` class will attempt to extr
     You can now use dot notation for the nested attributes:
 
     ```python
-    results = comparison.documents_to_classes(
-          docs=docs,
-          class_labels=["_.metadata.author"]
-      )
+    results = comparison.documents_to_classes(docs=docs, class_labels=["_.metadata.author"])
     ```
 
 #### Helper Methods

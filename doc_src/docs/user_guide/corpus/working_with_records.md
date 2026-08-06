@@ -14,7 +14,7 @@ from lexos.corpus import Record
 record = Record(
     name="example_doc",
     content="The quick brown fox jumps over the lazy dog.",
-    meta={"author": "Jane", "year": 2025}
+    meta={"author": "Jane", "year": 2025},
 )
 ```
 
@@ -24,10 +24,7 @@ If you already have a spaCy `Doc` object, just pass it to the record using the `
 
 ```python
 record = Record(
-    name="parsed_doc",
-    content=doc,
-    meta={"author": "Jane"},
-    model="en_core_web_sm"
+    name="parsed_doc", content=doc, meta={"author": "Jane"}, model="en_core_web_sm"
 )
 ```
 

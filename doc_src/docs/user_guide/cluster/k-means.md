@@ -132,8 +132,8 @@ All three types of visualizations are generated using the Python Plotly library.
 You can also save the images programmatically using `kmeans.save()`. The image type will be detected automatically by the file extension in the `path` parameter. You can also set `html=True` to save the image as an HTML file. Here are some examples:
 
 ```python
-kmeans.save(path="myimage.png") # Saves as a .png file
-kmeans.save(path="myimage.html", html=True) # Saves as an HTML file
+kmeans.save(path="myimage.png")  # Saves as a .png file
+kmeans.save(path="myimage.html", html=True)  # Saves as an HTML file
 ```
 
 Under the hood, `save()` calls Plotly's <code><a href="https://plotly.github.io/plotly.py-docs/generated/plotly.io.image_html.html" target="_blank">write_image()</a></code> and <code><a href="https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_html.html" target="_blank">write_html()</a></code>, and it will accept any keywords taken by those methods.

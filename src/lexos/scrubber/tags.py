@@ -468,16 +468,15 @@ def replace_attribute(
     for element in elements:
         if element.has_attr(old_attribute):
             # NOTE: It appears that this block is not needed
-            # NOTE: capitalized comments to pass pre-commit
             # Only process attributes with the specific value if provided
-            # If matcher_type == "regex":
-            #     Check_match = re.search(
-            #         Attribute_value, " ".join(element[old_attribute])
+            # if matcher_type == "regex":
+            #     check_match = re.search(
+            #         attribute_value, " ".join(element[old_attribute])
             #     )
             # else:
-            #     Check_match = " ".join(element[old_attribute])
-            # If attribute_value is not None and check_match is None:
-            #     Continue # Never reached because check_match is always a string
+            #     check_match = " ".join(element[old_attribute])
+            # if attribute_value is not None and check_match is None:
+            #     continue # Never reached because check_match is always a string
 
             # Keep original value unless a replacement is specified
             if replace_value:

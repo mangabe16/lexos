@@ -83,10 +83,7 @@ from lexos.rolling_windows.calculators.counts import Counts
 
 # Using the `windows` object previously created
 calculator = Counts(
-    windows=windows,
-    patterns=["a", "e"],
-    case_sensitive=False,
-    mode="exact"
+    windows=windows, patterns=["a", "e"], case_sensitive=False, mode="exact"
 )
 ```
 
@@ -104,10 +101,7 @@ If you wish to see the numerical data produced by the calculator, use the `to_df
 
 ```python
 calculator = Counts(
-    windows=windows,
-    patterns=["a", "e"],
-    case_sensitive=False,
-    mode="exact"
+    windows=windows, patterns=["a", "e"], case_sensitive=False, mode="exact"
 )
 df = calculator.to_df()
 df.to_csv("filename.csv")

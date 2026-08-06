@@ -76,7 +76,9 @@ Additionally, you can filter which attributes to target with the `attribute_filt
 ```python
 text = '<div class="keep">Text</div><div class="remove">Text</div>'
 
-scrubbed_text = remove_attribute(text, selector="div", attribute_filter="class", attribute_value="remove")
+scrubbed_text = remove_attribute(
+    text, selector="div", attribute_filter="class", attribute_value="remove"
+)
 
 print(scrubbed_text)
 # <div class="keep">Text</div><div>Text</div>
@@ -101,12 +103,16 @@ replace_attribute(text, "div", "class", "data-type")
 
 # Replace class="info" with class="highlight"
 text = '<p class="info">Text</p><p class="data">More</p>'
-replace_attribute(text, "p", "class", "class", filter_value="info", replace_value="highlight")
+replace_attribute(
+    text, "p", "class", "class", filter_value="info", replace_value="highlight"
+)
 # <p class="highlight">Text</p><p class="data">More</p>
 
 # Only replace attributes on elements with a specific attribute value
 text = '<div class="main" id="content">Text</div><div class="sidebar">Side</div>'
-replace_attribute(text, "div", "class", "role", attribute_filter="id", filter_value="content")
+replace_attribute(
+    text, "div", "class", "role", attribute_filter="id", filter_value="content"
+)
 # <div role="main" id="content">Text</div><div class="sidebar">Side</div>
 ```
 

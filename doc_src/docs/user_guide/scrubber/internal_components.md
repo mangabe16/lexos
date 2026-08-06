@@ -15,6 +15,7 @@ def title_case(text: str) -> str:
     """Our custom function to convert text to title case."""
     return text.title()
 
+
 # Register the custom function
 scrubber_components.register("title_case", func=title_case)
 ```
