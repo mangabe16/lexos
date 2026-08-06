@@ -10,6 +10,8 @@ from typing import Any, Sequence, Optional
 import pandas as pd
 from pydantic import Field
 from sklearn.tree import DecisionTreeClassifier
+import numpy as np
+import scipy.sparse as sp
 
 from lexos.dtm import DTM
 from lexos.classification.trainer import Pipeline
@@ -43,7 +45,8 @@ class DecisionTreePipeline(Pipeline):
         doc_labels = [f"train_doc_{i}" for i in range(len(token_lists))]
 
         dtm = DTM()
-        x_raw = dtm.fit_transform(token_lists, labels=doc_labels, min_df=self.min_df)
+        dtm(token_lists, labels=doc_labels, min_df=self.min_df)
+        x_raw = dtm.doc_term_matrix
 
         if active_features is not None:
             features_indices = [
@@ -53,7 +56,7 @@ class DecisionTreePipeline(Pipeline):
             ]
             x_raw = (
                 x_raw[:, features_indices]
-                if isinstance(x_raw, sp.spmatrix or np.ndarray)
+                if isinstance(x_raw, (sp.spmatrix, np.ndarray))
                 else dtm.tocsr()[:, features_indices]
             )
 
@@ -78,6 +81,11 @@ class DecisionTreePipeline(Pipeline):
         token_lists = _tokenize_items(train_data, include_bigrams=self.include_bigrams)
         doc_labels = [f"train_doc_{i}" for i in range(len(token_lists))]
 
+        # Instantiate empty DTM model object
         dtm = DTM()
-        features = dtm.fit_transform(token_lists, labels=doc_labels, min_df=self.min_df)
-        return features.sorted_term_list
+
+        # Call instance to fit vectorizer and construct matrix
+        dtm(token_lists, labels=doc_labels, min_df=self.min_df)
+
+        # Access term list property on the dtm object directly
+        return dtm.sorted_terms_list
