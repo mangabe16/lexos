@@ -127,8 +127,6 @@ class Classifier(BaseModel):
             raise ValueError("Classifier must be fitted before calling predict().")
 
         scaler = self._results_payload.get("final_scaler")
-        if scaler is None:
-            raise ValueError("No fitted scaler is available for prediction.")
 
         # 1. Safely handle feature alignment if data is a DataFrame
         if isinstance(data, pd.DataFrame):
@@ -142,8 +140,9 @@ class Classifier(BaseModel):
         elif isinstance(data, list) and isinstance(data[0], str):
             from lexos.classification.mlp_pipeline import _tokenize_items
 
-            # If raw text is passed, transform it into the DTM matrix using the fitted pipeline vectorizer rules
-            data = self._results_payload.get("final_dtm").transform(
+            dtm_object = self._results_payload.get("final_dtm")
+
+            data = dtm_object.vectorizer.transform(
                 [
                     _tokenize_items(
                         [text], include_bigrams=self.pipeline.include_bigrams
@@ -153,7 +152,7 @@ class Classifier(BaseModel):
             )
 
         # 2. Scale and run inference
-        transformed_data = scaler.transform(data)
+        transformed_data = scaler.transform(data) if scaler is not None else data
         predictions = self._model.predict(transformed_data)
 
         # 3. Assemble the rich output DataFrame
