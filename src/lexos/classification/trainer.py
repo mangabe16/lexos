@@ -5,7 +5,7 @@ Utilizes the Strategy and Template Method design patterns to allow for a hybrid,
 input-agnostic context orchestration loop where individual Pipelines dictate
 the underlying data transformation strategies.
 
-Last Updated: June 23, 2026
+Last Updated: August 9, 2026
 """
 
 import copy
@@ -187,7 +187,7 @@ class Classifier(BaseModel):
         self._evaluate(results)
 
     def _preprocess_data(self) -> None:
-        """Hook reserved for shared dataset formatting and dynamic feature discovery discovery."""
+        """Hook reserved for shared dataset formatting and dynamic feature discovery."""
         if len(self.train_data) != len(self.labels):
             raise ValueError(
                 "Size mismatch across sample dimensions and structural target labels."
@@ -245,13 +245,13 @@ class Classifier(BaseModel):
 
         experiment_rows = []
 
-        # 1. Train and parse baseline configurations
         self.fit()
 
         base_holdout = (
             getattr(self, "_results_payload", {}).get("holdout_metrics") or {}
         )
         base_cv = getattr(self, "_results_payload", {}).get("cv_mean_metrics") or {}
+        base_final = getattr(self, "_results_payload", {}).get("final_metrics") or {}
         base_row = {
             "configuration": "baseline",
             "removed_feature": "baseline",
@@ -262,66 +262,52 @@ class Classifier(BaseModel):
             "cv_accuracy": base_cv.get("accuracy", np.nan),
             "cv_balanced_accuracy": base_cv.get("balanced_accuracy", np.nan),
             "cv_macro_f1": base_cv.get("macro_f1", np.nan),
-            "holdout_accuracy": base_holdout.get("accuracy", np.nan),
-            "holdout_balanced_accuracy": base_holdout.get("balanced_accuracy", np.nan),
-            "holdout_macro_f1": base_holdout.get("macro_f1", np.nan),
-            "cv_accuracy": base_cv.get("accuracy", np.nan),
-            "cv_balanced_accuracy": base_cv.get("balanced_accuracy", np.nan),
-            "cv_macro_f1": base_cv.get("macro_f1", np.nan),
+            "final_model_accuracy": base_final.get("accuracy", np.nan),
+            "final_model_macro_f1": base_final.get("macro_f1", np.nan),
         }
         experiment_rows.append(base_row)
 
-        # 2. Progressively drop features one by one
         for step, feature_to_drop in enumerate(removal_order, start=1):
             active_features = [f for f in active_features if f != feature_to_drop]
-            if active_features:
-                cloned_strategy = copy.deepcopy(self.pipeline)
-            if active_features:
-                cloned_strategy = copy.deepcopy(self.pipeline)
+            cloned_strategy = copy.deepcopy(self.pipeline)
 
-                sub_classifier = Classifier(
-                    train_data=self.train_data,
-                    labels=self.labels,
-                    pipeline=cloned_strategy,
-                    features=active_features,
-                )
-                sub_classifier.fit()
-                sub_classifier = Classifier(
-                    train_data=self.train_data,
-                    labels=self.labels,
-                    pipeline=cloned_strategy,
-                    features=active_features,
-                )
-                sub_classifier.fit()
+            sub_classifier = Classifier(
+                train_data=self.train_data,
+                labels=self.labels,
+                pipeline=cloned_strategy,
+                features=active_features,
+            )
+            sub_classifier.fit()
 
-                sub_holdout = (
-                    getattr(sub_classifier, "_results_payload", {}).get(
-                        "holdout_metrics"
-                    )
-                    or {}
-                )
-                sub_cv = (
-                    getattr(sub_classifier, "_results_payload", {}).get(
-                        "cv_mean_metrics"
-                    )
-                    or {}
-                )
-                sub_final = (
-                    getattr(sub_classifier, "_results_payload", {}).get("final_metrics")
-                    or {}
-                )
+            sub_holdout = (
+                getattr(sub_classifier, "_results_payload", {}).get("holdout_metrics")
+                or {}
+            )
+            sub_cv = (
+                getattr(sub_classifier, "_results_payload", {}).get("cv_mean_metrics")
+                or {}
+            )
+            sub_final = (
+                getattr(sub_classifier, "_results_payload", {}).get("final_metrics")
+                or {}
+            )
 
-                row = {
-                    "configuration": f"remove_{step:02d}",
-                    "removed_feature": feature_to_drop,
-                    "features_remaining": len(active_features),
-                    "holdout_accuracy": sub_holdout.get("accuracy", np.nan),
-                    "holdout_macro_f1": sub_holdout.get("macro_f1", np.nan),
-                    "cv_accuracy": sub_cv.get("accuracy", np.nan),
-                    "final_model_accuracy": sub_final.get("accuracy", np.nan),
-                    "final_model_macro_f1": sub_final.get("macro_f1", np.nan),
-                }
-                experiment_rows.append(row)
+            row = {
+                "configuration": f"remove_{step:02d}",
+                "removed_feature": feature_to_drop,
+                "features_remaining": len(active_features),
+                "holdout_accuracy": sub_holdout.get("accuracy", np.nan),
+                "holdout_balanced_accuracy": sub_holdout.get(
+                    "balanced_accuracy", np.nan
+                ),
+                "holdout_macro_f1": sub_holdout.get("macro_f1", np.nan),
+                "cv_accuracy": sub_cv.get("accuracy", np.nan),
+                "cv_balanced_accuracy": sub_cv.get("balanced_accuracy", np.nan),
+                "cv_macro_f1": sub_cv.get("macro_f1", np.nan),
+                "final_model_accuracy": sub_final.get("accuracy", np.nan),
+                "final_model_macro_f1": sub_final.get("macro_f1", np.nan),
+            }
+            experiment_rows.append(row)
 
         return pd.DataFrame(experiment_rows)
 
