@@ -1,6 +1,6 @@
 [project]
 name = "lexos"
-version = "0.1.0b31"
+version = "0.2.0b0"
 description = "A Python library that reproduces and extends text analysis tools from the Lexos web app. Designed for entry-level students and researchers in the Humanities, with language-agnostic support for historical and under-resourced languages."
 readme = "README.md"
 license = "MIT"
@@ -23,7 +23,7 @@ dependencies = [
     "nbformat>=5.10.4",
     "pandas>=2.2.3",
     "plotly>=6.2.0,<7.0.0",
-    "puremagic>=2.0.0b2",
+    "puremagic>=2.2.0",
     "pydantic>=2.10.4",
     "pydantic-extra-types>=2.10.2",
     "pypdf>=6.14.2",
@@ -81,6 +81,7 @@ dev = [
     "ipykernel>=6.29.5",
     "pre-commit>=4.5.0",
     "nbconvert>=7.17.1",
+    "complexipy>=7.0.1",
 ]
 
 [tool.pytest.ini_options]
