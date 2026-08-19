@@ -15,7 +15,7 @@ import scipy.sparse as sp
 
 from lexos.dtm import DTM
 from lexos.classification.trainer import Pipeline
-from lexos.classification.mlp_pipeline import _tokenize_items, _to_dense
+from lexos.classification.utils import _to_dense, _tokenize_items
 
 
 class DecisionTreePipeline(Pipeline):

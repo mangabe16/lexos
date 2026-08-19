@@ -26,48 +26,8 @@ except ImportError:
     SMOTE = None
 
 from lexos.dtm import DTM
-from lexos.tokenizer import WhitespaceTokenizer
-from lexos.tokenizer.ngrams import Ngrams
 from lexos.classification.trainer import Pipeline
-
-
-def _tokenize_items(
-    items: Sequence[Any], include_bigrams: bool = True
-) -> list[list[str]]:
-    """Transform sequence objects or strings into normal unigram/bigram token vectors."""
-    ws_tokenizer = WhitespaceTokenizer()
-    ngrams = Ngrams(n=2)
-    token_lists: list[list[str]] = []
-
-    for item in items:
-        if hasattr(item, "text"):
-            unigrams = [tok.text.lower() for tok in item if tok.is_alpha]
-        elif isinstance(item, str):
-            unigrams = [tok for tok in ws_tokenizer(item.lower()) if tok.isalpha()]
-        else:
-            unigrams = [str(tok).lower() for tok in item if str(tok).isalpha()]
-
-        if include_bigrams:
-            bigrams = [
-                f"{t1}_{t2}"
-                for t1, t2 in ngrams.from_tokens(unigrams, output="tuples")
-                if t1.isalpha() and t2.isalpha()
-            ]
-            tokens = unigrams + bigrams
-        else:
-            tokens = unigrams
-        token_lists.append(tokens)
-
-    if any(len(tokens) == 0 for tokens in token_lists):
-        raise ValueError(
-            "At least one document produced zero tokens after preprocessing."
-        )
-    return token_lists
-
-
-def _to_dense(matrix: Any) -> np.ndarray:
-    """Safely cast arbitrary matrices to a dense numpy array format."""
-    return matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
+from lexos.classification.utils import _to_dense, _tokenize_items
 
 
 class MLPPipeline(Pipeline):

@@ -5,7 +5,7 @@ Utilizes the Strategy and Template Method design patterns to allow for a hybrid,
 input-agnostic context orchestration loop where individual Pipelines dictate
 the underlying data transformation strategies.
 
-Last Updated: August 9, 2026
+Last Updated: August 18, 2026
 """
 
 import copy
@@ -138,7 +138,7 @@ class Classifier(BaseModel):
             )
 
         elif isinstance(data, list) and isinstance(data[0], str):
-            from lexos.classification.mlp_pipeline import _tokenize_items
+            from lexos.classification.utils import _tokenize_items
 
             dtm_object = self._results_payload.get("final_dtm")
 
