@@ -1,4 +1,7 @@
-"""Shared utilities for Lexos classification pipelines."""
+"""utils.py.
+
+Last update: August 23, 2026
+"""
 
 from typing import Any, Sequence
 
