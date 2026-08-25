@@ -196,17 +196,21 @@ class Classifier(BaseModel):
 
     def _evaluate(self, results: dict[str, Any]) -> None:
         """Populates internal context performance metrics from strategy payloads."""
+        self._results_payload = results
         self._model = results.get("final_model")
 
-        self._results_payload = results
+        # Dynamically extract whatever primary metrics dict was provided
         self._metrics = (
             results.get("holdout_metrics", {})
             or results.get("cv_mean_metrics", {})
             or results.get("final_metrics", {})
+            or results.get("metrics", {})
         )
+
+        # Safely retrive report
         self._report = (
-            results.get("holdout_report", pd.DataFrame())
-            if not results.get("holdout_report", pd.DataFrame()).empty
+            results.get("holdout_report")
+            if results.get("holdout_report") is not None
             else results.get("final_report", pd.DataFrame())
         )
 
