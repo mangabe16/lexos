@@ -1,14 +1,15 @@
 """test_decision_tree_pipeline.py.
 
 Coverage: 100%
-Last update: August 19, 2026
-Last test: 08/19/2026
+Last update: August 25, 2026
+Last test: August 25, 2026
 
 Unit tests for the DecisionTreePipeline class.
 """
 
 import numpy as np
 import pandas as pd
+import pytest
 from sklearn.tree import DecisionTreeClassifier
 
 from lexos.classification.decision_tree_pipeline import DecisionTreePipeline
@@ -99,3 +100,43 @@ def test_execute_training_restricts_matrix_to_active_features():
     estimator = results["final_model"]
     assert estimator.n_features_in_ == 1
     assert np.isfinite(estimator.tree_.threshold).all()
+
+
+def test_predict_transforms_text_with_fitted_pipeline():
+    """Predict text using the fitted DTM and estimator."""
+    documents, labels = _training_corpus()
+    pipeline = DecisionTreePipeline(min_df=1, include_bigrams=False, seed=17)
+    results = pipeline.execute_training(documents, labels)
+
+    predictions = pipeline.predict(["commerce treasury", "liberty republic"], results)
+
+    assert len(predictions) == 2
+    assert set(predictions) <= set(labels)
+
+
+def test_predict_restricts_text_to_active_features():
+    """Predict using the same selected feature subset used during training."""
+    documents, labels = _training_corpus()
+    pipeline = DecisionTreePipeline(min_df=1, include_bigrams=False, seed=17)
+    active_features = ["treasury"]
+    results = pipeline.execute_training(
+        documents,
+        labels,
+        active_features=active_features,
+    )
+
+    predictions = pipeline.predict(
+        ["treasury", "liberty"],
+        results,
+        active_features=active_features,
+    )
+
+    assert list(predictions) == ["HAMILTON", "MADISON"]
+
+
+def test_predict_rejects_incomplete_payload():
+    """Prediction requires both a fitted estimator and DTM."""
+    pipeline = DecisionTreePipeline()
+
+    with pytest.raises(ValueError, match="missing fitted model or DTM"):
+        pipeline.predict(["text"], {})

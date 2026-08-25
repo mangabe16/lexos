@@ -5,7 +5,7 @@ Utilizes the Strategy and Template Method design patterns to allow for a hybrid,
 input-agnostic context orchestration loop where individual Pipelines dictate
 the underlying data transformation strategies.
 
-Last Updated: August 9, 2026
+Last Updated: August 25, 2026
 """
 
 import copy
@@ -29,7 +29,10 @@ class Pipeline(BaseModel, ABC):
 
     @abstractmethod
     def execute_training(
-        self, train_data: Sequence[Any] | pd.DataFrame, labels: Sequence[str]
+        self,
+        train_data: Sequence[Any] | pd.DataFrame,
+        labels: Sequence[str],
+        active_features: Optional[Sequence[str]] = None,
     ) -> dict[str, Any]:
         """Execute feature extraction and model fitting routines.
 
@@ -49,6 +52,16 @@ class Pipeline(BaseModel, ABC):
 
         This delegates feature space tracking to the individual Pipeline strategies
         """
+        pass
+
+    @abstractmethod
+    def predict(
+        self,
+        data: Any,
+        results_payload: dict[str, Any],
+        active_features: Optional[Sequence[str]] = None,
+    ) -> Sequence[str]:
+        """Transform input data and return predicted label sequences."""
         pass
 
 
@@ -81,6 +94,7 @@ class Classifier(BaseModel):
     @field_validator("train_data")
     @classmethod
     def _validate_train_data(cls, value: Any) -> Any:
+        """Validate that training data is a pandas DataFrame or non-string sequence."""
         if isinstance(value, pd.DataFrame):
             return value
 
@@ -126,47 +140,21 @@ class Classifier(BaseModel):
         if self._model is None:
             raise ValueError("Classifier must be fitted before calling predict().")
 
-        scaler = self._results_payload.get("final_scaler")
+        predictions = self.pipeline.predict(
+            data=data,
+            results_payload=self._results_payload,
+            active_features=self.features,
+        )
 
-        # 1. Safely handle feature alignment if data is a DataFrame
-        if isinstance(data, pd.DataFrame):
-            # Ensure columns match what the pipeline expects, using the baseline features
-            data = self.pipeline._filter_active_features(
-                baseline_features=self.features,
-                matrix=data,
-                active_features=self.features,
-            )
-
-        elif isinstance(data, list) and isinstance(data[0], str):
-            from lexos.classification.mlp_pipeline import _tokenize_items
-
-            dtm_object = self._results_payload.get("final_dtm")
-
-            data = dtm_object.vectorizer.transform(
-                [
-                    _tokenize_items(
-                        [text], include_bigrams=self.pipeline.include_bigrams
-                    )[0]
-                    for text in data
-                ]
-            )
-
-        # 2. Scale and run inference
-        transformed_data = scaler.transform(data) if scaler is not None else data
-        predictions = self._model.predict(transformed_data)
-
-        # 3. Assemble the rich output DataFrame
         output_dict = {}
 
-        # Add Document IDs if given, otherwise fallback to standard integer indices
         if ids is not None:
             if len(ids) != len(predictions):
-                raise ValueError("Length of 'ids' must match length of predictions.")
+                raise ValueError("Length of 'ids' must match length of 'predictions'.")
             output_dict["doc_id"] = list(ids)
         else:
             output_dict["doc_id"] = list(range(len(predictions)))
 
-        # Add True Labels if provided for side-by-side comparison
         if true_labels is not None:
             if len(true_labels) != len(predictions):
                 raise ValueError(
@@ -174,7 +162,6 @@ class Classifier(BaseModel):
                 )
             output_dict["true_label"] = list(true_labels)
 
-        # Add the final predictions
         output_dict["predicted_label"] = list(predictions)
 
         return pd.DataFrame(output_dict)

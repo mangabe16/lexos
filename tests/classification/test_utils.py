@@ -1,8 +1,8 @@
 """test_utils.py.
 
-Coverage:100%
-Last update: 08/18/2026
-Last test: 08/23/2026
+Coverage: 100%
+Last update: August 25, 2026
+Last test: August 25, 2026
 """
 
 from pathlib import Path
@@ -43,8 +43,8 @@ class FakeDocument:
 
 
 def test_tokenize_items_returns_unigrams_and_bigrams():
-    """Tokenization includes normalized unigrams and adjacent bigrams by default."""
-    assert _tokenize_items(["Alpha beta gamma"]) == [
+    """Tokenization includes normalized unigrams and adjacent bigrams when enabled."""
+    assert _tokenize_items(["Alpha beta gamma"], include_bigrams=True) == [
         ["alpha", "beta", "gamma", "alpha_beta", "beta_gamma"]
     ]
 
@@ -53,7 +53,9 @@ def test_tokenize_items_supports_document_like_items():
     """Tokenization accepts document-like objects with token metadata."""
     document = FakeDocument(FakeToken("Alpha"), FakeToken("beta"))
 
-    assert _tokenize_items([document]) == [["alpha", "beta", "alpha_beta"]]
+    assert _tokenize_items([document], include_bigrams=True) == [
+        ["alpha", "beta", "alpha_beta"]
+    ]
 
 
 def test_tokenize_items_can_exclude_bigrams():

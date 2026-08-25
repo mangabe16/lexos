@@ -1,8 +1,8 @@
 """test_trainer.py.
 
 Coverage: 100%
-Last update: 08/18/2026
-Last test: 08/18/2026
+Last update: August 25, 2026
+Last test: August 25, 2026
 """
 
 import importlib.util
@@ -75,6 +75,33 @@ class DummyPipeline(Pipeline):
             None if active_features is None else list(active_features)
         )
         return self.training_payload
+
+    def predict(self, data, results_payload, active_features=None):
+        """Dummy prediction implementation required by the Pipeline contract."""
+        if isinstance(data, pd.DataFrame):
+            if hasattr(self, "_filter_active_features"):
+                data = self._filter_active_features(
+                    baseline_features=self.discovered_features,
+                    matrix=data,
+                    active_features=active_features,
+                )
+            else:
+                data = data.loc[:, list(active_features)].to_numpy()
+        elif isinstance(data, list) and data and isinstance(data[0], str):
+            from lexos.classification.utils import _tokenize_items
+
+            dtm_object = results_payload["final_dtm"]
+            token_lists = _tokenize_items(
+                data,
+                include_bigrams=self.include_bigrams,
+            )
+            data = dtm_object.vectorizer.transform(token_lists)
+
+        scaler = results_payload.get("final_scaler")
+        if scaler is not None:
+            data = scaler.transform(data)
+
+        return results_payload["final_model"].predict(data)
 
 
 class FilteringPipeline(DummyPipeline):
@@ -225,6 +252,16 @@ def test_pipeline_abstract_hooks_can_be_invoked_on_concrete_strategy_instance():
     assert Pipeline.execute_training(pipeline, ["a", "b"], ["x", "y"]) is None
     assert pipeline._discover_calls == 0
     assert pipeline._execute_calls == 0
+
+
+def test_pipeline_predict_abstract_hook_can_be_invoked_on_concrete_strategy_instance():
+    """Tests calling the abstract prediction hook directly returns None."""
+    pipeline = DummyPipeline(
+        discovered_features=["alpha"],
+        training_payload=build_payload(RecordingModel(["x"])),
+    )
+
+    assert Pipeline.predict(pipeline, ["a"], {}) is None
 
 
 def test_preprocess_data_raises_on_mismatched_lengths():

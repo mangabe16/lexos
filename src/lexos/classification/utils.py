@@ -13,7 +13,7 @@ from lexos.tokenizer.ngrams import Ngrams
 
 
 def _tokenize_items(
-    items: Sequence[Any], include_bigrams: bool = True
+    items: Sequence[Any], include_bigrams: bool = False
 ) -> list[list[str]]:
     """Transform sequence objects or strings into unigram/bigram token vectors."""
     ws_tokenizer = WhitespaceTokenizer()

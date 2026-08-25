@@ -89,3 +89,39 @@ class DecisionTreePipeline(Pipeline):
 
         # Access term list property on the dtm object directly
         return dtm.sorted_terms_list
+
+    def predict(
+        self,
+        data: Any,
+        results_payload: dict[str, Any],
+        active_features: Optional[Sequence[str]] = None,
+    ) -> Sequence[str]:
+        """Transform new text data using fitted DTM vectorizer and run prediction."""
+        estimator = results_payload.get("final_model")
+        dtm_obj = results_payload.get("final_dtm")
+
+        if estimator is None or dtm_obj is None:
+            raise ValueError("Pipeline payload is missing fitted model or DTM")
+
+        # Tokenize input strings
+        token_lists = _tokenize_items(data, include_bigrams=self.include_bigrams)
+
+        # Vectorize using the fitted DTM vectorizer
+        x_raw = dtm_obj.vectorizer.transform(token_lists)
+
+        # Filter active features if feature pruning/selection was applied
+        if active_features is not None:
+            baseline_features = dtm_obj.sorted_terms_list
+            indices = [
+                baseline_features.index(feat)
+                for feat in active_features
+                if feat in baseline_features
+            ]
+            x_raw = (
+                x_raw[:, indices]
+                if isinstance(x_raw, (sp.spmatrix, np.ndarray))
+                else dtm_obj.tocsr()[:, indices]
+            )
+
+        # Run estimator prediction
+        return estimator.predict(_to_dense(x_raw))
